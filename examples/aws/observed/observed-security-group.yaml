@@ -1,0 +1,46 @@
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroup
+metadata:
+  name: platform-aws-sg
+  labels:
+    app: myplatform
+    environment: development
+  annotations:
+    crossplane.io/composition-resource-name: sg
+    crossplane.io/external-name: sg-1234567890
+status:
+  atProvider:
+    id: sg-1234567890
+    vpcId: vpc-12345678
+    region: us-west-2
+    description: Security group for myplatform-aws-infrastructure
+    ingress:
+      - fromPort: 5432
+        toPort: 5432
+        protocol: tcp
+        cidrBlocks:
+          - "10.0.0.0/8"
+        description: PostgreSQL access from VPC
+      - fromPort: 22
+        toPort: 22
+        protocol: tcp
+        cidrBlocks:
+          - "0.0.0.0/0"
+        description: SSH access
+    egress:
+      - fromPort: 0
+        toPort: 0
+        protocol: "-1"
+        cidrBlocks:
+          - "0.0.0.0/0"
+        description: All outbound traffic
+  conditions:
+  - lastTransitionTime: "2024-08-17T12:30:26Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2024-08-17T00:18:59Z"
+    reason: Available
+    status: "True"
+    type: Ready
+      

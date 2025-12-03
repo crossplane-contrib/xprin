@@ -1,0 +1,17 @@
+common:
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml
+
+tests:
+- name: "Validation fails without XRD defaults"
+  inputs:
+    xr: ../../aws/xr_without_team.yaml
+- name: "Validation passes with XRD defaults applied"
+  patches:
+    xrd: ../../aws/xrd-aws.yaml
+  inputs:
+    xr: ../../aws/xr_without_team.yaml

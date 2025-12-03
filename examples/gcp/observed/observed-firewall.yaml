@@ -1,0 +1,36 @@
+apiVersion: compute.gcp.upbound.io/v1beta1
+kind: Firewall
+metadata:
+  name: platform-base-gcp-firewall
+  labels:
+    app: myplatform
+    environment: development
+  annotations:
+    crossplane.io/composition-resource-name: firewall
+    crossplane.io/external-name: platform-base-gcp-firewall
+status:
+  atProvider:
+    id: "1234567890123456789"
+    name: platform-base-gcp-firewall
+    project: my-gcp-project
+    description: Firewall rule for platform-base-gcp
+    allow:
+      - protocol: tcp
+        ports:
+          - "22"
+          - "80"
+          - "443"
+    sourceRanges:
+      - "0.0.0.0/0"
+    targetTags:
+      - platform-base-gcp-compute
+  conditions:
+  - lastTransitionTime: "2024-08-17T12:30:26Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2024-08-17T00:18:59Z"
+    reason: Available
+    status: "True"
+    type: Ready
+

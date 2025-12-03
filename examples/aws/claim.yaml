@@ -1,0 +1,12 @@
+apiVersion: aws.example.com/v1
+kind: AWSInfrastructure
+metadata:
+  name: platform-aws
+  namespace: default
+spec:
+  region: us-west-2
+  project: myplatform
+  vpcId: vpc-12345678
+  dbUsername: admin
+  sshPublicKey: qa_ssh_key
+  team: devops

@@ -1,0 +1,58 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xgcpinfrastructures.gcp.example.com
+spec:
+  group: gcp.example.com
+  names:
+    kind: XGCPInfrastructure
+    plural: xgcpinfrastructures
+  claimNames:
+    kind: GCPInfrastructure
+    plural: gcpinfrastructures
+  versions:
+  - name: v1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              region:
+                type: string
+                description: GCP region
+              team:
+                type: string
+                description: Team name for tagging
+                default: devops
+                minLength: 1
+              projectId:
+                type: string
+                description: GCP project ID
+              dbUsername:
+                type: string
+                description: Database username
+              sshPublicKey:
+                type: string
+                description: SSH public key for Compute instances
+                enum:
+                - qa_ssh_key
+              project:
+                type: string
+                description: Project name
+            required:
+            - region
+            - team
+          status:
+            type: object
+            properties:
+              firewallRuleId:
+                type: string
+                description: Firewall rule identifier
+              cloudSql:
+                type: string
+                description: Cloud SQL instance identifier (when created)
+

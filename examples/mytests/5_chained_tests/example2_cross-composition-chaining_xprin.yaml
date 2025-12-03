@@ -1,0 +1,26 @@
+tests:
+- name: "Base layer final loop"
+  id: base_final
+  patches:
+    xrd: ../../base/xrd-base.yaml
+  inputs:
+    xr: ../../base/xr.yaml
+    composition: ../../base/composition.yaml
+    functions: ../../base/functions.yaml
+    crds:
+    - ../../base/xrd-base.yaml
+    - ../../base/crossplane.yaml
+    - ../../aws/xrd-aws.yaml
+    - ../../gcp/xrd-gcp.yaml
+
+- name: "AWS layer first loop"
+  id: aws_first
+  patches:
+    xrd: ../../aws/xrd-aws.yaml
+  inputs:
+    xr: {{ index .Tests.base_final.Outputs.Rendered "XAWSInfrastructure/platform-base-aws" }}
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml

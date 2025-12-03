@@ -1,0 +1,16 @@
+common:
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml
+
+tests:
+- name: "Initial reconciliation loop"
+  inputs:
+    xr: ../../aws/xr.yaml
+- name: "Second reconciliation loop"
+  inputs:
+    xr: ../../aws/xr.yaml
+    observed-resources: ../../aws/observed

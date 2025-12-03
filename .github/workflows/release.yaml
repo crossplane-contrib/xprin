@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  # Common versions
+  EARTHLY_VERSION: '0.8.16'
+
+  # Force Earthly to use color output
+  FORCE_COLOR: "1"
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write  # Required for creating releases
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Earthly
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ env.EARTHLY_VERSION }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Version from Tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Build Release Artifacts
+        run: |
+          earthly --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:release +multiplatform-build \
+            --XPRIN_VERSION=${{ steps.version.outputs.VERSION }}
+
+      - name: Prepare Release Artifacts
+        run: |
+          mkdir -p _output/release
+
+          # Copy and rename all artifacts with architecture suffix
+          for dir in _output/{bin,bundle}/*/; do
+            arch=$(basename "$dir")
+            for file in "$dir"*; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+
+                # Split filename at first dot to get basename and extension
+                if [[ "$filename" == *.* ]]; then
+                  basename="${filename%%.*}"
+                  extension="${filename#*.}"
+                  new_name="${basename}_${arch}.${extension}"
+                else
+                  new_name="${filename}_${arch}"
+                fi
+
+                cp "$file" "_output/release/$new_name"
+              fi
+            done
+          done
+
+          # List what we're about to upload
+          echo "Release artifacts:"
+          ls -la _output/release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          files: _output/release/*
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'rc') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'alpha') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

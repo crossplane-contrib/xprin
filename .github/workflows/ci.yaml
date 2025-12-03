@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - release-*
+  pull_request: {}
+  workflow_dispatch: {}
+
+env:
+  # Common versions
+  EARTHLY_VERSION: '0.8.16'
+
+  # Force Earthly to use color output
+  FORCE_COLOR: "1"
+
+jobs:
+  check-diff:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      - name: Setup Earthly
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ env.EARTHLY_VERSION }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Earthly Cache
+        if: github.ref == 'refs/heads/main'
+        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+
+      - name: Generate Files
+        run: earthly --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +generate
+
+      - name: Count Changed Files
+        id: changed_files
+        run: echo "count=$(git status --porcelain | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Fail if Files Changed
+        if: steps.changed_files.outputs.count != 0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: core.setFailed('Found changed files after running earthly +generate.')
+
+  lint:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      - name: Setup Earthly
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ env.EARTHLY_VERSION }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Earthly Cache
+        if: github.ref == 'refs/heads/main'
+        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+
+      - name: Lint
+        run: earthly --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +lint
+
+  unit-tests:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      - name: Setup Earthly
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ env.EARTHLY_VERSION }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Earthly Cache
+        if: github.ref == 'refs/heads/main'
+        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+
+      - name: Run Unit Tests
+        run: earthly -P --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +test

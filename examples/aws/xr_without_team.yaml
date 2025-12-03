@@ -1,0 +1,12 @@
+apiVersion: aws.example.com/v1
+kind: XAWSInfrastructure
+metadata:
+  name: platform-aws
+  labels:
+    app: myplatform
+    environment: staging
+spec:
+  region: us-west-2
+  vpcId: vpc-12345678
+  dbUsername: admin
+  sshPublicKey: qa_ssh_key

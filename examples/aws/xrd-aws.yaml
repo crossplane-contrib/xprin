@@ -1,0 +1,57 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xawsinfrastructures.aws.example.com
+spec:
+  group: aws.example.com
+  names:
+    kind: XAWSInfrastructure
+    plural: xawsinfrastructures
+  claimNames:
+    kind: AWSInfrastructure
+    plural: awsinfrastructures
+  versions:
+  - name: v1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              region:
+                type: string
+                description: AWS region
+              team:
+                type: string
+                description: Team name for tagging
+                default: devops
+                minLength: 1
+              vpcId:
+                type: string
+                description: VPC identifier
+              dbUsername:
+                type: string
+                description: Database username
+              sshPublicKey:
+                type: string
+                description: SSH public key for EC2 instances
+                enum:
+                - qa_ssh_key
+              project:
+                type: string
+                description: Project name
+            required:
+            - region
+            - team
+          status:
+            type: object
+            properties:
+              securityGroupId:
+                type: string
+                description: Security group identifier
+              rds:
+                type: string
+                description: RDS instance identifier (when created)

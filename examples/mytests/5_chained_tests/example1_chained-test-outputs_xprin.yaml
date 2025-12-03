@@ -1,0 +1,19 @@
+common:
+  patches:
+    xrd: ../../aws/xrd-aws.yaml
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml
+
+tests:
+- name: "Initial reconciliation loop"
+  id: aws_first
+  inputs:
+    xr: ../../aws/xr.yaml
+- name: "Second reconciliation loop"
+  inputs:
+    xr: {{ .Tests.aws_first.Outputs.XR }}
+    observed-resources: ../../aws/observed

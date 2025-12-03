@@ -1,0 +1,6 @@
+tests:
+- name: "Initial reconciliation loop (using XR)"
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml

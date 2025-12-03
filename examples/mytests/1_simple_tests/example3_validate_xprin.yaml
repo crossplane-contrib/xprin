@@ -1,0 +1,9 @@
+tests:
+- name: "Initial reconciliation loop (runs both render and validate)"
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml

@@ -1,0 +1,79 @@
+---
+# This composition creates the following resources:
+# - a kubernetes object of type Namespace
+# - an XR of type XAWSInfrastructure
+# - an XR of type XGCPInfrastructure
+
+
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: base
+  labels:
+    provider: kubernetes
+spec:
+  compositeTypeRef:
+    apiVersion: base.example.com/v1
+    kind: XBaseInfrastructure
+  mode: Pipeline
+  pipeline:
+    - step: create-base
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $params := .observed.composite.resource.spec -}}
+
+            apiVersion: kubernetes.crossplane.io/v1alpha2
+            kind: Object
+            metadata:
+              name: {{ .observed.composite.resource.metadata.name }}-base-namespace
+              annotations:
+                {{ setResourceNameAnnotation ("namespace") }}
+            spec:
+              forProvider:
+                manifest:
+                  apiVersion: v1
+                  kind: Namespace
+                  metadata:
+                    name: {{ $params.environment }}-{{ $params.team }}
+                    labels:
+                      region: {{ $params.region }}
+                      team: {{ $params.team }}
+                      environment: {{ $params.environment }}
+                      created-by: "base-composition"
+            ---
+            apiVersion: aws.example.com/v1
+            kind: XAWSInfrastructure
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation ("aws-infrastructure") }}
+              name: {{ .observed.composite.resource.metadata.name }}-aws
+            spec:
+              region: {{ $params.region }}
+              team: {{ $params.team }}
+              vpcId: {{ $params.vpcId }}
+              dbUsername: {{ $params.dbUsername }}
+              sshPublicKey: {{ $params.sshPublicKey }}
+              project: {{ $params.project }}
+            ---
+            apiVersion: gcp.example.com/v1
+            kind: XGCPInfrastructure
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation ("gcp-infrastructure") }}
+              name: {{ .observed.composite.resource.metadata.name }}-gcp
+            spec:
+              region: {{ $params.region }}
+              team: {{ $params.team }}
+              projectId: {{ $params.project }}-gcp
+              dbUsername: {{ $params.dbUsername }}
+              sshPublicKey: {{ $params.sshPublicKey }}
+              project: {{ $params.project }}
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready

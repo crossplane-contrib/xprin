@@ -1,0 +1,96 @@
+---
+# This composition creates the following resources:
+# - a SecurityGroup
+# - a DB (only if the SecurityGroup exists)
+# - an EC2 Instance (only if the XR has rdsID in the status)
+# - populates the XR's .status with sgID and rdsID
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: aws-infrastructure
+  labels:
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: aws.example.com/v1
+    kind: XAWSInfrastructure
+  mode: Pipeline
+  pipeline:
+    - step: create-aws-infrastructure
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            apiVersion: ec2.aws.upbound.io/v1beta1
+            kind: SecurityGroup
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation ("sg") }}
+              name: {{ .observed.composite.resource.metadata.name }}-sg
+            spec:
+              forProvider:
+                region: {{ .observed.composite.resource.spec.region }}
+                description: Security group for {{ .observed.composite.resource.metadata.name }}
+            {{ if $.observed.resources.sg }}
+            ---
+            apiVersion: rds.aws.upbound.io/v1beta1
+            kind: Cluster
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation ("rds") }}
+              name: {{ $.observed.composite.resource.metadata.name }}-rds
+            spec:
+              forProvider:
+                region: {{ $.observed.composite.resource.spec.region }}
+                engine: aurora-postgresql
+                engineVersion: "15.4"
+                masterUsername: {{ $.observed.composite.resource.spec.dbUsername }}
+                masterPasswordSecretRef:
+                  name: {{ $.observed.composite.resource.metadata.name }}-rds-password
+                  namespace: crossplane-system
+                  key: password
+                backupRetentionPeriod: {{ if eq $.observed.composite.resource.metadata.labels.environment "production" }}7{{ else }}1{{ end }}
+                preferredBackupWindow: "07:00-09:00"
+                preferredMaintenanceWindow: "sun:09:00-sun:11:00"
+                vpcSecurityGroupIds:
+                  - {{ $.observed.resources.sg.resource.status.atProvider.id }}
+            {{ end }}
+            {{ if $.observed.composite.resource.status.rds }}
+            ---
+            apiVersion: ec2.aws.upbound.io/v1beta1
+            kind: Instance
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation ("ec2") }}
+              name: {{ $.observed.composite.resource.metadata.name }}-ec2
+              labels:
+                app: {{ $.observed.composite.resource.metadata.name }}
+                environment: {{ $.observed.composite.resource.metadata.labels.environment }}
+            spec:
+              forProvider:
+                region: {{ $.observed.composite.resource.spec.region }}
+                instanceType: {{ if eq $.observed.composite.resource.metadata.labels.environment "production" }}t3.medium{{ else }}t3.micro{{ end }}
+                ami: ami-0c02fb55956c7d316  # Amazon Linux 2 AMI
+                keyName: {{ $.observed.composite.resource.spec.sshPublicKey }}
+                vpcSecurityGroupIds:
+                  - {{ $.observed.resources.sg.resource.status.atProvider.id }}
+            {{ end }}
+            ---
+            apiVersion: {{ $.observed.composite.resource.apiVersion }}
+            kind: {{ $.observed.composite.resource.kind }}
+            status:
+              {{- $sgId := dig "resources" "sg" "resource" "status" "atProvider" "id" "" $.observed }}
+              {{- if $sgId }}
+              securityGroupId: {{ $sgId }}
+              {{- end }}
+              {{ $rdsId := dig "resources" "rds" "resource" "metadata" "annotations" "crossplane.io/external-name" "" $.observed }}
+              {{- if $rdsId }}
+              rds: {{ $rdsId }}
+              {{- end }}
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready

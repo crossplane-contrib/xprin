@@ -1,0 +1,21 @@
+tests:
+- name: "Initial reconciliation loop"
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml
+  hooks:
+    post-test:
+    - name: "Inspect XR status"
+      run: yq .status {{ .Outputs.XR }}
+    - name: "Show render count"
+      run: echo {{ .Outputs.RenderCount }}
+    - name: "Show render output path"
+      run: echo {{ .Outputs.Render }}
+    - name: "Show specific rendered resource"
+      run: echo {{ index .Outputs.Rendered "SecurityGroup/platform-aws-sg" }}
+    - name: "Compare input and output XRs"
+      run: dyff between {{ .Inputs.XR }} {{ .Outputs.XR }}

@@ -1,0 +1,94 @@
+tests:
+- name: "Base layer final loop"
+  id: base_final
+  patches:
+    xrd: ../../base/xrd-base.yaml
+  inputs:
+    xr: ../../base/xr.yaml
+    composition: ../../base/composition.yaml
+    functions: ../../base/functions.yaml
+    crds:
+    - ../../base/xrd-base.yaml
+    - ../../base/crossplane.yaml
+    - ../../aws/xrd-aws.yaml
+    - ../../gcp/xrd-gcp.yaml
+
+- name: "GCP layer first loop"
+  id: gcp_first
+  patches:
+    xrd: ../../gcp/xrd-gcp.yaml
+  inputs:
+    xr: {{ index .Tests.base_final.Outputs.Rendered "XGCPInfrastructure/platform-base-gcp" }}
+    composition: ../../gcp/composition.yaml
+    functions: ../../gcp/functions.yaml
+    crds:
+    - ../../gcp/xrd-gcp.yaml
+    - ../../gcp/crossplane.yaml
+
+- name: "GCP layer second loop"
+  id: gcp_second
+  patches:
+    xrd: ../../gcp/xrd-gcp.yaml
+  inputs:
+    xr: {{ index .Tests.gcp_first.Outputs.XR }}
+    composition: ../../gcp/composition.yaml
+    functions: ../../gcp/functions.yaml
+    crds:
+    - ../../gcp/xrd-gcp.yaml
+    - ../../gcp/crossplane.yaml
+    observed-resources: ../../gcp/observed
+
+- name: "GCP layer third loop"
+  patches:
+    xrd: ../../gcp/xrd-gcp.yaml
+  inputs:
+    xr: {{ index .Tests.gcp_second.Outputs.XR }}
+    composition: ../../gcp/composition.yaml
+    functions: ../../gcp/functions.yaml
+    crds:
+    - ../../gcp/xrd-gcp.yaml
+    - ../../gcp/crossplane.yaml
+    observed-resources: ../../gcp/observed
+  hooks:
+    pre-test:
+      - run: yq -i '.status.cloudSql = "my-cloud-sql-instance"' {{ .Inputs.XR }}
+
+- name: "AWS layer first loop"
+  id: aws_first
+  patches:
+    xrd: ../../aws/xrd-aws.yaml
+  inputs:
+    xr: {{ index .Tests.base_final.Outputs.Rendered "XAWSInfrastructure/platform-base-aws" }}
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml
+
+- name: "AWS layer second loop"
+  id: aws_second
+  patches:
+    xrd: ../../aws/xrd-aws.yaml
+  inputs:
+    xr: {{ index .Tests.aws_first.Outputs.XR }}
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml
+    observed-resources: ../../aws/observed
+
+- name: "AWS layer third loop"
+  patches:
+    xrd: ../../aws/xrd-aws.yaml
+  inputs:
+    xr: {{ index .Tests.aws_second.Outputs.XR }}
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml
+    observed-resources: ../../aws/observed
+  hooks:
+    pre-test:
+      - run: yq -i '.status.rds = "my-rds-instance"' {{ .Inputs.XR }}

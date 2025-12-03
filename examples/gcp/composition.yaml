@@ -1,0 +1,112 @@
+---
+# This composition creates the following resources:
+# - a FirewallRule (applied to compute instances via targetTags)
+# - a CloudSQLInstance
+# - a ComputeInstance (uses the firewall via matching tags)
+# - populates the XR's .status with firewallRuleId and cloudSql
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: gcp-infrastructure
+  labels:
+    provider: gcp
+spec:
+  compositeTypeRef:
+    apiVersion: gcp.example.com/v1
+    kind: XGCPInfrastructure
+  mode: Pipeline
+  pipeline:
+    - step: create-gcp-infrastructure
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            apiVersion: compute.gcp.upbound.io/v1beta1
+            kind: Firewall
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation ("firewall") }}
+              name: {{ .observed.composite.resource.metadata.name }}-firewall
+            spec:
+              forProvider:
+                project: {{ .observed.composite.resource.spec.projectId }}
+                description: Firewall rule for {{ .observed.composite.resource.metadata.name }}
+                allow:
+                  - protocol: tcp
+                    ports:
+                      - "22"
+                      - "80"
+                      - "443"
+                sourceRanges:
+                  - "0.0.0.0/0"
+                targetTags:
+                  - {{ .observed.composite.resource.metadata.name }}-compute
+            {{ if $.observed.resources.firewall }}
+            ---
+            apiVersion: sql.gcp.upbound.io/v1beta1
+            kind: DatabaseInstance
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation ("cloudsql") }}
+              name: {{ $.observed.composite.resource.metadata.name }}-cloudsql
+            spec:
+              forProvider:
+                project: {{ $.observed.composite.resource.spec.projectId }}
+                region: {{ $.observed.composite.resource.spec.region }}
+                databaseVersion: POSTGRES_15
+                settings:
+                  - tier: {{ if eq $.observed.composite.resource.metadata.labels.environment "production" }}db-custom-2-7680{{ else }}db-f1-micro{{ end }}
+                    backupConfiguration:
+                      - enabled: true
+                        startTime: "07:00"
+                    ipConfiguration:
+                      - authorizedNetworks:
+                          - name: "default"
+                            value: "0.0.0.0/0"
+            {{ end }}
+            {{ if $.observed.composite.resource.status.cloudSql }}
+            ---
+            apiVersion: compute.gcp.upbound.io/v1beta1
+            kind: Instance
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation ("compute") }}
+              name: {{ $.observed.composite.resource.metadata.name }}-compute
+              labels:
+                app: {{ $.observed.composite.resource.metadata.name }}
+                environment: {{ $.observed.composite.resource.metadata.labels.environment }}
+            spec:
+              forProvider:
+                project: {{ $.observed.composite.resource.spec.projectId }}
+                zone: {{ $.observed.composite.resource.spec.region }}-a
+                machineType: {{ if eq $.observed.composite.resource.metadata.labels.environment "production" }}n1-standard-2{{ else }}e2-micro{{ end }}
+                bootDisk:
+                  - initializeParams:
+                      - image: projects/debian-cloud/global/images/family/debian-12
+                networkInterface:
+                  - network: default
+                metadata:
+                  ssh-keys: "admin:{{ $.observed.composite.resource.spec.sshPublicKey }}"
+                tags:
+                  - {{ $.observed.composite.resource.metadata.name }}-compute
+            {{ end }}
+            ---
+            apiVersion: {{ $.observed.composite.resource.apiVersion }}
+            kind: {{ $.observed.composite.resource.kind }}
+            status:
+              {{- $firewallId := dig "resources" "firewall" "resource" "status" "atProvider" "id" "" $.observed }}
+              {{- if $firewallId }}
+              firewallRuleId: "{{ $firewallId }}"
+              {{- end }}
+              {{ $cloudSqlId := dig "resources" "cloudsql" "resource" "metadata" "annotations" "crossplane.io/external-name" "" $.observed }}
+              {{- if $cloudSqlId }}
+              cloudSql: {{ $cloudSqlId }}
+              {{- end }}
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready
+

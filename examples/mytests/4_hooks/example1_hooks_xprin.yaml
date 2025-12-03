@@ -1,0 +1,20 @@
+tests:
+- name: "Test with pre-test and post-test hooks"
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+  hooks:
+    pre-test:
+    - name: "Prepare test environment"
+      run: echo "Setting up test environment..."
+    - name: "Multiline hook"
+      run: |
+        echo "first line"
+        echo "second line"
+    - run: echo "Pre-test hook without name"
+    post-test:
+    - run: echo "Post-test hook without name"
+    - name: "Cleanup"
+      run: echo "Cleaning up test environment..."
+

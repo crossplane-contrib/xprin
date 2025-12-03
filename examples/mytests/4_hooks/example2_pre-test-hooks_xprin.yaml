@@ -1,0 +1,25 @@
+tests:
+- name: "Without modifying XR status"
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml
+- name: "With XR status modified in pre-test hook"
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd-aws.yaml
+    - ../../aws/crossplane.yaml
+  hooks:
+    pre-test:
+    - name: "Show XR path"
+      run: echo {{ .Inputs.XR }}
+    - name: "Show Composition path"
+      run: echo {{ .Inputs.Composition }}
+    - name: "Set RDS status in XR"
+      run: yq -i '.status.rds = "my-rds-instance"' {{ .Inputs.XR }}

@@ -1,0 +1,6 @@
+tests:
+- name: "Initial reconciliation loop (using Claim)"
+  inputs:
+    claim: ../../aws/claim.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
