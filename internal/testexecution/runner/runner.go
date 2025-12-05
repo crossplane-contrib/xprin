@@ -40,10 +40,11 @@ import (
 type Runner struct {
 	*testexecutionUtils.Options
 
-	fs            afero.Fs
-	testSuiteSpec *api.TestSuiteSpec
-	testSuiteFile string
-	output        io.Writer
+	fs               afero.Fs
+	testSuiteSpec    *api.TestSuiteSpec
+	testSuiteFile    string
+	testSuiteFileDir string
+	output           io.Writer
 	// Directory paths
 	inputsDir             string
 	outputsDir            string
@@ -74,18 +75,22 @@ type templateContext struct {
 
 // NewRunner creates a new test runner.
 func NewRunner(options *testexecutionUtils.Options, testSuiteFile string, testSuiteSpec *api.TestSuiteSpec) *Runner {
+	testSuiteFileDir := filepath.Dir(testSuiteFile)
+
 	return &Runner{
-		fs:            afero.NewOsFs(),
-		output:        os.Stdout, // Default output to stdout
-		Options:       options,
-		testSuiteFile: testSuiteFile,
-		testSuiteSpec: testSuiteSpec,
+		fs:               afero.NewOsFs(),
+		output:           os.Stdout, // Default output to stdout
+		Options:          options,
+		testSuiteFile:    testSuiteFile,
+		testSuiteFileDir: testSuiteFileDir,
+		testSuiteSpec:    testSuiteSpec,
 		// Initialize mockable function fields with default implementations
 		runTestCaseFunc:                   nil, // will set default below
 		expandPathRelativeToTestSuiteFile: testexecutionUtils.ExpandPathRelativeToTestSuiteFile,
 		verifyPathExists:                  utils.VerifyPathExists,
 		runCommand: func(name string, args ...string) ([]byte, []byte, error) {
 			cmd := exec.Command(name, args...)
+			cmd.Dir = testSuiteFileDir
 
 			var stdout, stderr bytes.Buffer
 

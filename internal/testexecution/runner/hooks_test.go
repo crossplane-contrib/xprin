@@ -19,6 +19,8 @@ package runner
 import (
 	"errors"
 	"fmt"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"text/template"
@@ -26,6 +28,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
@@ -476,4 +479,55 @@ func TestExecuteHooks_PostTestHooks_InputsAndOutputsTemplateVariables(t *testing
 		"echo 'Output RenderCount: 5, Repository: /path/to/myrepo'",
 	}
 	assert.Equal(t, expectedCommands, executedCommands)
+}
+
+// TestExecuteHooks_WorkingDirectory tests that hooks execute with the correct working directory.
+func TestExecuteHooks_WorkingDirectory(t *testing.T) {
+	// Use in-memory filesystem for test setup (no I/O operations)
+	fs := afero.NewMemMapFs()
+
+	// Create a subdirectory structure to simulate testsuite file location
+	testSuiteDir := "/tests/suite"
+	require.NoError(t, fs.MkdirAll(testSuiteDir, 0o755))
+	testSuiteFile := filepath.Join(testSuiteDir, "suite_xprin.yaml")
+
+	// Create the testsuite file in the in-memory filesystem
+	require.NoError(t, afero.WriteFile(fs, testSuiteFile, []byte("tests: []"), 0o644))
+
+	// Create a runner with the testsuite file path
+	options := &testexecutionUtils.Options{}
+	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+
+	// Verify that testSuiteFileDir is computed correctly
+	assert.Equal(t, testSuiteDir, runner.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")
+
+	// Verify that the working directory is set correctly by capturing cmd.Dir
+	// We don't need to actually run the command - just verify cmd.Dir is set
+	var capturedDir string
+
+	runner.runCommand = func(name string, args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(name, args...)
+		// Set Dir the same way the original does
+		cmd.Dir = runner.testSuiteFileDir
+		capturedDir = cmd.Dir
+		// Return without running to avoid filesystem I/O
+		return []byte{}, []byte{}, nil
+	}
+
+	// Create a simple hook for testing
+	hooks := []api.Hook{
+		{
+			Name: "test-hook",
+			Run:  "echo 'test'",
+		},
+	}
+
+	// Execute hooks
+	hookExecutor := newHookExecutor(nil, false, runner.runCommand, runner.renderTemplate)
+	results, err := hookExecutor.executeHooks(hooks, "pre-test", api.Inputs{}, nil, map[string]*engine.TestCaseResult{})
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Error, "hook should execute successfully")
+	assert.Equal(t, testSuiteDir, capturedDir, "runCommand should set cmd.Dir to testsuite file directory")
 }

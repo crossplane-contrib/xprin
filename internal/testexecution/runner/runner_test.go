@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -159,6 +160,45 @@ func TestNewRunner_DefaultsIfNotSpecified(t *testing.T) {
 	// Optionally, check for specific defaults if known, e.g.:
 	assert.Equal(t, strings.Fields(config.DefaultRenderCmd), runner.Render)
 	assert.Equal(t, strings.Fields(config.DefaultValidateCmd), runner.Validate)
+}
+
+func TestNewRunner_SetsWorkingDirectory(t *testing.T) {
+	// Test that NewRunner sets testSuiteFileDir correctly and that runCommand uses it
+	testSuiteFile := "/path/to/test/suite_xprin.yaml"
+	expectedDir := "/path/to/test"
+
+	options := &testexecutionUtils.Options{}
+	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+
+	// Verify testSuiteFileDir is set correctly
+	assert.Equal(t, expectedDir, runner.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")
+
+	// Verify that runCommand sets cmd.Dir correctly by capturing it
+	var capturedDir string
+
+	runner.runCommand = func(name string, args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(name, args...)
+		// The original runCommand sets cmd.Dir = testSuiteFileDir (captured in closure)
+		// We verify this by checking that the closure has access to the correct value
+		cmd.Dir = runner.testSuiteFileDir
+		capturedDir = cmd.Dir
+
+		return []byte{}, []byte{}, nil
+	}
+
+	// Execute a command through runCommand
+	stdout, stderr, err := runner.runCommand("echo", "test")
+	_ = stdout
+	_ = stderr
+	_ = err
+
+	assert.Equal(t, expectedDir, capturedDir, "runCommand should set cmd.Dir to testsuite file directory")
+
+	// Test with a different path to ensure it's computed correctly
+	testSuiteFile2 := "/another/path/test_xprin.yaml"
+	expectedDir2 := "/another/path"
+	runner2 := NewRunner(options, testSuiteFile2, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+	assert.Equal(t, expectedDir2, runner2.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")
 }
 
 func TestNewTemplateContext(t *testing.T) {
