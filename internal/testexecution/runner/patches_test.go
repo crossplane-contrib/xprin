@@ -53,7 +53,7 @@ spec:
 	options := &testexecutionUtils.Options{
 		Debug: false,
 	}
-	runner := NewRunner(options)
+	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
 	runner.fs = fs // Use in-memory filesystem
 
 	tests := []struct {

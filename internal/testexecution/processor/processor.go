@@ -34,15 +34,15 @@ import (
 
 // runnerInterface allows dependency injection for test runners (for production and testing).
 type runnerInterface interface {
-	RunTests(testSuiteSpec *api.TestSuiteSpec, testSuiteFile string) error
+	RunTests() error
 }
 
 // Mockable functions
 //
 //nolint:gochecknoglobals // Global variables for dependency injection in tests
 var (
-	newRunnerFunc = func(options *testexecutionUtils.Options) runnerInterface {
-		return runner.NewRunner(options)
+	newRunnerFunc = func(options *testexecutionUtils.Options, testSuiteFile string, testSuiteSpec *api.TestSuiteSpec) runnerInterface {
+		return runner.NewRunner(options, testSuiteFile, testSuiteSpec)
 	}
 )
 
@@ -189,9 +189,9 @@ func processTestSuiteFile(fs afero.Fs, testSuiteFile string, options *testexecut
 		return reportTestSuiteError(testSuiteFile, err, "invalid testsuite file")
 	}
 
-	testRunner := newRunnerFunc(options)
+	testRunner := newRunnerFunc(options, testSuiteFile, testSuiteSpec)
 
-	fileErr := testRunner.RunTests(testSuiteSpec, testSuiteFile)
+	fileErr := testRunner.RunTests()
 	if fileErr != nil {
 		errMsg := fileErr.Error()
 		if !strings.Contains(errMsg, "tests failed in testsuite") {

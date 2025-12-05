@@ -41,14 +41,14 @@ const (
 
 // mockRunner is a mock implementation of runnerInterface for testing.
 type mockRunner struct {
-	runTestsFunc func(*api.TestSuiteSpec, string) error
+	runTestsFunc func() error
 	output       io.Writer
 	options      *testexecutionUtils.Options
 }
 
-func (m *mockRunner) RunTests(testSuiteSpec *api.TestSuiteSpec, testSuiteFile string) error {
+func (m *mockRunner) RunTests() error {
 	if m.runTestsFunc != nil {
-		return m.runTestsFunc(testSuiteSpec, testSuiteFile)
+		return m.runTestsFunc()
 	}
 
 	return nil
@@ -62,7 +62,7 @@ func TestProcessTargets(t *testing.T) {
 	}()
 
 	t.Run("non-existent path", func(t *testing.T) {
-		newRunnerFunc = func(options *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
@@ -75,7 +75,7 @@ func TestProcessTargets(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll("/testdir", 0o755))
 
-		newRunnerFunc = func(options *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
@@ -94,7 +94,7 @@ func TestProcessTargets(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
-		newRunnerFunc = func(options *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
@@ -111,7 +111,7 @@ func TestProcessTargets(t *testing.T) {
 	})
 
 	t.Run("recursive path with error", func(t *testing.T) {
-		newRunnerFunc = func(options *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
@@ -133,7 +133,7 @@ func TestProcessTargets(t *testing.T) {
 		testFile := "/test_xprin.yaml"
 		require.NoError(t, afero.WriteFile(fs, testFile, []byte("invalid: yaml: : content}"), 0o644))
 
-		newRunnerFunc = func(options *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
@@ -162,12 +162,12 @@ func TestProcessTargets(t *testing.T) {
 		// Mock runner with custom runTests implementation
 		runner := &mockRunner{
 			options: &testexecutionUtils.Options{},
-			runTestsFunc: func(*api.TestSuiteSpec, string) error {
+			runTestsFunc: func() error {
 				return nil // Success
 			},
 		}
 
-		newRunnerFunc = func(_ *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return runner
 		}
 
@@ -184,7 +184,7 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
 		// Create mock runner
-		newRunnerFunc = func(options *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return &mockRunner{
 				options: options,
 			}
@@ -212,7 +212,7 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
 		// Create mock runner
-		newRunnerFunc = func(options *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return &mockRunner{
 				options: options,
 			}
@@ -264,24 +264,24 @@ func TestProcessTargets(t *testing.T) {
 			require.NoError(t, afero.WriteFile(fs, file, []byte(testContentWithTests), 0o644))
 		}
 
-		// Create runner with output capture
-		runner := &mockRunner{
-			output:  &buf,
-			options: &testexecutionUtils.Options{},
-			runTestsFunc: func(_ *api.TestSuiteSpec, filePath string) error {
-				// Simulate what the real runTests would do by printing file results
-				// Write directly to the buffer we already have
-				fmt.Fprintf(&buf, "ok  \t%s\t%.3fs\n", filePath, 0.123)
-				return nil
-			},
-		}
-
 		// Replace the runner factory
 		origNewRunnerFunc := newRunnerFunc
 
 		defer func() { newRunnerFunc = origNewRunnerFunc }()
 
-		newRunnerFunc = func(_ *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionUtils.Options, testSuiteFile string, _ *api.TestSuiteSpec) runnerInterface {
+			// Create runner with output capture, capturing testSuiteFile in closure
+			runner := &mockRunner{
+				output:  &buf,
+				options: &testexecutionUtils.Options{},
+				runTestsFunc: func() error {
+					// Simulate what the real runTests would do by printing file results
+					// Write directly to the buffer we already have
+					fmt.Fprintf(&buf, "ok  \t%s\t%.3fs\n", testSuiteFile, 0.123)
+					return nil
+				},
+			}
+
 			return runner
 		}
 
@@ -409,7 +409,7 @@ func TestProcessTestSuiteFile(t *testing.T) {
 		var err error
 
 		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
-		newRunnerFunc = func(_ *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return runner
 		}
 
@@ -441,7 +441,7 @@ func TestProcessTestSuiteFile(t *testing.T) {
 		var err error
 
 		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
-		newRunnerFunc = func(_ *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return runner
 		}
 
@@ -466,10 +466,10 @@ func TestProcessTestSuiteFile(t *testing.T) {
 		var err error
 
 		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
-		runner.runTestsFunc = func(_ *api.TestSuiteSpec, _ string) error {
+		runner.runTestsFunc = func() error {
 			return errors.New("tests failed in testsuite suite.yaml: something failed")
 		}
-		newRunnerFunc = func(_ *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return runner
 		}
 
@@ -489,10 +489,10 @@ func TestProcessTestSuiteFile(t *testing.T) {
 		var err error
 
 		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
-		runner.runTestsFunc = func(_ *api.TestSuiteSpec, _ string) error {
+		runner.runTestsFunc = func() error {
 			return errors.New("some other error") // Use a generic error, not a group error
 		}
-		newRunnerFunc = func(_ *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return runner
 		}
 
@@ -525,10 +525,10 @@ func TestProcessTestSuiteFile(t *testing.T) {
 		var err error
 
 		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
-		runner.runTestsFunc = func(_ *api.TestSuiteSpec, _ string) error {
+		runner.runTestsFunc = func() error {
 			return nil
 		}
-		newRunnerFunc = func(_ *testexecutionUtils.Options) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 			return runner
 		}
 
@@ -617,10 +617,10 @@ func TestProcessTestSuiteFile(t *testing.T) {
 				var processErr error
 
 				runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
-				runner.runTestsFunc = func(_ *api.TestSuiteSpec, _ string) error {
+				runner.runTestsFunc = func() error {
 					return nil
 				}
-				newRunnerFunc = func(_ *testexecutionUtils.Options) runnerInterface {
+				newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
 					return runner
 				}
 

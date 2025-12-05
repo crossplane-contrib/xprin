@@ -37,6 +37,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const testSuiteFile = "/suite_xprin.yaml"
+
 // createTestCaseResult is a helper function to create TestCaseResult with common defaults.
 func createTestCaseResult(name string, verbose bool, err error) *engine.TestCaseResult {
 	result := engine.NewTestCaseResult(name, "", verbose, false, false, false, false)
@@ -49,7 +51,9 @@ func createTestCaseResult(name string, verbose bool, err error) *engine.TestCase
 
 // newMockRunner creates a test-specific Runner with mocked functions.
 func newMockRunner(options *testexecutionUtils.Options, mocks ...func(*Runner)) *Runner {
-	r := NewRunner(options)
+	// Use default test suite file and spec for tests that don't need specific values
+	testSuiteSpec := &api.TestSuiteSpec{Tests: []api.TestCase{}}
+	r := NewRunner(options, testSuiteFile, testSuiteSpec)
 
 	// Set up default mock functions for testing
 	r.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) { return path, nil }
@@ -118,11 +122,11 @@ func TestNewRunner(t *testing.T) {
 	options := makeOptions(cfg, nil, nil, func(o *testexecutionUtils.Options) {
 		o.Debug = true
 	})
-	runner := NewRunner(options)
+	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
 
 	// Check the runner was created with the right settings
 	assert.Equal(t, options, runner.Options)
-	assert.Empty(t, runner.testSuiteFile)
+	assert.Equal(t, testSuiteFile, runner.testSuiteFile)
 	assert.True(t, runner.ShowRender)
 	assert.True(t, runner.ShowValidate)
 	assert.True(t, runner.ShowHooks)
@@ -147,7 +151,7 @@ func TestNewRunner_DefaultsIfNotSpecified(t *testing.T) {
 	}
 	// Simulate config-to-options conversion (empty means use defaults)
 	options := makeOptions(cfg, nil, nil)
-	runner := NewRunner(options)
+	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
 
 	// The runner should have the default Render/Validate commands (from runner or config loader)
 	assert.NotEmpty(t, runner.Render)
@@ -200,8 +204,6 @@ func TestRunTests(t *testing.T) {
 		Verbose:      false,
 		Debug:        false,
 	}
-	runner := NewRunner(options)
-
 	cases := []struct {
 		name      string
 		testCases []api.TestCase
@@ -243,17 +245,6 @@ func TestRunTests(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
 
-			runner.output = &buf
-
-			// Mock the runTestCaseFunc to return controlled results
-			call := 0
-			runner.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
-				err := tc.mockErrs[call]
-				call++
-
-				return createTestCaseResult(testCase.Name, false, err)
-			}
-
 			var tests []api.TestCase
 			for _, test := range tc.testCases {
 				tests = append(tests, api.TestCase{
@@ -265,7 +256,19 @@ func TestRunTests(t *testing.T) {
 				Tests: tests,
 			}
 
-			err := runner.RunTests(testSuiteSpec, "suite.yaml")
+			runner := NewRunner(options, testSuiteFile, testSuiteSpec)
+			runner.output = &buf
+
+			// Mock the runTestCaseFunc to return controlled results
+			call := 0
+			runner.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+				err := tc.mockErrs[call]
+				call++
+
+				return createTestCaseResult(testCase.Name, false, err)
+			}
+
+			err := runner.RunTests()
 			if tc.wantFails > 0 {
 				require.Error(t, err)
 			} else {
@@ -290,7 +293,6 @@ func TestRunTestsIntegration(t *testing.T) {
 		Verbose:      false,
 		Debug:        false,
 	}
-	runner := NewRunner(options)
 
 	testCases := []struct {
 		name       string
@@ -412,11 +414,12 @@ func TestRunTestsIntegration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
 
+			runner := NewRunner(options, testSuiteFile, tc.suite)
 			runner.output = &buf
 			runner.runTestCaseFunc = tc.runFunc
 			runner.Verbose = tc.verbose // set per-test verbosity
 
-			err := runner.RunTests(tc.suite, "suite.yaml")
+			err := runner.RunTests()
 			if tc.wantError {
 				require.Error(t, err)
 			} else {
@@ -452,18 +455,6 @@ func TestRunTestsIntegration(t *testing.T) {
 			Verbose:      true,
 			Debug:        false,
 		}
-		runner := NewRunner(options)
-		runner.output = &buf
-
-		// test1: pass, test2: fail, test3: pass
-		call := 0
-		results := []error{nil, errors.New("fail in test2"), nil}
-		runner.runTestCaseFunc = func(tc api.TestCase) *engine.TestCaseResult {
-			err := results[call]
-			call++
-
-			return createTestCaseResult(tc.Name, runner.Verbose, err)
-		}
 		suite := &api.TestSuiteSpec{
 			Tests: []api.TestCase{
 				{Name: "test1", Inputs: api.Inputs{
@@ -481,7 +472,19 @@ func TestRunTestsIntegration(t *testing.T) {
 				}},
 			},
 		}
-		err := runner.RunTests(suite, "suite.yaml")
+		runner := NewRunner(options, testSuiteFile, suite)
+		runner.output = &buf
+
+		// test1: pass, test2: fail, test3: pass
+		call := 0
+		results := []error{nil, errors.New("fail in test2"), nil}
+		runner.runTestCaseFunc = func(tc api.TestCase) *engine.TestCaseResult {
+			err := results[call]
+			call++
+
+			return createTestCaseResult(tc.Name, runner.Verbose, err)
+		}
+		err := runner.RunTests()
 		require.Error(t, err)
 
 		out := buf.String()
@@ -502,18 +505,6 @@ func TestRunTestsIntegration(t *testing.T) {
 			Verbose:      false,
 			Debug:        false,
 		}
-		runner := NewRunner(options)
-		runner.output = &buf
-
-		// group1: pass, group2: fail, group3: pass
-		call := 0
-		results := []error{nil, errors.New("fail in group2"), nil}
-		runner.runTestCaseFunc = func(tc api.TestCase) *engine.TestCaseResult {
-			err := results[call]
-			call++
-
-			return createTestCaseResult(tc.Name, false, err)
-		}
 		suite := &api.TestSuiteSpec{
 			Tests: []api.TestCase{
 				{Name: "test1", Inputs: api.Inputs{
@@ -531,7 +522,19 @@ func TestRunTestsIntegration(t *testing.T) {
 				}},
 			},
 		}
-		err := runner.RunTests(suite, "suite.yaml")
+		runner := NewRunner(options, testSuiteFile, suite)
+		runner.output = &buf
+
+		// group1: pass, group2: fail, group3: pass
+		call := 0
+		results := []error{nil, errors.New("fail in group2"), nil}
+		runner.runTestCaseFunc = func(tc api.TestCase) *engine.TestCaseResult {
+			err := results[call]
+			call++
+
+			return createTestCaseResult(tc.Name, false, err)
+		}
+		err := runner.RunTests()
 		require.Error(t, err)
 
 		out := buf.String()
@@ -2723,7 +2726,7 @@ func TestRunTestsFileResults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
 
-			runner := NewRunner(options)
+			runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
 			runner.output = &buf
 			runner.Verbose = tc.verbose
 
@@ -3222,9 +3225,9 @@ metadata:
 		Validate:     []string{config.ValidateSubcommand},
 		Debug:        false,
 	}
-	runner := NewRunner(options)
+	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
 	runner.fs = fs // Use in-memory filesystem
-	runner.testSuiteFile = "/suite.yaml"
+	runner.testSuiteFile = testSuiteFile
 	runner.testSuiteSpec = &api.TestSuiteSpec{}
 
 	// Mock path expansion and verification
@@ -3233,7 +3236,7 @@ metadata:
 		if filepath.IsAbs(path) {
 			return path, nil
 		}
-		// Test suite file is at /suite.yaml, so relative paths should be in /
+		// Test suite file is at /suite_xprin.yaml, so relative paths should be in /
 		return "/" + path, nil
 	}
 	runner.verifyPathExists = func(path string) error {
@@ -3337,13 +3340,6 @@ func TestArtifactsDirectory(t *testing.T) {
 		options := &testexecutionUtils.Options{
 			Debug: false,
 		}
-		runner := NewRunner(options)
-		runner.fs = fs // Use in-memory filesystem
-
-		// Mock runTestCase to avoid needing full test setup
-		runner.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
-			return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false).Complete()
-		}
 
 		testSuiteSpec := &api.TestSuiteSpec{
 			Tests: []api.TestCase{
@@ -3351,10 +3347,18 @@ func TestArtifactsDirectory(t *testing.T) {
 			},
 		}
 
+		runner := NewRunner(options, testSuiteFile, testSuiteSpec)
+		runner.fs = fs // Use in-memory filesystem
+
+		// Mock runTestCase to avoid needing full test setup
+		runner.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+			return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false).Complete()
+		}
+
 		// Before runTests, artifacts directory should not exist
 		assert.Empty(t, runner.testSuiteArtifactsDir, "artifacts directory should not exist before runTests")
 
-		err := runner.RunTests(testSuiteSpec, "/suite.yaml")
+		err := runner.RunTests()
 		require.NoError(t, err)
 
 		// After runTests, artifacts directory should have been created (even though it's cleaned up by defer)
@@ -3398,9 +3402,9 @@ metadata:
 			Validate:     []string{config.ValidateSubcommand},
 			Debug:        false,
 		}
-		runner := NewRunner(options)
+		runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
 		runner.fs = fs // Use in-memory filesystem
-		runner.testSuiteFile = "/suite.yaml"
+		runner.testSuiteFile = testSuiteFile
 		runner.testSuiteSpec = &api.TestSuiteSpec{}
 
 		// Set artifacts directory (simulating what runTests does)
@@ -3535,7 +3539,7 @@ metadata:
 		options := &testexecutionUtils.Options{
 			Debug: false,
 		}
-		runner := NewRunner(options)
+		runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
 		runner.fs = fs // Use in-memory filesystem
 
 		var copyCallCount int
@@ -3574,7 +3578,7 @@ metadata:
 		options := &testexecutionUtils.Options{
 			Debug: false,
 		}
-		runner := NewRunner(options)
+		runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
 
 		var (
 			test1Result      *engine.TestCaseResult

@@ -50,7 +50,7 @@ type Runner struct {
 	testCaseTmpDir        string
 	testSuiteArtifactsDir string
 	// Mockable function fields
-	runTestsFunc                      func(*api.TestSuiteSpec, string) error
+	runTestsFunc                      func() error
 	runTestCaseFunc                   func(api.TestCase) *engine.TestCaseResult
 	expandPathRelativeToTestSuiteFile func(base, path string) (string, error)
 	verifyPathExists                  func(path string) error
@@ -73,11 +73,13 @@ type templateContext struct {
 }
 
 // NewRunner creates a new test runner.
-func NewRunner(options *testexecutionUtils.Options) *Runner {
+func NewRunner(options *testexecutionUtils.Options, testSuiteFile string, testSuiteSpec *api.TestSuiteSpec) *Runner {
 	return &Runner{
-		fs:      afero.NewOsFs(),
-		output:  os.Stdout, // Default output to stdout
-		Options: options,
+		fs:            afero.NewOsFs(),
+		output:        os.Stdout, // Default output to stdout
+		Options:       options,
+		testSuiteFile: testSuiteFile,
+		testSuiteSpec: testSuiteSpec,
 		// Initialize mockable function fields with default implementations
 		runTestCaseFunc:                   nil, // will set default below
 		expandPathRelativeToTestSuiteFile: testexecutionUtils.ExpandPathRelativeToTestSuiteFile,
@@ -114,17 +116,16 @@ func newTemplateContext(repositories map[string]string, inputs api.Inputs, outpu
 }
 
 // RunTests runs all tests in a test suite.
-func (r *Runner) RunTests(testSuiteSpec *api.TestSuiteSpec, testSuiteFile string) error {
+func (r *Runner) RunTests() error {
 	if r.runTestsFunc != nil {
-		return r.runTestsFunc(testSuiteSpec, testSuiteFile)
+		return r.runTestsFunc()
 	}
 
-	r.testSuiteFile = testSuiteFile
+	// Validate that testSuiteFile and testSuiteSpec are set (they should be set in NewRunner)
 	if r.testSuiteFile == "" {
 		return fmt.Errorf("testsuite file path is required")
 	}
 
-	r.testSuiteSpec = testSuiteSpec
 	if r.testSuiteSpec == nil {
 		return fmt.Errorf("testsuite specification is required")
 	}
@@ -146,12 +147,12 @@ func (r *Runner) RunTests(testSuiteSpec *api.TestSuiteSpec, testSuiteFile string
 	}
 
 	if r.Debug {
-		testSuiteFileDir := filepath.Dir(testSuiteFile)
+		testSuiteFileDir := filepath.Dir(r.testSuiteFile)
 		utils.DebugPrintf("Using testsuite file directory for relative path resolution: %s\n", testSuiteFileDir)
 
 		// We do not expand or verify common fields here. They will be expanded and verified by the individual test cases that do not override them.
-		if testSuiteSpec.HasCommon() {
-			r.debugPrintCommon(testSuiteSpec.Common, "Found common configuration:")
+		if r.testSuiteSpec.HasCommon() {
+			r.debugPrintCommon(r.testSuiteSpec.Common, "Found common configuration:")
 		}
 
 		plural := pluralize.NewClient()
@@ -159,7 +160,7 @@ func (r *Runner) RunTests(testSuiteSpec *api.TestSuiteSpec, testSuiteFile string
 	}
 
 	// Create test suite result
-	testSuiteResult := engine.NewTestSuiteResult(testSuiteFile, r.Verbose)
+	testSuiteResult := engine.NewTestSuiteResult(r.testSuiteFile, r.Verbose)
 
 	// Loop through all test cases and run them directly
 	for _, testCase := range r.testSuiteSpec.Tests {
@@ -177,7 +178,7 @@ func (r *Runner) RunTests(testSuiteSpec *api.TestSuiteSpec, testSuiteFile string
 
 	// Return error if any tests failed
 	if testSuiteResult.HasFailures() {
-		return fmt.Errorf("tests failed in testsuite %s", filepath.Base(testSuiteFile))
+		return fmt.Errorf("tests failed in testsuite %s", filepath.Base(r.testSuiteFile))
 	}
 
 	return nil
