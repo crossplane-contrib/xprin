@@ -149,3 +149,26 @@ spec:
 		})
 	}
 }
+
+// TestUniqueBaseNamesForPaths tests the pure function that maps paths to unique base filenames.
+func TestUniqueBaseNamesForPaths(t *testing.T) {
+	tests := []struct {
+		name  string
+		paths []string
+		want  []string
+	}{
+		{"nil returns empty", nil, nil},
+		{"empty returns empty", []string{}, []string{}},
+		{"single path keeps base name", []string{"/single/xrd.yaml"}, []string{"xrd.yaml"}},
+		{"two files same base name", []string{"/aws/xrd.yaml", "/gcp/xrd.yaml"}, []string{"xrd.yaml", "xrd_1.yaml"}},
+		{"two dirs same base name", []string{"/path/to/crds", "/another/path/to/crds"}, []string{"crds", "crds_1"}},
+		{"three files same base name", []string{"/a/xrd.yaml", "/b/xrd.yaml", "/c/xrd.yaml"}, []string{"xrd.yaml", "xrd_1.yaml", "xrd_2.yaml"}},
+		{"mixed unique names", []string{"/a/one.yaml", "/b/two.yaml"}, []string{"one.yaml", "two.yaml"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := uniqueBaseNamesForPaths(tt.paths)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

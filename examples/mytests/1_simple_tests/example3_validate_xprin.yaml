@@ -5,5 +5,5 @@ tests:
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     crds:
-    - ../../aws/xrd-aws.yaml
+    - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml

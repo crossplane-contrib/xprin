@@ -262,7 +262,7 @@ DEBUG:   - XR: ../../aws/xr.yaml
 DEBUG:   - Composition: ../../aws/composition.yaml
 DEBUG:   - Functions: ../../aws/functions.yaml
 DEBUG:   - CRDs:
-DEBUG:     - ../../aws/xrd-aws.yaml
+DEBUG:     - ../../aws/xrd.yaml
 DEBUG:     - ../../aws/crossplane.yaml
 DEBUG: Test specification with expanded input paths:
 DEBUG:   Inputs:
@@ -270,12 +270,12 @@ DEBUG:   - XR: /Users/myuser/repos/xprin/examples/aws/xr.yaml
 DEBUG:   - Composition: /Users/myuser/repos/xprin/examples/aws/composition.yaml
 DEBUG:   - Functions: /Users/myuser/repos/xprin/examples/aws/functions.yaml
 DEBUG:   - CRDs:
-DEBUG:     - /Users/myuser/repos/xprin/examples/aws/xrd-aws.yaml
+DEBUG:     - /Users/myuser/repos/xprin/examples/aws/xrd.yaml
 DEBUG:     - /Users/myuser/repos/xprin/examples/aws/crossplane.yaml
 DEBUG: Copied xr to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/xr/xr.yaml
 DEBUG: Copied composition to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/composition/composition.yaml
 DEBUG: Copied functions to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/functions/functions.yaml
-DEBUG: Copied crds to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/crds/xrd-aws.yaml
+DEBUG: Copied crds to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/crds/xrd.yaml
 DEBUG: Copied crds to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/crds/crossplane.yaml
 DEBUG: Using provided XR file: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/xr/xr.yaml
 DEBUG: Running render command: crossplane render --include-full-xr ...

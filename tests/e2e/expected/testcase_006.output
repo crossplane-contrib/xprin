@@ -33,5 +33,22 @@
             output C
         - echo "unnamed post-test hook"
             unnamed post-test hook
+=== RUN   CRDs with same base name are not overwritten
+--- PASS: CRDs with same base name are not overwritten (X.XXXs)
+    Rendered resources:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Validation results:
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
+    post-test hooks results:
+        - List CRDs in inputs (xrd.yaml, xrd_1.yaml, xrd_2.yaml, ...)
+            crossplane.yaml
+            xrd.yaml
+            xrd_1.yaml
+            xrd_2.yaml
+        - Verify all 3 XRD files present (not overwritten)
+            All 3 CRDs present (not overwritten)
 PASS
 ok	examples/mytests/0_combined/example2_success_xprin.yaml	X.XXXs

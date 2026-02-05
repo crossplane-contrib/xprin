@@ -19,6 +19,7 @@ package runner
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/crossplane-contrib/xprin/cmd/xprin-helpers/claimtoxr"
 	"github.com/crossplane-contrib/xprin/cmd/xprin-helpers/patchxr"
@@ -50,6 +51,52 @@ func (r *Runner) copyInput(src, inputType string) (string, error) {
 	}
 
 	return dest, nil
+}
+
+// copyToPath copies a file or directory to the given destination path, creating parent directories as needed.
+// Use this when the destination path must be chosen by the caller (e.g. to avoid overwriting same-named files).
+func (r *Runner) copyToPath(src, dest string) (string, error) {
+	if err := r.fs.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
+		return "", fmt.Errorf("failed to create directory for %s: %w", dest, err)
+	}
+
+	if err := r.copy(src, dest); err != nil {
+		return "", fmt.Errorf("failed to copy to %s: %w", dest, err)
+	}
+
+	if r.Debug {
+		utils.DebugPrintf("Copied to: %s\n", dest)
+	}
+
+	return dest, nil
+}
+
+// uniqueBaseNamesForPaths returns a unique base filename for each path so that paths with the
+// same base name (e.g. aws/xrd.yaml and gcp/xrd.yaml) get distinct names (xrd.yaml, xrd_1.yaml).
+// The returned slice has the same length and order as paths. Returns nil if paths is nil.
+func uniqueBaseNamesForPaths(paths []string) []string {
+	if paths == nil {
+		return nil
+	}
+
+	names := make([]string, len(paths))
+	nameCount := make(map[string]int)
+
+	for i, p := range paths {
+		base := filepath.Base(p)
+		ext := filepath.Ext(base)
+		nameWithoutExt := strings.TrimSuffix(base, ext)
+		n := nameCount[nameWithoutExt]
+
+		nameCount[nameWithoutExt]++
+		if n > 0 {
+			base = fmt.Sprintf("%s_%d%s", nameWithoutExt, n, ext)
+		}
+
+		names[i] = base
+	}
+
+	return names
 }
 
 // convertClaimToXR converts a Claim to XR using the convert-claim-to-xr library.

@@ -439,8 +439,13 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		return result.Fail(err)
 	}
 
+	crdsDir := filepath.Join(r.inputsDir, "crds")
+
+	uniqueNames := uniqueBaseNamesForPaths(testCase.Inputs.CRDs)
 	for i, crdPath := range testCase.Inputs.CRDs {
-		testCase.Inputs.CRDs[i], err = r.copyInput(crdPath, "crds")
+		dest := filepath.Join(crdsDir, uniqueNames[i])
+
+		testCase.Inputs.CRDs[i], err = r.copyToPath(crdPath, dest)
 		if err != nil {
 			return result.Fail(err)
 		}

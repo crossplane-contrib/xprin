@@ -5,7 +5,7 @@ tests:
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     crds:
-    - ../../aws/xrd-aws.yaml
+    - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml
 - name: "Second reconciliation loop"
   inputs:
@@ -14,5 +14,5 @@ tests:
     functions: ../../aws/functions.yaml
     observed-resources: ../../aws/observed
     crds:
-    - ../../aws/xrd-aws.yaml
+    - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml

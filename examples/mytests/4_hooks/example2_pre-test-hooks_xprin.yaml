@@ -5,7 +5,7 @@ tests:
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     crds:
-    - ../../aws/xrd-aws.yaml
+    - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml
 - name: "With XR status modified in pre-test hook"
   inputs:
@@ -13,7 +13,7 @@ tests:
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     crds:
-    - ../../aws/xrd-aws.yaml
+    - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml
   hooks:
     pre-test:

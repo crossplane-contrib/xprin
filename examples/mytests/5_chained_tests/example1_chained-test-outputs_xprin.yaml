@@ -1,11 +1,11 @@
 common:
   patches:
-    xrd: ../../aws/xrd-aws.yaml
+    xrd: ../../aws/xrd.yaml
   inputs:
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     crds:
-    - ../../aws/xrd-aws.yaml
+    - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml
 
 tests:

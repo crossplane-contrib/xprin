@@ -1,14 +1,14 @@
 tests:
 - name: "Second reconciliation loop"
   patches:
-    xrd: ../../aws/xrd-aws.yaml
+    xrd: ../../aws/xrd.yaml
   inputs:
     xr: ../../aws/xr.yaml
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     observed-resources: ../../aws/observed
     crds:
-    - ../../aws/xrd-aws.yaml
+    - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml
   hooks:
     pre-test:

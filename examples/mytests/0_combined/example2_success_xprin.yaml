@@ -1,14 +1,14 @@
 tests:
 - name: "Successful test with hooks, validation, and assertions"
   patches:
-    xrd: ../../aws/xrd-aws.yaml
+    xrd: ../../aws/xrd.yaml
   inputs:
     xr: ../../aws/xr.yaml
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     observed-resources: ../../aws/observed
     crds:
-    - ../../aws/xrd-aws.yaml
+    - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml
   hooks:
     pre-test:
@@ -49,3 +49,20 @@ tests:
       resource: "SecurityGroup/platform-aws-sg"
       field: "spec.forProvider.description"
       value: "string"
+
+- name: "CRDs with same base name are not overwritten"
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../base/xrd.yaml
+    - ../../aws/xrd.yaml
+    - ../../gcp/xrd.yaml
+    - ../../aws/crossplane.yaml
+  hooks:
+    post-test:
+    - name: "List CRDs in inputs (xrd.yaml, xrd_1.yaml, xrd_2.yaml, ...)"
+      run: ls $(dirname {{ index .Inputs.CRDs 0 }})
+    - name: "Verify all 3 XRD files present (not overwritten)"
+      run: test -f {{ index .Inputs.CRDs 0 }} && test -f {{ index .Inputs.CRDs 1 }} && test -f {{ index .Inputs.CRDs 2 }} && echo "All 3 CRDs present (not overwritten)"
