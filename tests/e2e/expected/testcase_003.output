@@ -9,8 +9,8 @@
         FAIL: Resource count should be zero - expected 0 resources, got 2
 --- FAIL: Render failure (missing required inputs - multiline error) (X.XXXs)
     missing mandatory field: either 'claim' or 'xr' must be specified (it can be specified either in the test case or in the common inputs)
-        missing mandatory field: composition (it can be specified either in the test case or in the common inputs)
-        missing mandatory field: functions (it can be specified either in the test case or in the common inputs)
+    missing mandatory field: composition (it can be specified either in the test case or in the common inputs)
+    missing mandatory field: functions (it can be specified either in the test case or in the common inputs)
 FAIL
 FAIL	examples/mytests/0_combined/example1_failures_xprin.yaml	X.XXXs
 FAIL
