@@ -4,6 +4,8 @@ VERSION --try --raw-output 0.8
 PROJECT crossplane-contrib/xprin
 
 ARG --global GO_VERSION=1.24.7
+ARG --global E2E_CROSSPLANE_V1=v1.20.4
+ARG --global E2E_CROSSPLANE_V2=v2.1.3
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
@@ -157,13 +159,64 @@ test-e2e:
 
 # test-e2e-v1 runs tests against Crossplane v1.
 test-e2e-v1:
-  BUILD --build-arg CROSSPLANE_VERSION=v1.20.4 +test-e2e
+  BUILD --build-arg CROSSPLANE_VERSION=$E2E_CROSSPLANE_V1 +test-e2e
 
 # test-e2e-v2 runs tests against Crossplane v2.
 test-e2e-v2:
-  BUILD --build-arg CROSSPLANE_VERSION=v2.1.3 +test-e2e
+  BUILD --build-arg CROSSPLANE_VERSION=$E2E_CROSSPLANE_V2 +test-e2e
 
 # test-e2e-all runs the e2e tests against v1 and v2 (sequential; for local use; CI uses matrix jobs).
 test-e2e-all:
   BUILD +test-e2e-v1
   BUILD +test-e2e-v2
+
+# regen-e2e-expected-v1 runs the regen script for Crossplane v1 only; used in parallel with v2 then merged.
+regen-e2e-expected-v1:
+  ARG TARGETARCH
+  ARG TARGETOS
+  ARG GOARCH=${TARGETARCH}
+  ARG GOOS=${TARGETOS}
+  FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
+  COPY (+crossplane-cli/crossplane --CROSSPLANE_VERSION=${E2E_CROSSPLANE_V1}) /usr/local/bin/crossplane
+  RUN apk add --no-cache bash
+  COPY +go-build/xprin .
+  COPY --dir examples/ tests/e2e/scripts/ ./
+  RUN chmod +x scripts/regen-expected.sh
+  RUN mkdir expected
+  WITH DOCKER
+    RUN CROSSPLANE_V1=/usr/local/bin/crossplane scripts/regen-expected.sh v1
+  END
+  SAVE ARTIFACT expected
+
+# regen-e2e-expected-v2 runs the regen script for Crossplane v2 only; used in parallel with v1 then merged.
+regen-e2e-expected-v2:
+  ARG TARGETARCH
+  ARG TARGETOS
+  ARG GOARCH=${TARGETARCH}
+  ARG GOOS=${TARGETOS}
+  FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
+  COPY (+crossplane-cli/crossplane --CROSSPLANE_VERSION=${E2E_CROSSPLANE_V2}) /usr/local/bin/crossplane
+  RUN apk add --no-cache bash
+  COPY +go-build/xprin .
+  COPY --dir examples/ tests/e2e/scripts/ ./
+  RUN chmod +x scripts/regen-expected.sh
+  RUN mkdir expected
+  WITH DOCKER
+    RUN CROSSPLANE_V2=/usr/local/bin/crossplane scripts/regen-expected.sh v2
+  END
+  SAVE ARTIFACT expected
+
+# regen-e2e-expected runs v1 and v2 in parallel, merges artifacts, runs cleanup, then exports.
+regen-e2e-expected:
+  BUILD +regen-e2e-expected-v1
+  BUILD +regen-e2e-expected-v2
+  FROM alpine:3.20
+  RUN apk add --no-cache bash
+  WORKDIR /work
+  COPY +regen-e2e-expected-v1/expected expected/
+  COPY +regen-e2e-expected-v2/expected expected/
+  COPY --dir tests/e2e/scripts/ ./
+  RUN chmod +x scripts/regen-expected.sh
+  RUN ls -la expected
+  RUN scripts/regen-expected.sh cleanup
+  SAVE ARTIFACT expected AS LOCAL tests/e2e/expected
