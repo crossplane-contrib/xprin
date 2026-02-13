@@ -112,12 +112,12 @@ for test_var in "${TEST_CASES[@]}"; do
         TEST_FAILED=1
     elif ! diff -u "${EXPECTED_OUTPUT}" "${NORMALIZED_OUTPUT}" > /dev/null; then
         echo "FAIL: output mismatch for testcase_${test_id}"
-        echo "Expected:"
-        cat "${EXPECTED_OUTPUT}"
-        echo ""
-        echo "Actual:"
-        cat "${NORMALIZED_OUTPUT}"
-        echo ""
+        # echo "Expected:"
+        # cat "${EXPECTED_OUTPUT}"
+        # echo ""
+        # echo "Actual:"
+        # cat "${NORMALIZED_OUTPUT}"
+        # echo ""
         echo "Diff:"
         diff -u "${EXPECTED_OUTPUT}" "${NORMALIZED_OUTPUT}" || true
         TEST_FAILED=1
