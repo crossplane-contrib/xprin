@@ -96,56 +96,65 @@ func buildHookFailureMessage(hookType, hookName, commandWithTemplateVars string,
 	return fmt.Sprintf("%s: %s", msg, commandWithTemplateVars)
 }
 
-// executeHooks runs each hook in order: prepare command (processHookTemplateVariables), run (runSingleHook), record result; on template or run error returns with results so far and a formatted error.
+// executeHook runs a single hook: prepare command (processHookTemplateVariables), run, return result. On template or run error returns the HookResult (for the failed hook) and a non-nil error.
+func (e *hookExecutor) executeHook(hook api.Hook, hookType string, inputs api.Inputs, outputs *engine.Outputs, tests map[string]*engine.TestCaseResult) (engine.HookResult, error) {
+	finalCommand, commandWithTemplateVars, err := e.processHookTemplateVariables(hook, inputs, outputs, tests)
+	if err != nil {
+		templateErr := fmt.Errorf("failed to render hook template: %w", err)
+
+		commandWithTemplateVarsForResult := hook.Run
+		if strings.Contains(hook.Run, testexecutionUtils.PlaceholderOpen) {
+			commandWithTemplateVarsForResult = testexecutionUtils.RestoreTemplateVars(hook.Run)
+		}
+
+		hookResult := engine.NewHookResult(hook.Name, commandWithTemplateVarsForResult, nil, templateErr)
+
+		var errorMsg string
+		if hook.Name != "" {
+			errorMsg = fmt.Sprintf("%s hook '%s' failed to render template: %s: %v", hookType, hook.Name, hook.Run, err)
+		} else {
+			errorMsg = fmt.Sprintf("%s hook failed to render template: %s: %v", hookType, hook.Run, err)
+		}
+
+		return hookResult, errors.New(errorMsg)
+	}
+
+	if e.debug {
+		if hook.Name != "" {
+			utils.DebugPrintf("Executing %s hook '%s': %s\n", hookType, hook.Name, finalCommand)
+		} else {
+			utils.DebugPrintf("Executing %s hook '%s'\n", hookType, finalCommand)
+		}
+	}
+
+	output, err := e.runCommand("sh", "-c", finalCommand)
+
+	hookResult := engine.NewHookResult(hook.Name, commandWithTemplateVars, output, err)
+	if err != nil {
+		exitCode := 1
+
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			exitCode = exitError.ExitCode()
+		}
+
+		errorMsg := buildHookFailureMessage(hookType, hook.Name, commandWithTemplateVars, exitCode, output)
+
+		return hookResult, errors.New(errorMsg)
+	}
+
+	return hookResult, nil
+}
+
+// executeHooks runs each hook in order via executeHook; on template or run error returns with results so far and a formatted error.
 func (e *hookExecutor) executeHooks(hooks []api.Hook, hookType string, inputs api.Inputs, outputs *engine.Outputs, tests map[string]*engine.TestCaseResult) ([]engine.HookResult, error) {
 	hookResults := make([]engine.HookResult, 0, len(hooks))
-
 	for _, hook := range hooks {
-		finalCommand, commandWithTemplateVars, err := e.processHookTemplateVariables(hook, inputs, outputs, tests)
+		result, err := e.executeHook(hook, hookType, inputs, outputs, tests)
+
+		hookResults = append(hookResults, result)
 		if err != nil {
-			templateErr := fmt.Errorf("failed to render hook template: %w", err)
-
-			commandWithTemplateVarsForResult := hook.Run
-			if strings.Contains(hook.Run, testexecutionUtils.PlaceholderOpen) {
-				commandWithTemplateVarsForResult = testexecutionUtils.RestoreTemplateVars(hook.Run)
-			}
-
-			hookResult := engine.NewHookResult(hook.Name, commandWithTemplateVarsForResult, nil, templateErr)
-			hookResults = append(hookResults, hookResult)
-
-			var errorMsg string
-			if hook.Name != "" {
-				errorMsg = fmt.Sprintf("%s hook '%s' failed to render template: %s: %v", hookType, hook.Name, hook.Run, err)
-			} else {
-				errorMsg = fmt.Sprintf("%s hook failed to render template: %s: %v", hookType, hook.Run, err)
-			}
-
-			return hookResults, errors.New(errorMsg)
-		}
-
-		if e.debug {
-			if hook.Name != "" {
-				utils.DebugPrintf("Executing %s hook '%s': %s\n", hookType, hook.Name, finalCommand)
-			} else {
-				utils.DebugPrintf("Executing %s hook '%s'\n", hookType, finalCommand)
-			}
-		}
-
-		output, err := e.runCommand("sh", "-c", finalCommand)
-		hookResult := engine.NewHookResult(hook.Name, commandWithTemplateVars, output, err)
-		hookResults = append(hookResults, hookResult)
-
-		if err != nil {
-			exitCode := 1
-
-			var exitError *exec.ExitError
-			if errors.As(err, &exitError) {
-				exitCode = exitError.ExitCode()
-			}
-
-			errorMsg := buildHookFailureMessage(hookType, hook.Name, commandWithTemplateVars, exitCode, output)
-
-			return hookResults, errors.New(errorMsg)
+			return hookResults, err
 		}
 	}
 
