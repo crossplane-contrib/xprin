@@ -25,7 +25,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/spf13/afero"
-	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 // Config represents the main configuration structure.

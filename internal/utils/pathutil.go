@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 // ExpandTilde replaces leading ~ with the user's home directory in a path.

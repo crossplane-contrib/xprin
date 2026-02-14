@@ -23,7 +23,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/spf13/afero"
-	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 // load loads and validates a single testsuite file.

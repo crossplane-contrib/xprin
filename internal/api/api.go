@@ -25,88 +25,88 @@ import (
 
 // TestSuiteSpec represents the structure of a testsuite YAML file used by xprin.
 type TestSuiteSpec struct {
-	Common Common     `yaml:"common"`
-	Tests  []TestCase `yaml:"tests"`
+	Common Common     `json:"common"`
+	Tests  []TestCase `json:"tests"`
 }
 
 // Patches represents XR patching configuration.
 type Patches struct {
-	XRD                       string `yaml:"xrd,omitempty"`
-	ConnectionSecret          *bool  `yaml:"connection-secret,omitempty"`
-	ConnectionSecretName      string `yaml:"connection-secret-name,omitempty"`
-	ConnectionSecretNamespace string `yaml:"connection-secret-namespace,omitempty"`
+	XRD                       string `json:"xrd,omitempty"`
+	ConnectionSecret          *bool  `json:"connection-secret,omitempty"`
+	ConnectionSecretName      string `json:"connection-secret-name,omitempty"`
+	ConnectionSecretNamespace string `json:"connection-secret-namespace,omitempty"`
 }
 
 // Hooks represents the execution hooks configuration.
 type Hooks struct {
-	PreTest  []Hook `yaml:"pre-test,omitempty"`
-	PostTest []Hook `yaml:"post-test,omitempty"`
+	PreTest  []Hook `json:"pre-test,omitempty"`
+	PostTest []Hook `json:"post-test,omitempty"`
 }
 
 // Hook represents a single executable step with optional metadata.
 type Hook struct {
-	Name string `yaml:"name,omitempty"`
-	Run  string `yaml:"run"`
+	Name string `json:"name,omitempty"`
+	Run  string `json:"run"`
 }
 
 // AssertionXprin represents a single xprin assertion (single-resource or Count).
 type AssertionXprin struct {
-	Name     string      `yaml:"name"`               // Descriptive name for the assertion
-	Type     string      `yaml:"type"`               // Type of assertion (e.g., "Count", "Exists", "FieldType")
-	Resource string      `yaml:"resource,omitempty"` // Resource identifier for resource-based assertions (e.g., "S3Bucket/my-bucket")
-	Field    string      `yaml:"field,omitempty"`    // Field path for field-based assertions (e.g., "metadata.name")
-	Operator string      `yaml:"operator,omitempty"` // Operator for field value assertions (e.g., "==", "contains")
-	Value    interface{} `yaml:"value,omitempty"`    // Expected value for the assertion
+	Name     string      `json:"name"`               // Descriptive name for the assertion
+	Type     string      `json:"type"`               // Type of assertion (e.g., "Count", "Exists", "FieldType")
+	Resource string      `json:"resource,omitempty"` // Resource identifier for resource-based assertions (e.g., "S3Bucket/my-bucket")
+	Field    string      `json:"field,omitempty"`    // Field path for field-based assertions (e.g., "metadata.name")
+	Operator string      `json:"operator,omitempty"` // Operator for field value assertions (e.g., "==", "contains")
+	Value    interface{} `json:"value,omitempty"`    // Expected value for the assertion
 }
 
 // AssertionGoldenFile represents a single golden-file assertion (compare actual output to expected file; used by diff and dyff).
 type AssertionGoldenFile struct {
-	Name     string `yaml:"name"`               // Mandatory descriptive name
-	Expected string `yaml:"expected"`           // Path to golden (expected) file; mandatory
-	Resource string `yaml:"resource,omitempty"` // Optional Kind/Name; when set, actual = that resource's file; when omitted, actual = full render output
+	Name     string `json:"name"`               // Mandatory descriptive name
+	Expected string `json:"expected"`           // Path to golden (expected) file; mandatory
+	Resource string `json:"resource,omitempty"` // Optional Kind/Name; when set, actual = that resource's file; when omitted, actual = full render output
 }
 
 // Assertions represents assertions grouped by execution engine.
 type Assertions struct {
-	Xprin []AssertionXprin      `yaml:"xprin,omitempty"` // xprin assertions (in-process)
-	Diff  []AssertionGoldenFile `yaml:"diff,omitempty"`  // diff assertions (go-native compare to golden file)
-	Dyff  []AssertionGoldenFile `yaml:"dyff,omitempty"`  // dyff assertions (dyff between expected and actual)
+	Xprin []AssertionXprin      `json:"xprin,omitempty"` // xprin assertions (in-process)
+	Diff  []AssertionGoldenFile `json:"diff,omitempty"`  // diff assertions (go-native compare to golden file)
+	Dyff  []AssertionGoldenFile `json:"dyff,omitempty"`  // dyff assertions (dyff between expected and actual)
 }
 
 // Common represents the common configuration for a testsuite file.
 type Common struct {
-	Inputs     Inputs     `yaml:"inputs,omitempty"`
-	Patches    Patches    `yaml:"patches,omitempty"`
-	Hooks      Hooks      `yaml:"hooks,omitempty"`
-	Assertions Assertions `yaml:"assertions,omitempty"`
+	Inputs     Inputs     `json:"inputs,omitempty"`
+	Patches    Patches    `json:"patches,omitempty"`
+	Hooks      Hooks      `json:"hooks,omitempty"`
+	Assertions Assertions `json:"assertions,omitempty"`
 }
 
 // TestCase represents a single test case.
 type TestCase struct {
-	Name       string     `yaml:"name"`                 // Mandatory descriptive name
-	ID         string     `yaml:"id,omitempty"`         // Optional unique identifier
-	Inputs     Inputs     `yaml:"inputs"`               // Inputs of a test case
-	Patches    Patches    `yaml:"patches,omitempty"`    // Optional XR patching configuration
-	Hooks      Hooks      `yaml:"hooks,omitempty"`      // Optional execution hooks configuration
-	Assertions Assertions `yaml:"assertions,omitempty"` // Optional assertions
+	Name       string     `json:"name"`                 // Mandatory descriptive name
+	ID         string     `json:"id,omitempty"`         // Optional unique identifier
+	Inputs     Inputs     `json:"inputs"`               // Inputs of a test case
+	Patches    Patches    `json:"patches,omitempty"`    // Optional XR patching configuration
+	Hooks      Hooks      `json:"hooks,omitempty"`      // Optional execution hooks configuration
+	Assertions Assertions `json:"assertions,omitempty"` // Optional assertions
 }
 
 // Inputs represents the inputs for a test case or common configuration.
 type Inputs struct {
 	// Mandatory Crossplane Render/Validate flags
-	Composition string `yaml:"composition,omitempty"`
-	Functions   string `yaml:"functions,omitempty"`
+	Composition string `json:"composition,omitempty"`
+	Functions   string `json:"functions,omitempty"`
 	// One of Claim or XR must be specified
-	Claim string `yaml:"claim,omitempty"`
-	XR    string `yaml:"xr,omitempty"`
+	Claim string `json:"claim,omitempty"`
+	XR    string `json:"xr,omitempty"`
 
 	// Optional Crossplane Render/Validate flags
-	CRDs                []string          `yaml:"crds,omitempty"`
-	ContextFiles        map[string]string `yaml:"context-files,omitempty"`
-	ContextValues       map[string]string `yaml:"context-values,omitempty"`
-	ObservedResources   string            `yaml:"observed-resources,omitempty"`
-	ExtraResources      string            `yaml:"extra-resources,omitempty"`
-	FunctionCredentials string            `yaml:"function-credentials,omitempty"`
+	CRDs                []string          `json:"crds,omitempty"`
+	ContextFiles        map[string]string `json:"context-files,omitempty"`
+	ContextValues       map[string]string `json:"context-values,omitempty"`
+	ObservedResources   string            `json:"observed-resources,omitempty"`
+	ExtraResources      string            `json:"extra-resources,omitempty"`
+	FunctionCredentials string            `json:"function-credentials,omitempty"`
 }
 
 // HasConnectionSecret returns true if ConnectionSecret is explicitly set to true.

@@ -159,7 +159,6 @@ linters:
       case:
         rules:
           json: goCamel
-          yaml: kebab
     unparam:
       # Inspect exported functions, default is false. Set to true if no external program/library imports your code.
       # XXX: if you enable this setting, unparam will report a lot of false-positives in text editors:
@@ -236,6 +235,11 @@ linters:
       - linters:
           - musttag
         path: k8s.io/
+
+      # Allow kebab-case json tags in api to match YAML spec and schema.
+      - linters:
+          - tagliatelle
+        path: internal/api/
 
       # Various fields related to native patch and transform Composition are
       # deprecated, but we can't drop support from Crossplane 1.x. We ignore the
