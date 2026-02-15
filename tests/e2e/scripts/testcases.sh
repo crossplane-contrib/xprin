@@ -41,5 +41,6 @@ testcase_009="examples/mytests/5_chained_tests/example1_chained-test-outputs_xpr
 # Cross-Composition Chaining
 testcase_010="examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml -v --show-render --show-validate"
 
+# Invalid testsuite file
 testcase_011="examples/mytests/0_e2e/invalid_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
 testcase_011_exit=1

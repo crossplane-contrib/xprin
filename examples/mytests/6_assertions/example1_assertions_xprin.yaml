@@ -18,86 +18,86 @@ tests:
 
   assertions:
     xprin:
-      # Count assertion
-      - name: "Number of resources"
-        type: "Count"
-        value: 3
+    # Count assertion
+    - name: "Number of resources"
+      type: "Count"
+      value: 3
 
-      # Exists assertions
-      - name: "SecurityGroup should exist"
-        type: "Exists"
-        resource: "SecurityGroup/platform-aws-sg"
-      - name: "RDS should exist"
-        type: "Exists"
-        resource: "Cluster/platform-aws-rds"
+    # Exists assertions
+    - name: "SecurityGroup should exist"
+      type: "Exists"
+      resource: "SecurityGroup/platform-aws-sg"
+    - name: "RDS should exist"
+      type: "Exists"
+      resource: "Cluster/platform-aws-rds"
 
-      # NotExists assertions
-      - name: "EC2 should not exist"
-        type: "NotExists"
-        resource: "EC2/platform-aws-ec2"
-      - name: "No EC2 instances should exist"
-        type: "NotExists"
-        resource: "EC2"
+    # NotExists assertions
+    - name: "EC2 should not exist"
+      type: "NotExists"
+      resource: "EC2/platform-aws-ec2"
+    - name: "No EC2 instances should exist"
+      type: "NotExists"
+      resource: "EC2"
 
-      # FieldExists assertion
-      - name: "SecurityGroup should have a name"
-        type: "FieldExists"
-        resource: "SecurityGroup/platform-aws-sg"
-        field: "metadata.name"
+    # FieldExists assertion
+    - name: "SecurityGroup should have a name"
+      type: "FieldExists"
+      resource: "SecurityGroup/platform-aws-sg"
+      field: "metadata.name"
 
-      # FieldNotExists assertion
-      - name: "RDS should not have deprecated field"
-        type: "FieldNotExists"
-        resource: "Cluster/platform-aws-rds"
-        field: "spec.deprecatedField"
+    # FieldNotExists assertion
+    - name: "RDS should not have deprecated field"
+      type: "FieldNotExists"
+      resource: "Cluster/platform-aws-rds"
+      field: "spec.deprecatedField"
 
-      # FieldType assertions - all supported types
-      - name: "SecurityGroup description should be string"
-        type: "FieldType"
-        resource: "SecurityGroup/platform-aws-sg"
-        field: "spec.forProvider.description"
-        value: "string"
+    # FieldType assertions - all supported types
+    - name: "SecurityGroup description should be string"
+      type: "FieldType"
+      resource: "SecurityGroup/platform-aws-sg"
+      field: "spec.forProvider.description"
+      value: "string"
 
-      - name: "RDS backupRetentionPeriod should be number"
-        type: "FieldType"
-        resource: "Cluster/platform-aws-rds"
-        field: "spec.forProvider.backupRetentionPeriod"
-        value: "number"
+    - name: "RDS backupRetentionPeriod should be number"
+      type: "FieldType"
+      resource: "Cluster/platform-aws-rds"
+      field: "spec.forProvider.backupRetentionPeriod"
+      value: "number"
 
-      - name: "RDS vpcSecurityGroupIds should be array"
-        type: "FieldType"
-        resource: "Cluster/platform-aws-rds"
-        field: "spec.forProvider.vpcSecurityGroupIds"
-        value: "array"
+    - name: "RDS vpcSecurityGroupIds should be array"
+      type: "FieldType"
+      resource: "Cluster/platform-aws-rds"
+      field: "spec.forProvider.vpcSecurityGroupIds"
+      value: "array"
 
-      - name: "SecurityGroup metadata labels should be object"
-        type: "FieldType"
-        resource: "SecurityGroup/platform-aws-sg"
-        field: "metadata.labels"
-        value: "object"
+    - name: "SecurityGroup metadata labels should be object"
+      type: "FieldType"
+      resource: "SecurityGroup/platform-aws-sg"
+      field: "metadata.labels"
+      value: "object"
 
-      - name: "RDS masterPasswordSecretRef should be object"
-        type: "FieldType"
-        resource: "Cluster/platform-aws-rds"
-        field: "spec.forProvider.masterPasswordSecretRef"
-        value: "object"
+    - name: "RDS masterPasswordSecretRef should be object"
+      type: "FieldType"
+      resource: "Cluster/platform-aws-rds"
+      field: "spec.forProvider.masterPasswordSecretRef"
+      value: "object"
 
-      - name: "RDS finalSnapshotIdentifier should not exist"
-        type: "FieldNotExists"
-        resource: "Cluster/platform-aws-rds"
-        field: "spec.forProvider.finalSnapshotIdentifier"
+    - name: "RDS finalSnapshotIdentifier should not exist"
+      type: "FieldNotExists"
+      resource: "Cluster/platform-aws-rds"
+      field: "spec.forProvider.finalSnapshotIdentifier"
 
-      # FieldValue assertions
-      - name: "RDS should be Aurora PostgreSQL"
-        type: "FieldValue"
-        resource: "Cluster/platform-aws-rds"
-        field: "spec.forProvider.engine"
-        operator: "is"
-        value: "aurora-postgresql"
+    # FieldValue assertions
+    - name: "RDS should be Aurora PostgreSQL"
+      type: "FieldValue"
+      resource: "Cluster/platform-aws-rds"
+      field: "spec.forProvider.engine"
+      operator: "is"
+      value: "aurora-postgresql"
 
-      - name: "RDS backupRetentionPeriod should equal 1"
-        type: "FieldValue"
-        resource: "Cluster/platform-aws-rds"
-        field: "spec.forProvider.backupRetentionPeriod"
-        operator: "=="
-        value: 1
+    - name: "RDS backupRetentionPeriod should equal 1"
+      type: "FieldValue"
+      resource: "Cluster/platform-aws-rds"
+      field: "spec.forProvider.backupRetentionPeriod"
+      operator: "=="
+      value: 1

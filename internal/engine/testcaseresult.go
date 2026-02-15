@@ -32,7 +32,20 @@ import (
 
 const (
 	spaces = "    " // Global indentation constant for consistent formatting.
+	// multilineBodyIndent is the prefix for multiline bodies (assertion messages, hook output). Keep equal so dyff/diff look the same.
+	multilineBodyIndent = spaces + spaces + spaces // 12 spaces
 )
+
+// indentMultilineBody returns body with each line prefixed by indent (first line gets indent at start,
+// subsequent lines get newline+indent). Used for hook output and assertion multi-line messages.
+func indentMultilineBody(indent, body string) string {
+	trimmed := strings.TrimSuffix(body, "\n")
+	if trimmed == "" {
+		return ""
+	}
+
+	return indent + strings.ReplaceAll(trimmed, "\n", "\n"+indent)
+}
 
 // TestCaseResult represents the result of a single test case.
 type TestCaseResult struct {
@@ -353,8 +366,6 @@ func (tcr *TestCaseResult) formatHooksOutputWithShow(hooksResults []HookResult, 
 		hooks = filtered
 	}
 
-	bodyIndent := "\n" + spaces + spaces + spaces
-
 	var out []string
 
 	header := headerPostTest
@@ -386,9 +397,7 @@ func (tcr *TestCaseResult) formatHooksOutputWithShow(hooksResults []HookResult, 
 		}
 
 		if len(hook.Output) != 0 {
-			trimmed := strings.TrimSuffix(string(hook.Output), "\n")
-			indented := strings.ReplaceAll(trimmed, "\n", bodyIndent)
-			out = append(out, spaces+spaces+spaces+indented)
+			out = append(out, indentMultilineBody(multilineBodyIndent, string(hook.Output)))
 		}
 	}
 
@@ -447,7 +456,13 @@ func (tcr *TestCaseResult) formatAssertionsOutput() string {
 	lines = append(lines, fmt.Sprintf("%s%s", spaces, header))
 
 	for _, r := range toList {
-		lines = append(lines, fmt.Sprintf("%s%s %s - %s", spaces+spaces, r.Status.Symbol, r.Name, r.Message))
+		if strings.Contains(r.Message, "\n") {
+			lines = append(lines,
+				fmt.Sprintf("%s%s %s", spaces+spaces, r.Status.Symbol, r.Name),
+				indentMultilineBody(multilineBodyIndent, r.Message))
+		} else {
+			lines = append(lines, fmt.Sprintf("%s%s %s - %s", spaces+spaces, r.Status.Symbol, r.Name, r.Message))
+		}
 	}
 
 	plural := pluralize.NewClient()

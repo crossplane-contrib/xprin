@@ -651,14 +651,40 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 
 	// Execute assertions if any are defined (collect errors but don't fail immediately)
 	if testCase.HasAssertions() {
-		if r.Debug {
-			utils.DebugPrintf("Executing %d assertions for test case '%s'\n", len(testCase.Assertions.Xprin), testCase.Name)
+		exec := newAssertionExecutor(
+			r.fs,
+			&result.Outputs,
+			r.Debug,
+			r.testSuiteFile,
+			r.expandPathRelativeToTestSuiteFile,
+			r.Color,
+		)
+
+		result.AssertionsResults = nil
+
+		if testCase.HasAssertionsXprin() {
+			if r.Debug {
+				utils.DebugPrintf("Executing %d xprin assertions for test case '%s'\n", len(testCase.Assertions.Xprin), testCase.Name)
+			}
+
+			result.AssertionsResults = append(result.AssertionsResults, exec.executeAssertionsXprin(testCase.Assertions.Xprin)...)
 		}
 
-		assertionExecutor := newAssertionExecutor(r.fs, &result.Outputs, r.Debug)
+		if testCase.HasAssertionsDiff() {
+			if r.Debug {
+				utils.DebugPrintf("Executing %d diff assertions for test case '%s'\n", len(testCase.Assertions.Diff), testCase.Name)
+			}
 
-		// Store assertion results in test case result
-		result.AssertionsResults = assertionExecutor.executeAssertions(testCase.Assertions.Xprin)
+			result.AssertionsResults = append(result.AssertionsResults, exec.executeAssertionsDiff(testCase.Assertions.Diff)...)
+		}
+
+		if testCase.HasAssertionsDyff() {
+			if r.Debug {
+				utils.DebugPrintf("Executing %d dyff assertions for test case '%s'\n", len(testCase.Assertions.Dyff), testCase.Name)
+			}
+
+			result.AssertionsResults = append(result.AssertionsResults, exec.executeAssertionsDyff(testCase.Assertions.Dyff)...)
+		}
 
 		// Format assertions output and set hasFailedAssertions
 		result.ProcessAssertionsOutput()

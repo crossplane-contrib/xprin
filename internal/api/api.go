@@ -49,8 +49,8 @@ type Hook struct {
 	Run  string `yaml:"run"`
 }
 
-// Assertion represents a single assertion to be evaluated.
-type Assertion struct {
+// AssertionXprin represents a single xprin assertion (single-resource or Count).
+type AssertionXprin struct {
 	Name     string      `yaml:"name"`               // Descriptive name for the assertion
 	Type     string      `yaml:"type"`               // Type of assertion (e.g., "Count", "Exists", "FieldType")
 	Resource string      `yaml:"resource,omitempty"` // Resource identifier for resource-based assertions (e.g., "S3Bucket/my-bucket")
@@ -59,9 +59,18 @@ type Assertion struct {
 	Value    interface{} `yaml:"value,omitempty"`    // Expected value for the assertion
 }
 
+// AssertionGoldenFile represents a single golden-file assertion (compare actual output to expected file; used by diff and dyff).
+type AssertionGoldenFile struct {
+	Name     string `yaml:"name"`               // Mandatory descriptive name
+	Expected string `yaml:"expected"`           // Path to golden (expected) file; mandatory
+	Resource string `yaml:"resource,omitempty"` // Optional Kind/Name; when set, actual = that resource's file; when omitted, actual = full render output
+}
+
 // Assertions represents assertions grouped by execution engine.
 type Assertions struct {
-	Xprin []Assertion `yaml:"xprin,omitempty"` // xprin assertions (in-process)
+	Xprin []AssertionXprin      `yaml:"xprin,omitempty"` // xprin assertions (in-process)
+	Diff  []AssertionGoldenFile `yaml:"diff,omitempty"`  // diff assertions (go-native compare to golden file)
+	Dyff  []AssertionGoldenFile `yaml:"dyff,omitempty"`  // dyff assertions (dyff between expected and actual)
 }
 
 // Common represents the common configuration for a testsuite file.
@@ -146,9 +155,24 @@ func (h *Hooks) HasHooks() bool {
 	return h.HasPreTestHooks() || h.HasPostTestHooks()
 }
 
+// HasAssertionsXprin returns true if any xprin assertions are set.
+func (a *Assertions) HasAssertionsXprin() bool {
+	return len(a.Xprin) > 0
+}
+
+// HasAssertionsDiff returns true if any diff assertions are set.
+func (a *Assertions) HasAssertionsDiff() bool {
+	return len(a.Diff) > 0
+}
+
+// HasAssertionsDyff returns true if any dyff assertions are set.
+func (a *Assertions) HasAssertionsDyff() bool {
+	return len(a.Dyff) > 0
+}
+
 // HasAssertions returns true if any assertions are set.
-func (c *Common) HasAssertions() bool {
-	return len(c.Assertions.Xprin) > 0
+func (a *Assertions) HasAssertions() bool {
+	return a.HasAssertionsXprin() || a.HasAssertionsDiff() || a.HasAssertionsDyff()
 }
 
 // CheckValidTestSuiteFile checks:
@@ -219,7 +243,7 @@ func (ts *TestSuiteSpec) HasCommonHooks() bool {
 
 // HasCommonAssertions returns true if any common assertions are set in the test suite.
 func (ts *TestSuiteSpec) HasCommonAssertions() bool {
-	return ts.Common.HasAssertions()
+	return ts.Common.Assertions.HasAssertions()
 }
 
 // HasCommon returns true if any common inputs are set in the test suite spec.
@@ -269,12 +293,29 @@ func (tc *TestCase) HasHooks() bool {
 	return tc.Hooks.HasHooks()
 }
 
+// HasAssertionsXprin checks if any xprin assertions are set in the test case.
+func (tc *TestCase) HasAssertionsXprin() bool {
+	return tc.Assertions.HasAssertionsXprin()
+}
+
+// HasAssertionsDiff checks if any diff assertions are set in the test case.
+func (tc *TestCase) HasAssertionsDiff() bool {
+	return tc.Assertions.HasAssertionsDiff()
+}
+
+// HasAssertionsDyff checks if any dyff assertions are set in the test case.
+func (tc *TestCase) HasAssertionsDyff() bool {
+	return tc.Assertions.HasAssertionsDyff()
+}
+
 // HasAssertions returns true if any assertions are defined.
 func (tc *TestCase) HasAssertions() bool {
-	return len(tc.Assertions.Xprin) > 0
+	return tc.Assertions.HasAssertions()
 }
 
 // MergeCommon merges common inputs and patches into the test case.
+//
+//nolint:gocognit // too many ifs, but not that complex
 func (tc *TestCase) MergeCommon(common Common) {
 	if tc.Inputs.XR == "" {
 		tc.Inputs.XR = common.Inputs.XR
@@ -349,11 +390,20 @@ func (tc *TestCase) MergeCommon(common Common) {
 		}
 	}
 
-	// Always merge assertions if common has assertions
-	if common.HasAssertions() {
-		if !tc.HasAssertions() {
-			tc.Assertions = common.Assertions
-		}
+	// Merge assertions per engine: if common has assertions for an engine and the test case does not, use common's.
+	if common.Assertions.HasAssertionsXprin() && !tc.HasAssertionsXprin() {
+		tc.Assertions.Xprin = make([]AssertionXprin, len(common.Assertions.Xprin))
+		copy(tc.Assertions.Xprin, common.Assertions.Xprin)
+	}
+
+	if common.Assertions.HasAssertionsDiff() && !tc.HasAssertionsDiff() {
+		tc.Assertions.Diff = make([]AssertionGoldenFile, len(common.Assertions.Diff))
+		copy(tc.Assertions.Diff, common.Assertions.Diff)
+	}
+
+	if common.Assertions.HasAssertionsDyff() && !tc.HasAssertionsDyff() {
+		tc.Assertions.Dyff = make([]AssertionGoldenFile, len(common.Assertions.Dyff))
+		copy(tc.Assertions.Dyff, common.Assertions.Dyff)
 	}
 }
 

@@ -47,7 +47,7 @@ flowchart TD
     G --> I
     I --> J{"CRDs provided?"}
     J -->|Yes| K["crossplane beta validate"]
-    J -->|No| L["Assertions<br/>• Count resources<br/>• Check existence<br/>• Validate fields"]
+    J -->|No| L["Assertions (xprin / diff / dyff)<br/>• Count, existence, fields<br/>• Golden-file diff"]
     K --> L
     L --> M["Post-test Hooks<br/>• Cleanup<br/>• Validate outputs"]
     M --> N{"Test case has ID?"}
@@ -173,7 +173,12 @@ flowchart TD
 3. **Evaluation**: Each assertion is evaluated against the rendered resources
 4. **Result Collection**: All assertion results (pass/fail) are collected
 
-**Assertion Types:**
+**Assertion engines:** xprin supports three engines (see [Assertions](assertions.md)):
+- **xprin**: Count, existence, field type/value checks on rendered resources
+- **diff**: Golden-file comparison using unified diff (line-by-line)
+- **dyff**: Golden-file comparison using structural YAML diff (document-aware)
+
+**xprin assertion types** (examples):
 - **Count**: Validates total number of rendered resources
 - **Exists**: Checks if a specific resource exists (format: `Kind/name`)
 - **NotExists**: Checks if a resource does not exist (format: `Kind/name` or `Kind`)
@@ -265,16 +270,18 @@ These failures are collected and reported, but execution continues:
 
 ## Statuses and output symbols
 
-xprin uses a small set of **statuses** and **symbols** in its output, aligned with [Crossplane `beta validate`](https://github.com/crossplane/crossplane/blob/main/cmd/crank/beta/validate/validate.go) so that **[✓]**, **[x]**, and **[!]** mean the same thing across tools.
+xprin uses a small set of **statuses** and **symbols** in its output, aligned with `crossplane beta validate` so that **[✓]**, **[x]**, and **[!]** mean the same thing across tools.
 
-### Symbols
+### Symbols and status values
 
-| Symbol | Meaning |
-|--------|--------|
-| **[✓]** | Success: the check ran and passed. |
-| **[x]** | Failure: the check ran and the condition was false (e.g. assertion failed, hook exited non-zero). |
-| **[!]** | Other/operational: the check could not run (e.g. missing resource, invalid config, render failure, hook template error). |
-| **[s]** | Skipped: reserved for future use (intentionally skipped assertions). |
+Output uses the following **symbols**; internally, outcomes use the corresponding **status** value:
+
+| Symbol | Status | Internal value | Meaning |
+|--------|--------|----------------|--------|
+| **[✓]** | Pass | `PASS` | Check ran and passed. |
+| **[x]** | Fail | `FAIL` | Check ran and the condition was false (e.g. assertion failed, hook exited non-zero). |
+| **[!]** | Error | `ERROR` | Check could not run (e.g. missing resource, invalid config, render failure, hook template error). |
+| **[s]** | Skip | `SKIP` | Skipped: reserved for future use (intentionally skipped assertions). |
 
 ### Where they appear
 
@@ -284,18 +291,7 @@ xprin uses a small set of **statuses** and **symbols** in its output, aligned wi
 - **Hooks**: **[✓]** for success; **[x]** when the hook process exited with a non-zero code; **[!]** when the hook could not run (e.g. template rendering failure).
 - **Assertions**: **[✓]** when the assertion ran and passed; **[x]** when it ran and the condition was false; **[!]** when it could not be evaluated (e.g. resource not found, invalid assertion config). The totals line reports successful, failed, and error counts.
 
-### Status values
-
-Internally, test and assertion outcomes use these **status** values (with the symbols above for display):
-
-| Status | Value | Symbol | Use |
-|--------|--------|--------|-----|
-| **Pass** | `PASS` | [✓] | Check ran and passed. |
-| **Fail** | `FAIL` | [x] | Check ran and failed (condition false or non-zero exit). |
-| **Skip** | `SKIP` | [s] | Intentionally skipped (reserved for future use). |
-| **Error** | `ERROR` | [!] | Check could not run (operational/infrastructure/config issue). |
-
-For more detail on the design and alignment with Crossplane, see [Symbol semantics: align with crossplane beta validate](design/symbol-semantics-validate-alignment.md).
+Individual phases (render, validate, hooks, assertions) and each check within them use all of these statuses. The **overall test case**, however, has only **Pass** or **Fail**. So if there is a preliminary error ([!]), a render failure, or any operational error, the test case is still reported as **Fail** (e.g. `--- FAIL: Test name (X.XXXs)`), not as a separate "Error" outcome.
 
 ## Common vs Test-Level Configuration
 
@@ -306,14 +302,14 @@ xprin supports defining configuration at two levels: `common` (shared across all
 1. **Common Configuration**: Applied to all test cases in the suite
 2. **Test Case Configuration**: Overrides common configuration for that specific test
 3. **Field-Level Replacement**: For all fields (including maps like `inputs.context-files`, `inputs.context-values`), if a test case specifies a field, it completely replaces the common value for that field. There is no deep merging of map keys - the entire field value is replaced.
-4. **List Replacement**: For lists (like `hooks.pre-test`, `assertions`), test case lists replace common lists (no merging)
+4. **List replacement (per type)**: For **hooks** and **assertions**, merge is per type. For hooks: `hooks.pre-test` and `hooks.post-test` are independent—if the test case has no pre-test hooks, common’s pre-test hooks are used; if it has any, the test case’s list is used (and similarly for post-test). For assertions: same per engine (`assertions.xprin`, `assertions.diff`, `assertions.dyff`)—if the test case has no assertions for a given engine, common’s list for that engine is used; if it has any, the test case’s list is used. There is no appending; each list is replaced as a whole when the test case specifies it.
 
 ### Precedence Rules
 
 - Test case level **always** overrides common level
 - If a test case specifies a field (even if it's a map), the entire field value is replaced (not merged)
 - For maps like `context-files` and `context-values`, if the test case map is empty, common values are used; if the test case map has any keys, it completely replaces the common map
-- For hooks and assertions, test case lists completely replace common lists (they don't append)
+- For hooks and assertions, each list type is merged independently: empty test case list for that type uses common’s; non-empty uses the test case’s list.
 
 ### Example
 
@@ -322,33 +318,35 @@ common:
   inputs:
     functions: /common/functions
     crds:
-      - /common/crds
+    - /common/crds
   hooks:
     pre-test:
-      - name: "common setup"
-        run: "echo 'common'"
+    - name: "common setup"
+      run: "echo 'common'"
   assertions:
+    xprin:
     - name: "common-count"
       type: "Count"
       value: 3
 
 tests:
-  - name: "Test 1"
-    inputs:
-      functions: /test1/functions  # Overrides common
-      # crds not specified, so common crds are used
-    hooks:
-      pre-test:
-        - name: "test1 setup"
-          run: "echo 'test1'"  # Replaces common hook (doesn't append)
-    # assertions not specified, so common assertions are used
-  - name: "Test 2"
-    inputs:
-      functions: /test2/functions
-    assertions:
-      - name: "test2-count"
-        type: "Count"
-        value: 5  # Replaces common assertions (doesn't append)
+- name: "Test 1"
+  inputs:
+    functions: /test1/functions  # Overrides common
+    # crds not specified, so common crds are used
+  hooks:
+    pre-test:
+    - name: "test1 setup"
+      run: "echo 'test1'"  # Replaces common hook (doesn't append)
+  # assertions not specified, so common assertions are used
+- name: "Test 2"
+  inputs:
+    functions: /test2/functions
+  assertions:
+    xprin:
+    - name: "test2-count"
+      type: "Count"
+      value: 5  # Replaces common assertions (doesn't append)
 ```
 
 ## Template Variable Expansion
@@ -522,9 +520,12 @@ Hooks provide a way to execute arbitrary shell commands at specific points in th
 
 ## Assertions Execution
 
-> **📖 Complete Guide**: For comprehensive documentation on all assertion types, examples, and usage, see [Assertions](assertions.md).
+> **📖 Complete Guide**: For comprehensive documentation on all assertion engines (xprin, diff, dyff), types, examples, and usage, see [Assertions](assertions.md).
 
-Assertions provide declarative validation of rendered resources without writing custom scripts.
+Assertions provide declarative validation of rendered resources without writing custom scripts. Three engines are supported:
+- **xprin**: in-process count/existence/field checks
+- **diff**: golden-file unified diff, [go-difflib](https://github.com/pmezard/go-difflib)
+- **dyff**: golden-file structural YAML diff, [dyff](https://github.com/homeport/dyff)
 
 ### Execution Order
 

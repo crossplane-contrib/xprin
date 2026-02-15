@@ -708,7 +708,7 @@ ok	examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.ya
 
 **File**: [`mytests/5_chained_tests/example3_xprin.yaml`](mytests/5_chained_tests/example3_xprin.yaml)
 
-This example combines all the above cases, I'll let you discover the output :D Feel free also to change/break it to see how it works on failures.
+This example combines all the above cases, I'll let you discover the output :smile: Feel free also to change/break it to see how it works on failures.
 
 ---
 
@@ -771,3 +771,22 @@ ok	examples/mytests/6_assertions/example1_assertions_xprin.yaml	1.450s
 - All assertion types are demonstrated, including all FieldType values (`string`, `number`, `boolean`, `array`, `object`, `null`)
 - Assertions complement post-test hooks: use assertions for declarative validation, hooks for complex operations or external tool integration
 - Failed assertions are clearly reported in the output, making it easy to identify validation issues
+
+### Example 2: Diff and Dyff (golden-file) assertions
+
+**File**: [`mytests/6_assertions/example2_golden_file_xprin.yaml`](mytests/6_assertions/example2_golden_file_xprin.yaml)
+
+- **Diff** assertions compare the full render (or a single resource file) to a golden file using a byte-for-byte comparison.
+- **Dyff** assertions do a structural YAML comparison and produce a human-readable diff on failure.
+
+This example has a single test that **passes** when the render output matches the golden files. It uses `golden_full_render.yaml` (full render) and `golden_single_resource.yaml` (one resource: `Cluster/platform-aws-rds`). Each assertion has `name` and `expected` (path to the golden file, relative to the test suite file). The optional `resource` field (e.g. `Cluster/platform-aws-rds`) compares that resource’s file instead of the full render.
+
+**First-time setup — generate the golden files:**  
+The file includes a commented-out preliminary test “Generate golden files”. Uncomment that test, run the suite once, then comment it back out. That run will create `golden_full_render.yaml` and `golden_single_resource.yaml` in the same directory.
+
+**To see failure output:**  
+Edit one of the golden files (e.g. change a value) and run the test again; the assertion will fail and show the diff or dyff output.
+
+```bash
+xprin test examples/mytests/6_assertions/example2_golden_file_xprin.yaml -v --show-assertions
+```

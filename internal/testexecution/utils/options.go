@@ -27,6 +27,7 @@ type Options struct {
 	ShowAssertions bool
 	Verbose        bool
 	Debug          bool
+	Color          bool // When true, diff output is colorized (resolved from --color on|off|auto in the CLI).
 	Render         []string
 	Validate       []string
 }

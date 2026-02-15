@@ -25,6 +25,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/testexecution/processor"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/utils"
+	"github.com/gonvenience/bunt"
 	"github.com/spf13/afero"
 )
 
@@ -37,6 +38,7 @@ type Cmd struct {
 	ShowAssertions bool                `help:"Display assertion results for each test case. Requires --verbose."                    name:"show-assertions"`
 	Verbose        bool                `help:"Show verbose test output and results (similar to go test -v)"                         short:"v"`
 	Debug          bool                `help:"Show detailed debug information about test discovery, path resolution, and execution"`
+	Color          string              `default:"auto"                                                                              enum:"on,off,auto"                                                                                                                                                                                                       help:"Specify color usage: on, off, or auto (default auto)." name:"color"`
 	Config         *internalcfg.Config `kong:"-"`
 	fs             afero.Fs
 }
@@ -66,6 +68,16 @@ func (c *Cmd) Run(_ *kong.Context) error {
 		utils.WarningPrintf("--show-assertions requires -v (verbose mode) to display results.\n")
 	}
 
+	// Set bunt color state from CLI so diff/dyff and bunt.UseColors() stay in sync.
+	switch c.Color {
+	case "on":
+		bunt.SetColorSettings(bunt.ON, bunt.ON)
+	case "off":
+		bunt.SetColorSettings(bunt.OFF, bunt.OFF)
+	default: // "auto"
+		bunt.SetColorSettings(bunt.AUTO, bunt.AUTO)
+	}
+
 	options := c.newOptions(c.Config)
 
 	// Process targets and run tests
@@ -90,6 +102,7 @@ func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionUtils.Options {
 		ShowAssertions: c.ShowAssertions,
 		Verbose:        c.Verbose,
 		Debug:          c.Debug,
+		Color:          bunt.UseColors(),
 		Render:         render,
 		Validate:       validate,
 	}

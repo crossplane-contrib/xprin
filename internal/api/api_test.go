@@ -1114,7 +1114,7 @@ func TestTestCase_mergeCommon(t *testing.T) {
 					Functions:   "common-functions.yaml",
 				},
 				Assertions: Assertions{
-					Xprin: []Assertion{
+					Xprin: []AssertionXprin{
 						{Name: "common-count", Type: "Count", Value: 3},
 						{Name: "common-exists", Type: "Exists", Resource: "Deployment/my-app"},
 					},
@@ -1128,7 +1128,7 @@ func TestTestCase_mergeCommon(t *testing.T) {
 					Functions:   "functions.yaml",
 				},
 				Assertions: Assertions{
-					Xprin: []Assertion{
+					Xprin: []AssertionXprin{
 						{Name: "common-count", Type: "Count", Value: 3},
 						{Name: "common-exists", Type: "Exists", Resource: "Deployment/my-app"},
 					},
@@ -1145,7 +1145,7 @@ func TestTestCase_mergeCommon(t *testing.T) {
 					Functions:   "functions.yaml",
 				},
 				Assertions: Assertions{
-					Xprin: []Assertion{
+					Xprin: []AssertionXprin{
 						{Name: "test-count", Type: "Count", Value: 5},
 					},
 				},
@@ -1156,7 +1156,7 @@ func TestTestCase_mergeCommon(t *testing.T) {
 					Functions:   "common-functions.yaml",
 				},
 				Assertions: Assertions{
-					Xprin: []Assertion{
+					Xprin: []AssertionXprin{
 						{Name: "common-count", Type: "Count", Value: 3},
 						{Name: "common-exists", Type: "Exists", Resource: "Deployment/my-app"},
 					},
@@ -1170,7 +1170,7 @@ func TestTestCase_mergeCommon(t *testing.T) {
 					Functions:   "functions.yaml",
 				},
 				Assertions: Assertions{
-					Xprin: []Assertion{
+					Xprin: []AssertionXprin{
 						{Name: "test-count", Type: "Count", Value: 5},
 					},
 				},
@@ -1186,7 +1186,7 @@ func TestTestCase_mergeCommon(t *testing.T) {
 					Functions:   "functions.yaml",
 				},
 				Assertions: Assertions{
-					Xprin: []Assertion{
+					Xprin: []AssertionXprin{
 						{Name: "test-count", Type: "Count", Value: 5},
 					},
 				},
@@ -1205,8 +1205,57 @@ func TestTestCase_mergeCommon(t *testing.T) {
 					Functions:   "functions.yaml",
 				},
 				Assertions: Assertions{
-					Xprin: []Assertion{
+					Xprin: []AssertionXprin{
 						{Name: "test-count", Type: "Count", Value: 5},
+					},
+				},
+			},
+		},
+		{
+			name: "per-engine assertion merge: test has dyff only, common has xprin and diff",
+			testCase: TestCase{
+				Name: "test20",
+				Inputs: Inputs{
+					Claim:       "claim.yaml",
+					Composition: "composition.yaml",
+					Functions:   "functions.yaml",
+				},
+				Assertions: Assertions{
+					Dyff: []AssertionGoldenFile{
+						{Name: "test dyff", Expected: "golden.yaml"},
+					},
+				},
+			},
+			common: Common{
+				Inputs: Inputs{
+					Composition: "common-composition.yaml",
+					Functions:   "common-functions.yaml",
+				},
+				Assertions: Assertions{
+					Xprin: []AssertionXprin{
+						{Name: "common-count", Type: "Count", Value: 2},
+					},
+					Diff: []AssertionGoldenFile{
+						{Name: "common diff", Expected: "common_golden.yaml"},
+					},
+				},
+			},
+			expected: TestCase{
+				Name: "test20",
+				Inputs: Inputs{
+					Claim:       "claim.yaml",
+					Composition: "composition.yaml",
+					Functions:   "functions.yaml",
+				},
+				Assertions: Assertions{
+					Xprin: []AssertionXprin{
+						{Name: "common-count", Type: "Count", Value: 2},
+					},
+					Diff: []AssertionGoldenFile{
+						{Name: "common diff", Expected: "common_golden.yaml"},
+					},
+					Dyff: []AssertionGoldenFile{
+						{Name: "test dyff", Expected: "golden.yaml"},
 					},
 				},
 			},
@@ -1820,7 +1869,7 @@ func TestTestCase_hasAssertions(t *testing.T) {
 		{
 			name: "no assertions",
 			testCase: TestCase{
-				Assertions: Assertions{Xprin: []Assertion{}},
+				Assertions: Assertions{Xprin: []AssertionXprin{}},
 			},
 			expected: false,
 		},
@@ -1828,7 +1877,7 @@ func TestTestCase_hasAssertions(t *testing.T) {
 			name: "one assertion",
 			testCase: TestCase{
 				Assertions: Assertions{
-					Xprin: []Assertion{
+					Xprin: []AssertionXprin{
 						{Name: "test-assertion", Type: "Count", Value: 3},
 					},
 				},
@@ -1839,7 +1888,7 @@ func TestTestCase_hasAssertions(t *testing.T) {
 			name: "multiple assertions",
 			testCase: TestCase{
 				Assertions: Assertions{
-					Xprin: []Assertion{
+					Xprin: []AssertionXprin{
 						{Name: "test-count", Type: "Count", Value: 3},
 						{Name: "test-exists", Type: "Exists", Resource: "Deployment/my-app"},
 					},

@@ -11,8 +11,8 @@ common:
     composition: /path/to/composition.yaml
     functions: /path/to/functions
     crds:
-      - ../../path/to/crd_dir
-      - {{ .Repositories.myrepo }}/path/to/crossplane.yaml
+    - ../../path/to/crd_dir
+    - {{ .Repositories.myrepo }}/path/to/crossplane.yaml
     context-files:
       key1: /path/to/context1.yaml
       key2: /path/to/context2.yaml
@@ -29,20 +29,26 @@ common:
     connection-secret-namespace: "my-namespace"
   hooks:
     pre-test:
-      - name: "setup environment"
-        run: "echo 'Setting up test environment'"
-      - name: "another pre-test hook"
-        run: "echo 'Another pre-test action'"
+    - name: "setup environment"
+      run: "echo 'Setting up test environment'"
+    - name: "another pre-test hook"
+      run: "echo 'Another pre-test action'"
     post-test:
-      - name: "cleanup"
-        run: "echo 'Cleaning up test artifacts'"
-      - name: "validate common outputs"
-        run: "echo 'Validating {{ .Outputs.XR }}'"
+    - name: "cleanup"
+      run: "echo 'Cleaning up test artifacts'"
+    - name: "validate common outputs"
+      run: "echo 'Validating {{ .Outputs.XR }}'"
   assertions:
     xprin:
-      - name: "common-resource-count"
-        type: "Count"
-        value: 3
+    - name: "common-resource-count"
+      type: "Count"
+      value: 3
+    diff:
+    - name: "Common full render matches golden"
+      expected: common_golden_full_render.yaml
+    dyff:
+    - name: "Common full render matches golden (structural)"
+      expected: common_golden_full_render.yaml
 
 tests:
 - name: "My Test Case"
@@ -52,7 +58,7 @@ tests:
     composition: comp.yaml
     functions: /path/to/functions
     crds:
-      - ../../path/to/crd_dir
+    - ../../path/to/crd_dir
     context-files:
       key1: /path/to/context1.yaml
     context-values:
@@ -67,27 +73,33 @@ tests:
     connection-secret-namespace: "my-namespace"
   hooks:
     pre-test:
-      - name: "pre-test setup"
-        run: "echo 'Pre-test setup for {{ .Inputs.XR }}'"
+    - name: "pre-test setup"
+      run: "echo 'Pre-test setup for {{ .Inputs.XR }}'"
     post-test:
-      - name: "validate outputs"
-        run: "echo 'Validating {{ .Outputs.XR }}'"
-      - name: "check render count"
-        run: "echo 'Rendered {{ .Outputs.RenderCount }} resources'"
+    - name: "validate outputs"
+      run: "echo 'Validating {{ .Outputs.XR }}'"
+    - name: "check render count"
+      run: "echo 'Rendered {{ .Outputs.RenderCount }} resources'"
   assertions:
     xprin:
-      - name: "resource-count"
-        type: "Count"
-        value: 3
-      - name: "deployment-exists"
-        type: "Exists"
-        resource: "Deployment/my-app"
-      - name: "replicas-value"
-        type: "FieldValue"
-        resource: "Deployment/my-app"
-        field: "spec.replicas"
-        operator: "=="
-        value: 3
+    - name: "resource-count"
+      type: "Count"
+      value: 3
+    - name: "deployment-exists"
+      type: "Exists"
+      resource: "Deployment/my-app"
+    - name: "replicas-value"
+      type: "FieldValue"
+      resource: "Deployment/my-app"
+      field: "spec.replicas"
+      operator: "=="
+      value: 3
+    diff:
+    - name: "Full render matches golden"
+      expected: golden_full_render.yaml
+    dyff:
+    - name: "Full render matches golden (structural)"
+      expected: golden_full_render.yaml
 - name: "Test: Basic Setup with Claim"
   id: "test-case-2"
   inputs:
@@ -96,11 +108,11 @@ tests:
     functions: /path/to/functions
   hooks:
     pre-test:
-      - name: "use previous test output"
-        run: "echo 'Previous test XR: {{ .Tests.test-case-1.Outputs.XR }}'"
+    - name: "use previous test output"
+      run: "echo 'Previous test XR: {{ .Tests.test-case-1.Outputs.XR }}'"
     post-test:
-      - name: "compare outputs"
-        run: "diff -u {{ .Tests.test-case-1.Outputs.Render }} {{ .Outputs.Render }} || true"
+    - name: "compare outputs"
+      run: "diff -u {{ .Tests.test-case-1.Outputs.Render }} {{ .Outputs.Render }} || true"
 ```
 
 ## Field Reference
@@ -172,18 +184,36 @@ tests:
 | `name` | ❌ | string | Hook name (used in error messages) |
 | `run` | ✅ | string | Shell command to execute |
 
+### Hook result status
+
+- **[✓]** – Hook ran and exited with code 0.
+- **[x]** – Hook ran and exited with a non-zero code; the output shows the hook’s stdout/stderr (if any).
+- **[!]** – Hook could not run (e.g. template rendering failure). Treated as an operational error, not as “hook ran and failed.”
+
+See [Statuses and output symbols](how-it-works.md#statuses-and-output-symbols) for the full list across all phases.
+
 ### Assertions
+
+Assertions are grouped by **engine**. Under `common.assertions` or a test case’s `assertions`, you can use one or more of these keys:
+
+| Key | Description |
+|-----|-------------|
+| `xprin` | List of in-process assertions: count, existence, field type/value checks. See [Assertion types (xprin)](assertions.md#assertion-types-xprin). |
+| `diff` | List of golden-file assertions (unified diff, [go-difflib](https://github.com/pmezard/go-difflib)). See [Golden-file assertions (diff and dyff)](assertions.md#golden-file-assertions-diff-and-dyff). |
+| `dyff` | List of golden-file assertions (structural YAML diff, [dyff](https://github.com/homeport/dyff)). See [Golden-file assertions (diff and dyff)](assertions.md#golden-file-assertions-diff-and-dyff). |
+
+The table below covers **xprin** assertion item fields; **diff** and **dyff** items use `name`, `expected`, and optional `resource`. For full details and examples, see [Assertions](assertions.md).
 
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
 | `name` | ✅ | string | Assertion name (descriptive identifier) |
-| `type` | ✅ | string | Assertion type (see [Assertions Documentation](assertions.md#assertion-types)) |
+| `type` | ✅ | string | Assertion type (xprin only; see [Assertions](assertions.md#assertion-types-xprin)) |
 | `resource` | ✅* | string | Resource identifier (format: `Kind/name` or `Kind` depending on assertion type) |
 | `field` | ✅* | string | Field path for field-based assertions (e.g., `metadata.name`, `spec.replicas`) |
 | `operator` | ✅* | string | Operator for field value assertions (e.g., `==`, `is`) |
 | `value` | ✅* | any | Expected value for count, type, or field value assertions |
 
-*Required fields depend on assertion type. For complete documentation, see [Assertions](assertions.md).
+*Required fields depend on assertion type. For complete documentation, including diff and dyff, see [Assertions](assertions.md).
 
 ## Path Resolution
 

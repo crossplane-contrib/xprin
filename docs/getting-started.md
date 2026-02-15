@@ -16,9 +16,6 @@
     - [Pre-test hooks](#pre-test-hooks)
     - [Post-test hooks](#post-test-hooks)
   - [Assertions](#assertions)
-    - [Basic Assertions](#basic-assertions)
-    - [Field Assertions](#field-assertions)
-    - [Complete Example](#complete-example)
   - [Test Chaining](#test-chaining)
 - [Output Examples](#output-examples)
   - [Successful Test Run](#successful-test-run)
@@ -192,20 +189,20 @@ Example:
 common:
   hooks:
     pre-test:
-      - name: "setup environment"
-        run: ./scripts/setup_test_env.sh
-      - name: "validate k8s version"
-        run: ./scripts/validate_k8s_version.sh {{ .Inputs.XR }}
-      - name: "patch XR size to small if unset"
-        run: ./scripts/patch_xr_size.sh {{ .Inputs.XR }}
+    - name: "setup environment"
+      run: ./scripts/setup_test_env.sh
+    - name: "validate k8s version"
+      run: ./scripts/validate_k8s_version.sh {{ .Inputs.XR }}
+    - name: "patch XR size to small if unset"
+      run: ./scripts/patch_xr_size.sh {{ .Inputs.XR }}
 ```
 
 For more complex operations, you can use inline commands. Here's an example with a one-liner:
 ```yaml
 hooks:
   pre-test:
-    - name: "validate and patch in one step"
-      run: v=$(yq -r '.spec.k8s_version' {{ .Inputs.XR }}) && echo "$v" | grep -Eq '^1\.3[0-9]$' || { echo "Invalid version: $v"; exit 1; } && yq -i '.spec.parameters.size //= "small"' {{ .Inputs.XR }}
+  - name: "validate and patch in one step"
+    run: v=$(yq -r '.spec.k8s_version' {{ .Inputs.XR }}) && echo "$v" | grep -Eq '^1\.3[0-9]$' || { echo "Invalid version: $v"; exit 1; } && yq -i '.spec.parameters.size //= "small"' {{ .Inputs.XR }}
 ```
 
 Notes:
@@ -223,57 +220,70 @@ Use post-test hooks for:
 Example:
 ```yaml
 tests:
-  - name: "XR sanity"
-    inputs:
-      xr: xr.yaml
-      composition: comp.yaml
-    hooks:
-      post-test:
-        # 1) Print paths to outputs
-        - name: "print outputs"
-          run: ./scripts/print_outputs.sh {{ .Outputs.XR }} {{ .Outputs.Render }}
+- name: "XR sanity"
+  inputs:
+    xr: xr.yaml
+    composition: comp.yaml
+  hooks:
+    post-test:
+    # 1) Print paths to outputs
+    - name: "print outputs"
+      run: ./scripts/print_outputs.sh {{ .Outputs.XR }} {{ .Outputs.Render }}
 
-        # 2) Compare original XR vs rendered XR
-        - name: "diff inputs vs outputs"
-          run: ./scripts/diff_xr.sh {{ .Inputs.XR }} {{ .Outputs.XR }}
+    # 2) Compare original XR vs rendered XR
+    - name: "diff inputs vs outputs"
+      run: ./scripts/diff_xr.sh {{ .Inputs.XR }} {{ .Outputs.XR }}
 
-        # 3) Cleanup
-        - name: "cleanup"
-          run: ./scripts/cleanup_test_env.sh
+    # 3) Cleanup
+    - name: "cleanup"
+      run: ./scripts/cleanup_test_env.sh
 ```
 
 ### Assertions
 
-Assertions provide declarative validation of rendered resources. They are ideal for validating the structure and content of rendered manifests without writing custom scripts.
+Assertions provide declarative validation of rendered resources without writing custom scripts. They are grouped by **engine**:
+- **xprin:** In-process assertions: count, existence, field type/value checks on rendered resources.
+- **diff:** Golden-file comparison using a **unified diff**
+- **dyff:** Golden-file comparison using **dyff** (structural YAML diff, document-aware).
 
 **Quick Example:**
 ```yaml
 tests:
-  - name: "Application Deployment"
-    inputs:
-      xr: app-xr.yaml
-      composition: app-composition.yaml
-      functions: /path/to/functions
-    assertions:
-      - name: "renders-three-resources"
-        type: "Count"
-        value: 3
-      - name: "deployment-exists"
-        type: "Exists"
-        resource: "Deployment/my-app"
-      - name: "replicas-value"
-        type: "FieldValue"
-        resource: "Deployment/my-app"
-        field: "spec.replicas"
-        operator: "=="
-        value: 3
+- name: "AWS Infra"
+  inputs:
+    xr: xr.yaml
+    composition: composition.yaml
+    functions: /path/to/functions
+  assertions:
+    xprin:
+    - name: "Number of resources"
+      type: "Count"
+      value: 3
+    - name: "SecurityGroup should exist"
+      type: "Exists"
+      resource: "SecurityGroup/platform-aws-sg"
+    - name: "RDS backupRetentionPeriod should equal 1"
+      type: "FieldValue"
+      resource: "Cluster/platform-aws-rds"
+      field: "spec.forProvider.backupRetentionPeriod"
+      operator: "=="
+      value: 1
+    diff:
+    - name: "Full render matches golden (using diff)"
+      expected: golden_full_render.yaml
+    - name: "Cluster resource matches golden (using diff)"
+      expected: golden_single_resource.yaml
+      resource: "Cluster/platform-aws-rds"
+    dyff:
+    - name: "Full render matches golden (using dyff)"
+      expected: golden_full_render.yaml
 ```
 
 For complete documentation on all assertion types, examples, and usage, see [Assertions](assertions.md).
 
 **When to use assertions vs hooks:**
-- **Use assertions** for declarative validation (count, existence, field checks)
-- **Use hooks** for complex operations, external tool integration, or custom validation logic
+- **Use assertions** for declarative validation: xprin (count, existence, field checks), diff/dyff (golden-file comparison).
+- **Use hooks** for complex operations, external tool integration, or custom validation logic.
 
 ### Test Chaining
 
@@ -287,30 +297,30 @@ This is useful for:
 Example:
 ```yaml
 tests:
-  - name: "Initial Database Setup"
-    id: "db-setup"
-    inputs:
-      xr: database-xr.yaml
-      composition: database-composition.yaml
-      functions: /path/to/functions
-    hooks:
-      post-test:
-        - name: "save database outputs"
-          run: ./scripts/save_test_outputs.sh {{ .Outputs.XR }} {{ .Outputs.RenderCount }}
+- name: "Initial Database Setup"
+  id: "db-setup"
+  inputs:
+    xr: database-xr.yaml
+    composition: database-composition.yaml
+    functions: /path/to/functions
+  hooks:
+    post-test:
+    - name: "save database outputs"
+      run: ./scripts/save_test_outputs.sh {{ .Outputs.XR }} {{ .Outputs.RenderCount }}
 
-  - name: "Application Deployment"
-    inputs:
-      xr: app-xr.yaml
-      composition: app-composition.yaml
-      functions: /path/to/functions
-    hooks:
-      pre-test:
-        - name: "verify database setup"
-          run: ./scripts/verify_database_setup.sh {{ .Tests.db-setup.Outputs.Render }} {{ .Tests.db-setup.Outputs.XR }}
-            
-      post-test:
-        - name: "compare outputs"
-          run: ./scripts/compare_test_outputs.sh {{ .Tests.db-setup.Outputs.RenderCount }} {{ .Outputs.RenderCount }} {{ .Tests.db-setup.Outputs.Render }}
+- name: "Application Deployment"
+  inputs:
+    xr: app-xr.yaml
+    composition: app-composition.yaml
+    functions: /path/to/functions
+  hooks:
+    pre-test:
+    - name: "verify database setup"
+      run: ./scripts/verify_database_setup.sh {{ .Tests.db-setup.Outputs.Render }} {{ .Tests.db-setup.Outputs.XR }}
+
+    post-test:
+    - name: "compare outputs"
+      run: ./scripts/compare_test_outputs.sh {{ .Tests.db-setup.Outputs.RenderCount }} {{ .Outputs.RenderCount }} {{ .Tests.db-setup.Outputs.Render }}
 ```
 
 For detailed information about how test chaining works, see [How It Works](how-it-works.md#test-chaining-and-artifacts).
@@ -340,17 +350,21 @@ ok      tests/basic_xprin.yaml     4.546s
 
 ### Failed Test Run
 
+Failures are shown with section headers (**Render:**, **Validate:**, **Assertions:**, **Pre-test Hooks:**, **Post-test Hooks:**) and symbols **[✓]** pass, **[x]** fail, **[!]** error. Example:
+
 ```bash
 $ xprin test tests/broken_xprin.yaml
 --- FAIL: gcp (0.00s)
-    failed to expand or verify paths:
-    composition file not found: stat /path/to/comp.yaml: no such file or directory
+    [!] failed to expand or verify paths:
+    [!] composition file not found: stat /path/to/comp.yaml: no such file or directory
 --- FAIL: gcp_claim_aws_composition (0.22s)
-    crossplane: error: composition's compositeTypeRef.kind (XAWSAccount) does not match XR's kind (XGCPAccount)
+    Render:
+        [!] crossplane: error: composition's compositeTypeRef.kind (XAWSAccount) does not match XR's kind (XGCPAccount)
 --- FAIL: EKS_clustername (2.15s)
-    crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
+    Validate:
         [!] could not find CRD/XRD for: kubernetes.crossplane.io/v1alpha2, Kind=Object
         Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
+        crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
 FAIL
 FAIL    tests/broken_xprin.yaml  4.863s
 FAIL
@@ -361,7 +375,7 @@ FAIL
 ```bash
 $ xprin test -v --show-render tests/hello_xprin.yaml
 === RUN   onecluster
-    Rendered resources:
+    Render:
         ├── XCluster/mycluster-72nd5
         └── Object/mycluster
 --- PASS: onecluster (2.15s)
@@ -374,7 +388,7 @@ ok      tests/hello_xprin.yaml     4.422s
 ```bash
 $ xprin test -v --show-validate tests/hello_xprin.yaml
 === RUN   onecluster
-    Validation results:
+    Validate:
         [✓] mycluster.myorg.com/v1alpha1, Kind=XCluster, mycluster-qngkb validated successfully
         [✓] kubernetes.crossplane.io/v1alpha2, Kind=Object, mycluster validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
@@ -404,6 +418,8 @@ jobs:
         run: |
           go install github.com/crossplane-contrib/xprin/cmd/xprin@latest
           go install github.com/crossplane-contrib/xprin/cmd/xprin-helpers@latest
+      - name: Check xprin dependencies
+        run: xprin check
       - name: Run tests
         run: xprin test tests/
 ```

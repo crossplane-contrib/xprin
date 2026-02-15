@@ -45,7 +45,59 @@
     Assertions:
         [x] Resource count should be zero - expected 0 resources, got 2
         [!] Wrong resource name - resource Cluster/doesnotexist not found
-        Total: 3 assertions, 1 successful, 1 failed, 1 error
+        [x] Full render matches golden (using diff)
+            --- golden_full_render.yaml
+            +++ rendered.yaml
+            @@ -10,7 +10,7 @@
+               dbUsername: admin
+               region: us-west-2
+               sshPublicKey: qa_ssh_key
+            -  team: doesnotexist
+            +  team: devops
+               vpcId: vpc-12345678
+             status:
+               conditions:
+        [x] SecurityGroup resource matches golden (using diff)
+            --- golden_single_resource.yaml
+            +++ rendered-securitygroup-platform-aws-sg.yaml
+            @@ -16,5 +16,5 @@
+             spec:
+               forProvider:
+                 description: Security group for platform-aws
+            -    region: eu-central-1
+            +    region: us-west-2
+
+        [!] Failed to get golden file - read expected file: open /examples/mytests/0_e2e/doesnotexist.yaml: no such file or directory
+        [!] Wrong resource name - resource "SecurityGroup/doesnotexist" not found in render output
+        [x] Full render matches golden (using dyff)
+                 _        __  __
+               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_full_render.yaml, two documents
+             / _' | | | | |_| |_       and /tmp/xprin-testcase-XXXX/outputs/rendered.yaml, two documents
+            | (_| | |_| |  _|  _|
+             \__,_|\__, |_| |_|   returned one difference
+                    |___/
+
+            spec.team  (aws.example.com/v1/XAWSInfrastructure/platform-aws)
+            ± value change
+            - doesnotexist
+            + devops
+
+        [x] SecurityGroup resource matches golden (using dyff)
+                 _        __  __
+               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_single_resource.yaml
+             / _' | | | | |_| |_       and /tmp/xprin-testcase-XXXX/outputs/rendered-securitygroup-platform-aws-sg.yaml
+            | (_| | |_| |  _|  _|
+             \__,_|\__, |_| |_|   returned one difference
+                    |___/
+
+            spec.forProvider.region
+            ± value change
+            - eu-central-1
+            + us-west-2
+
+        [!] Failed to get golden file - read expected file: open /examples/mytests/0_e2e/doesnotexist.yaml: no such file or directory
+        [!] Wrong resource name - resource "SecurityGroup/doesnotexist" not found in render output
+        Total: 11 assertions, 1 successful, 5 failed, 5 errors
 --- FAIL: Failed validation and assertion (X.XXXs)
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure

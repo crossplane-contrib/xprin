@@ -1,4 +1,17 @@
 tests:
+- name: "Generate golden files"
+  patches:
+    xrd: ../../aws/xrd.yaml
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    observed-resources: ../../aws/observed
+  hooks:
+    post-test:
+    - run: cp "{{ .Outputs.Render }}" golden_full_render.yaml
+    - run: cp "{{ index .Outputs.Rendered "Cluster/platform-aws-rds" }}" golden_single_resource.yaml
+
 - name: "Successful test with hooks, validation, and assertions"
   patches:
     xrd: ../../aws/xrd.yaml
@@ -49,6 +62,18 @@ tests:
       resource: "SecurityGroup/platform-aws-sg"
       field: "spec.forProvider.description"
       value: "string"
+    diff:
+    - name: "Full render matches golden (using diff)"
+      expected: golden_full_render.yaml
+    - name: "Cluster resource matches golden (using diff)"
+      expected: golden_single_resource.yaml
+      resource: "Cluster/platform-aws-rds"
+    dyff:
+    - name: "Full render matches golden (using dyff)"
+      expected: golden_full_render.yaml
+    - name: "Cluster resource matches golden (using dyff)"
+      expected: golden_single_resource.yaml
+      resource: "Cluster/platform-aws-rds"
 
 - name: "CRDs with same base name are not overwritten"
   inputs:

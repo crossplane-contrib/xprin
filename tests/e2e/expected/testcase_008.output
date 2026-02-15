@@ -1,3 +1,12 @@
+=== RUN   Generate golden files
+--- PASS: Generate golden files (X.XXXs)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        ├── Cluster/platform-aws-rds
+        └── SecurityGroup/platform-aws-sg
+    Post-test Hooks:
+        [✓] cp "{{.Outputs.Render}}" golden_full_render.yaml
+        [✓] cp "{{index .Outputs.Rendered "Cluster/platform-aws-rds"}}" golden_single_resource.yaml
 === RUN   Successful test with hooks, validation, and assertions
 --- PASS: Successful test with hooks, validation, and assertions (X.XXXs)
     Pre-test Hooks:
@@ -24,7 +33,11 @@
         [✓] RDS should exist - resource Cluster/platform-aws-rds found
         [✓] SecurityGroup should have a name - field metadata.name exists
         [✓] SecurityGroup description should be string - field spec.forProvider.description has expected type string
-        Total: 5 assertions, 5 successful, 0 failed, 0 errors
+        [✓] Full render matches golden (using diff) - files match
+        [✓] Cluster resource matches golden (using diff) - files match
+        [✓] Full render matches golden (using dyff) - files match
+        [✓] Cluster resource matches golden (using dyff) - files match
+        Total: 9 assertions, 9 successful, 0 failed, 0 errors
     Post-test Hooks:
         [✓] Post-test hook
             running post-test hook

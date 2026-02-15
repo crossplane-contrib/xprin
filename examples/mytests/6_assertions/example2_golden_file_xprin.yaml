@@ -1,0 +1,42 @@
+tests:
+
+# Uncomment the following test to generate the golden files
+# - name: "Generate golden files"
+#   patches:
+#     xrd: ../../aws/xrd.yaml
+#   inputs:
+#     xr: ../../aws/xr.yaml
+#     composition: ../../aws/composition.yaml
+#     functions: ../../aws/functions.yaml
+#     observed-resources: ../../aws/observed
+#   hooks:
+#     post-test:
+#     - run: cp "{{ .Outputs.Render }}" golden_full_render.yaml
+#     - run: cp "{{ index .Outputs.Rendered "Cluster/platform-aws-rds" }}" golden_single_resource.yaml
+
+- name: "Successful assertions against golden files"
+  patches:
+    xrd: ../../aws/xrd.yaml
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    observed-resources: ../../aws/observed
+  assertions:
+    diff:
+    - name: "Full render matches golden (using diff)"
+      expected: golden_full_render.yaml
+    - name: "Cluster resource matches golden (using diff)"
+      expected: golden_single_resource.yaml
+      resource: "Cluster/platform-aws-rds"
+    dyff:
+    - name: "Full render matches golden (using dyff)"
+      expected: golden_full_render.yaml
+    - name: "Cluster resource matches golden (using dyff)"
+      expected: golden_single_resource.yaml
+      resource: "Cluster/platform-aws-rds"
+  # Uncomment the following hook to remove the golden files after the test
+  # hooks:
+  #   post-test:
+  #   - name: "Remove golden files"
+  #     run: rm -f golden_full_render.yaml golden_single_resource.yaml

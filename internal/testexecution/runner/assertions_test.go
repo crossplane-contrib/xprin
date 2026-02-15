@@ -17,6 +17,7 @@ limitations under the License.
 package runner
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
@@ -26,777 +27,125 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
-const (
-	testResource1File = "resource1.yaml"
-	testResource2File = "resource2.yaml"
-)
-
-func filterFailedAssertions(results []engine.AssertionResult) []engine.AssertionResult {
-	var failed []engine.AssertionResult
-	for _, r := range results {
-		if r.Status == engine.StatusFail() {
-			failed = append(failed, r)
-		}
-	}
-
-	return failed
-}
-
 func TestNewAssertionExecutor(t *testing.T) {
 	outputs := &engine.Outputs{
 		Rendered: make(map[string]string),
 	}
 
-	executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
+	executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
 
 	assert.NotNil(t, executor)
 	assert.Equal(t, outputs, executor.outputs)
 	assert.False(t, executor.debug)
 
-	executorWithDebug := newAssertionExecutor(afero.NewMemMapFs(), outputs, true)
+	executorWithDebug := newAssertionExecutor(afero.NewMemMapFs(), outputs, true, "", nil, false)
 	assert.True(t, executorWithDebug.debug)
 }
 
-func TestAssertionExecutor_ExecuteAssertions(t *testing.T) {
-	t.Run("executes multiple assertions", func(t *testing.T) {
+func TestAssertionExecutor_resolveAndReadGoldenFile(t *testing.T) {
+	testSuiteFile := filepath.Join("/suite", "test.yaml")
+	expandPath := func(base, path string) (string, error) {
+		if path == "" {
+			return "", nil
+		}
+
+		return filepath.Join(filepath.Dir(base), path), nil
+	}
+
+	t.Run("success with full render", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		resource1Path := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				testResource1File: resource1Path,
-			},
-		}
+		expectedPath := testDiffGoldenPath
+		actualPath := testDiffActualPath
+		content := []byte("same content\n")
+		require.NoError(t, afero.WriteFile(fs, expectedPath, content, 0o644))
+		require.NoError(t, afero.WriteFile(fs, actualPath, content, 0o644))
 
-		// Create a test resource file
-		err := afero.WriteFile(fs, resource1Path, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-`), 0o644)
-		require.NoError(t, err)
+		outputs := &engine.Outputs{Render: actualPath, Rendered: map[string]string{}}
+		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
+		a := api.AssertionGoldenFile{Name: "full", Expected: "golden.yaml"}
 
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertions := []api.Assertion{
-			{Name: "count-1", Type: "Count", Value: 1},
-			{Name: "exists-1", Type: "Exists", Resource: "Pod/test-pod"},
-		}
-
-		allResults := executor.executeAssertions(assertions)
-		assert.Len(t, allResults, 2)
-		assert.Equal(t, "count-1", allResults[0].Name)
-		assert.Equal(t, "exists-1", allResults[1].Name)
-		failed := filterFailedAssertions(allResults)
-		assert.Empty(t, failed)
+		expPath, actPath, expBytes, actBytes, fail := exec.resolveAndReadGoldenFile(a)
+		require.Nil(t, fail)
+		assert.Equal(t, expectedPath, expPath)
+		assert.Equal(t, actualPath, actPath)
+		assert.Equal(t, expBytes, content)
+		assert.Equal(t, content, actBytes)
 	})
 
-	t.Run("continues execution when one assertion fails", func(t *testing.T) {
+	t.Run("success with resource", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		resource1Path := testResource1File
+		expectedPath := "/suite/golden-pod.yaml"
+		resourcePath := "/out/Pod_foo.yaml"
+		content := []byte("apiVersion: v1\nkind: Pod\n")
+		require.NoError(t, afero.WriteFile(fs, expectedPath, content, 0o644))
+		require.NoError(t, afero.WriteFile(fs, resourcePath, content, 0o644))
+
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				testResource1File: resource1Path,
-			},
+			Render:   "/out/render.yaml",
+			Rendered: map[string]string{"Pod/foo": resourcePath},
 		}
+		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
+		a := api.AssertionGoldenFile{Name: "pod", Expected: "golden-pod.yaml", Resource: "Pod/foo"}
 
-		// Create a test resource file
-		err := afero.WriteFile(fs, resource1Path, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertions := []api.Assertion{
-			{Name: "count-wrong", Type: "Count", Value: 999},              // Will fail
-			{Name: "exists-ok", Type: "Exists", Resource: "Pod/test-pod"}, // Will pass
-		}
-
-		allResults := executor.executeAssertions(assertions)
-		assert.Len(t, allResults, 2)
-		assert.Equal(t, engine.StatusFail(), allResults[0].Status)
-		assert.Equal(t, engine.StatusPass(), allResults[1].Status)
-		failed := filterFailedAssertions(allResults)
-		assert.Len(t, failed, 1)
-		assert.Equal(t, "count-wrong", failed[0].Name)
+		expPath, actPath, expBytes, actBytes, fail := exec.resolveAndReadGoldenFile(a)
+		require.Nil(t, fail)
+		assert.Equal(t, expectedPath, expPath)
+		assert.Equal(t, resourcePath, actPath)
+		assert.Equal(t, expBytes, content)
+		assert.Equal(t, content, actBytes)
 	})
 
-	t.Run("handles execution errors gracefully", func(t *testing.T) {
-		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
-		}
-
-		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
-
-		assertions := []api.Assertion{
-			{Name: "invalid-type", Type: "InvalidType", Value: "test"},
-		}
-
-		allResults := executor.executeAssertions(assertions)
-		assert.Len(t, allResults, 1)
-		assert.Equal(t, engine.StatusError(), allResults[0].Status, "invalid/unsupported assertion type is reported as error")
-		assert.Contains(t, allResults[0].Message, "unsupported assertion type")
-		failed := filterFailedAssertions(allResults)
-		assert.Empty(t, failed, "error assertions are not counted as failed")
-	})
-
-	t.Run("handles empty assertions list", func(t *testing.T) {
-		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
-		}
-
-		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
-
-		allResults := executor.executeAssertions([]api.Assertion{})
-		assert.Empty(t, allResults)
-		assert.Empty(t, filterFailedAssertions(allResults))
-	})
-}
-
-func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
-	t.Run("passes when count matches", func(t *testing.T) {
+	t.Run("error when expandPath errors", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		resource1Path := testResource1File
-		resource2Path := testResource2File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				testResource1File: resource1Path,
-				testResource2File: resource2Path,
-			},
-		}
+		expandFail := func(string, string) (string, error) { return "", assert.AnError }
+		outputs := &engine.Outputs{Render: "/out/render.yaml", Rendered: map[string]string{}}
+		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandFail, false)
+		a := api.AssertionGoldenFile{Name: "bad path", Expected: "golden.yaml"}
 
-		// Create test resource files
-		err := afero.WriteFile(fs, resource1Path, []byte("apiVersion: v1\nkind: Pod\n"), 0o644)
-		require.NoError(t, err)
-		err = afero.WriteFile(fs, resource2Path, []byte("apiVersion: v1\nkind: Pod\n"), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{Name: "count-test", Type: "Count", Value: 2}
-		result, err := executor.executeCountAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "found 2 resources")
-	})
-
-	t.Run("fails when count does not match", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte("apiVersion: v1\nkind: Pod\n"), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{Name: "count-test", Type: "Count", Value: 5}
-		result, err := executor.executeCountAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "expected 5 resources, got 1")
-	})
-
-	t.Run("handles float64 value from YAML", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte("apiVersion: v1\nkind: Pod\n"), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{Name: "count-test", Type: "Count", Value: float64(1)}
-		result, err := executor.executeCountAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-	})
-
-	t.Run("fails with invalid value type", func(t *testing.T) {
-		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
-		}
-
-		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
-
-		assertion := api.Assertion{Name: "count-test", Type: "Count", Value: "not-a-number"}
-		result, err := executor.executeCountAssertion(assertion)
-
-		require.NoError(t, err)
+		_, _, _, _, result := exec.resolveAndReadGoldenFile(a)
+		require.NotNil(t, result)
 		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "count assertion value must be a number")
+		assert.Contains(t, result.Message, "invalid expected path")
 	})
-}
 
-func TestAssertionExecutor_executeExistsAssertion(t *testing.T) {
-	t.Run("passes when resource exists by kind and name", func(t *testing.T) {
+	t.Run("error when resource not in Rendered", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
+		outputs := &engine.Outputs{Render: "/out/render.yaml", Rendered: map[string]string{}}
+		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
+		a := api.AssertionGoldenFile{Name: "missing", Expected: "g.yaml", Resource: "Pod/nonexistent"}
 
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{Name: "exists-test", Type: "Exists", Resource: "Pod/test-pod"}
-		result, err := executor.executeExistsAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "found")
-	})
-
-	t.Run("fails when resource does not exist", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{Name: "exists-test", Type: "Exists", Resource: "Service/my-service"}
-		result, err := executor.executeExistsAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "not found")
-	})
-
-	t.Run("fails when resource field is missing", func(t *testing.T) {
-		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
-		}
-
-		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
-
-		assertion := api.Assertion{Name: "exists-test", Type: "Exists", Resource: ""}
-		result, err := executor.executeExistsAssertion(assertion)
-
-		require.NoError(t, err)
+		_, _, _, _, result := exec.resolveAndReadGoldenFile(a)
+		require.NotNil(t, result)
 		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires resource field")
+		assert.Contains(t, result.Message, "not found in render output")
 	})
 
-	t.Run("fails with invalid resource format", func(t *testing.T) {
-		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
-		}
+	t.Run("error when expected file cannot be read", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		actualPath := testDiffActualPath
+		require.NoError(t, afero.WriteFile(fs, actualPath, []byte("x"), 0o644))
+		outputs := &engine.Outputs{Render: actualPath, Rendered: map[string]string{}}
+		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
+		a := api.AssertionGoldenFile{Name: "no expected", Expected: "nonexistent.yaml"}
 
-		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
-
-		assertion := api.Assertion{Name: "exists-test", Type: "Exists", Resource: "Pod/name/extra"}
-		result, err := executor.executeExistsAssertion(assertion)
-
-		require.NoError(t, err)
+		_, _, _, _, result := exec.resolveAndReadGoldenFile(a)
+		require.NotNil(t, result)
 		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "must be in format")
+		assert.Contains(t, result.Message, "read expected file")
 	})
-}
 
-func TestAssertionExecutor_executeNotExistsAssertion(t *testing.T) {
-	t.Run("passes when resource does not exist", func(t *testing.T) {
+	t.Run("error when actual file cannot be read", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
+		expectedPath := testDiffGoldenPath
+		require.NoError(t, afero.WriteFile(fs, expectedPath, []byte("x"), 0o644))
 
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-`), 0o644)
-		require.NoError(t, err)
+		outputs := &engine.Outputs{Render: "/nonexistent/actual.yaml", Rendered: map[string]string{}}
+		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
+		a := api.AssertionGoldenFile{Name: "no actual", Expected: "golden.yaml"}
 
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{Name: "not-exists-test", Type: "NotExists", Resource: "Service/my-service"}
-		result, err := executor.executeNotExistsAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "not found (as expected)")
-	})
-
-	t.Run("fails when resource exists", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{Name: "not-exists-test", Type: "NotExists", Resource: "Pod/test-pod"}
-		result, err := executor.executeNotExistsAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "found (should not exist)")
-	})
-
-	t.Run("fails when resource field is missing", func(t *testing.T) {
-		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
-		}
-
-		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
-
-		assertion := api.Assertion{Name: "not-exists-test", Type: "NotExists", Resource: ""}
-		result, err := executor.executeNotExistsAssertion(assertion)
-
-		require.NoError(t, err)
+		_, _, _, _, result := exec.resolveAndReadGoldenFile(a)
+		require.NotNil(t, result)
 		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires resource field")
-	})
-}
-
-func TestAssertionExecutor_executeFieldTypeAssertion(t *testing.T) {
-	t.Run("passes when field type matches", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  replicas: 3
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		// YAML numbers are parsed as float64, which becomes "number" type
-		assertion := api.Assertion{
-			Name:     "field-type-test",
-			Type:     "FieldType",
-			Resource: "Pod/test-pod",
-			Field:    "spec.replicas",
-			Value:    "number",
-		}
-		result, err := executor.executeFieldTypeAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-	})
-
-	t.Run("fails when field type does not match", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  replicas: 3
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{
-			Name:     "field-type-test",
-			Type:     "FieldType",
-			Resource: "Pod/test-pod",
-			Field:    "spec.replicas",
-			Value:    "string",
-		}
-		result, err := executor.executeFieldTypeAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "expected string")
-	})
-
-	t.Run("fails when required fields are missing", func(t *testing.T) {
-		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
-		}
-
-		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
-
-		// Missing resource
-		assertion := api.Assertion{Name: "field-type-test", Type: "FieldType", Field: "spec.replicas", Value: "int"}
-		result, err := executor.executeFieldTypeAssertion(assertion)
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires resource field")
-
-		// Missing field
-		assertion = api.Assertion{Name: "field-type-test", Type: "FieldType", Resource: "Pod/test", Value: "int"}
-		result, err = executor.executeFieldTypeAssertion(assertion)
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires field")
-	})
-}
-
-func TestAssertionExecutor_executeFieldExistsAssertion(t *testing.T) {
-	t.Run("passes when field exists", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  replicas: 3
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{
-			Name:     "field-exists-test",
-			Type:     "FieldExists",
-			Resource: "Pod/test-pod",
-			Field:    "spec.replicas",
-		}
-		result, err := executor.executeFieldExistsAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "exists")
-	})
-
-	t.Run("fails when field does not exist", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec: {}
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{
-			Name:     "field-exists-test",
-			Type:     "FieldExists",
-			Resource: "Pod/test-pod",
-			Field:    "spec.replicas",
-		}
-		result, err := executor.executeFieldExistsAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "does not exist")
-	})
-}
-
-func TestAssertionExecutor_executeFieldNotExistsAssertion(t *testing.T) {
-	t.Run("passes when field does not exist", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec: {}
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{
-			Name:     "field-not-exists-test",
-			Type:     "FieldNotExists",
-			Resource: "Pod/test-pod",
-			Field:    "spec.replicas",
-		}
-		result, err := executor.executeFieldNotExistsAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "does not exist (as expected)")
-	})
-
-	t.Run("fails when field exists", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  replicas: 3
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{
-			Name:     "field-not-exists-test",
-			Type:     "FieldNotExists",
-			Resource: "Pod/test-pod",
-			Field:    "spec.replicas",
-		}
-		result, err := executor.executeFieldNotExistsAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "exists (should not exist)")
-	})
-}
-
-func TestAssertionExecutor_executeFieldValueAssertion(t *testing.T) {
-	t.Run("passes when field value matches with ==", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  replicas: 3
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{
-			Name:     "field-value-test",
-			Type:     "FieldValue",
-			Resource: "Pod/test-pod",
-			Field:    "spec.replicas",
-			Operator: "==",
-			Value:    float64(3), // YAML numbers are parsed as float64
-		}
-		result, err := executor.executeFieldValueAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-	})
-
-	t.Run("fails when field value does not match with ==", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  replicas: 3
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{
-			Name:     "field-value-test",
-			Type:     "FieldValue",
-			Resource: "Pod/test-pod",
-			Field:    "spec.replicas",
-			Operator: "==",
-			Value:    float64(5), // YAML numbers are parsed as float64
-		}
-		result, err := executor.executeFieldValueAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "expected ==")
-	})
-
-	t.Run("fails when required fields are missing", func(t *testing.T) {
-		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
-		}
-
-		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
-
-		// Missing resource
-		assertion := api.Assertion{Name: "field-value-test", Type: "FieldValue", Field: "spec.replicas", Operator: "==", Value: float64(3)}
-		result, err := executor.executeFieldValueAssertion(assertion)
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires resource field")
-
-		// Missing field
-		assertion = api.Assertion{Name: "field-value-test", Type: "FieldValue", Resource: "Pod/test", Operator: "==", Value: float64(3)}
-		result, err = executor.executeFieldValueAssertion(assertion)
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires field")
-
-		// Missing operator
-		assertion = api.Assertion{Name: "field-value-test", Type: "FieldValue", Resource: "Pod/test", Field: "spec.replicas", Value: 3}
-		result, err = executor.executeFieldValueAssertion(assertion)
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires operator field")
-
-		// Missing value
-		assertion = api.Assertion{Name: "field-value-test", Type: "FieldValue", Resource: "Pod/test", Field: "spec.replicas", Operator: "=="}
-		result, err = executor.executeFieldValueAssertion(assertion)
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires value field")
-	})
-
-	t.Run("fails with unsupported operator", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		resourcePath := testResource1File
-		outputs := &engine.Outputs{
-			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
-			},
-		}
-
-		err := afero.WriteFile(fs, resourcePath, []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  replicas: 3
-`), 0o644)
-		require.NoError(t, err)
-
-		executor := newAssertionExecutor(fs, outputs, false)
-
-		assertion := api.Assertion{
-			Name:     "field-value-test",
-			Type:     "FieldValue",
-			Resource: "Pod/test-pod",
-			Field:    "spec.replicas",
-			Operator: "unsupported",
-			Value:    float64(3),
-		}
-		result, err := executor.executeFieldValueAssertion(assertion)
-
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "unsupported operator")
-	})
-}
-
-func TestAssertionExecutor_executeAssertion(t *testing.T) {
-	t.Run("routes to correct assertion type", func(t *testing.T) {
-		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
-		}
-
-		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false)
-
-		// Test Count
-		assertion := api.Assertion{Name: "test", Type: "Count", Value: 0}
-		result, err := executor.executeAssertion(assertion)
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-
-		// Test unsupported type
-		assertion = api.Assertion{Name: "test", Type: "Unsupported", Value: "test"}
-		result, err = executor.executeAssertion(assertion)
-		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "unsupported assertion type")
+		assert.Contains(t, result.Message, "read actual file")
 	})
 }

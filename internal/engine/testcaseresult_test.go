@@ -724,6 +724,24 @@ func TestTestCaseResult_formatAssertionsOutput(t *testing.T) {
 		assert.Equal(t, expected, formatted)
 	})
 
+	t.Run("multiline message uses title then indented body", func(t *testing.T) {
+		result := NewTestCaseResult("test", "test-id", true, false, false, false, true)
+		result.HasFailedAssertions = true
+		multilineMsg := "--- expected.yaml\n+++ actual.yaml\n@@ -1,2 +1,2 @@\n- old\n+ new"
+		result.AssertionsResults = []AssertionResult{
+			NewAssertionResult("diff-check", StatusFail(), multilineMsg),
+		}
+		formatted := result.formatAssertionsOutput()
+
+		// Multi-line messages: name on first line, then each message line with multilineBodyIndent (12 spaces), same as hooks.
+		assert.Contains(t, formatted, "    Assertions:\n        [x] diff-check\n")
+		assert.Contains(t, formatted, "            --- expected.yaml\n")
+		assert.Contains(t, formatted, "            +++ actual.yaml\n")
+		assert.Contains(t, formatted, "            - old\n")
+		assert.Contains(t, formatted, "            + new")
+		assert.Contains(t, formatted, "Total: 1 assertions, 0 successful, 1 failed, 0 errors\n")
+	})
+
 	t.Run("includes Assertions header and 8-space body (same format for error block and verbose)", func(t *testing.T) {
 		result := NewTestCaseResult("test", "test-id", true, false, false, false, true)
 		result.AssertionsResults = []AssertionResult{
