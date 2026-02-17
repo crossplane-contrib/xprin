@@ -202,7 +202,7 @@ Assertions are grouped by **engine**. Under `common.assertions` or a test case�
 | `diff` | List of golden-file assertions (unified diff, [go-difflib](https://github.com/pmezard/go-difflib)). See [Golden-file assertions (diff and dyff)](assertions.md#golden-file-assertions-diff-and-dyff). |
 | `dyff` | List of golden-file assertions (structural YAML diff, [dyff](https://github.com/homeport/dyff)). See [Golden-file assertions (diff and dyff)](assertions.md#golden-file-assertions-diff-and-dyff). |
 
-The table below covers **xprin** assertion item fields; **diff** and **dyff** items use `name`, `expected`, and optional `resource`. For full details and examples, see [Assertions](assertions.md).
+The table below covers **xprin** assertion item fields:
 
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
@@ -214,6 +214,15 @@ The table below covers **xprin** assertion item fields; **diff** and **dyff** it
 | `value` | ✅* | any | Expected value for count, type, or field value assertions |
 
 *Required fields depend on assertion type. For complete documentation, including diff and dyff, see [Assertions](assertions.md).
+
+The table below covers **diff** and **dyff** assertion item fields:
+
+| Field | Required | Type | Description |
+|-------|----------|------|-------------|
+| `name` | ✅ | string | Assertion name (descriptive identifier) |
+| `expected` | ✅ | string | Path to golden (expected) file |
+| `resource` | ❌ | string | Resource identifier (format: `Kind/name`) |
+
 
 ## Path Resolution
 

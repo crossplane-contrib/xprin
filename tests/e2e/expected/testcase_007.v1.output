@@ -1,8 +1,3 @@
-=== RUN   Missing required inputs (multiline error)
---- FAIL: Missing required inputs (multiline error) (X.XXXs)
-    [!] missing mandatory field: either 'claim' or 'xr' must be specified (it can be specified either in the test case or in the common inputs)
-    [!] missing mandatory field: composition (it can be specified either in the test case or in the common inputs)
-    [!] missing mandatory field: functions (it can be specified either in the test case or in the common inputs)
 === RUN   Render failure (claim used as XR)
 --- FAIL: Render failure (claim used as XR) (X.XXXs)
     Pre-test Hooks:
@@ -222,5 +217,12 @@
         [x] Failed post-test hook [exit code: 2]
 FAIL
 FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
+=== RUN   Missing required inputs (multiline error)
+--- FAIL: Missing required inputs (multiline error) (X.XXXs)
+    [!] missing mandatory field: either 'claim' or 'xr' must be specified (it can be specified either in the test case or in the common inputs)
+    [!] missing mandatory field: composition (it can be specified either in the test case or in the common inputs)
+    [!] missing mandatory field: functions (it can be specified either in the test case or in the common inputs)
+FAIL
+FAIL	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors

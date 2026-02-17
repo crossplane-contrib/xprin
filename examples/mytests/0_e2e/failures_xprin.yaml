@@ -1,14 +1,14 @@
-tests:
+common:
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
 
-# Error before pipeline execution (before pre-test hooks or render)
-- name: "Missing required inputs (multiline error)"
+tests:
 
 # Render failures
 - name: "Render failure (claim used as XR)"
   inputs:
     xr: ../../aws/claim.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
     crds:
     - ../../aws/xrd.yaml
   assertions:
@@ -34,8 +34,6 @@ tests:
 - name: "Validation failure (missing CRD)"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
     crds:
     - ../../gcp/xrd.yaml
     - ../../aws/crossplane.yaml
@@ -53,8 +51,6 @@ tests:
 - name: "Validation failure (v1 only) (missing required team)"
   inputs:
     xr: ../../aws/xr_without_team.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
     crds:
     - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml
@@ -63,8 +59,6 @@ tests:
 - name: "Pre-test hook failure"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
     crds:
     - ../../aws/crossplane.yaml
   assertions:
@@ -92,8 +86,6 @@ tests:
 - name: "Pre-test hook failure (unnamed)"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
   hooks:
     pre-test:
     - run: exit 1
@@ -101,8 +93,6 @@ tests:
 - name: "Pre-test hook failure (multiline stderr)"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
   hooks:
     pre-test:
     - name: "Fail pre-test hook (multiline stderr)"
@@ -115,8 +105,6 @@ tests:
 - name: "Pre-test hook failure (multiline stdout)"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
   hooks:
     pre-test:
     - name: "Fail pre-test hook (multiline stdout)"
@@ -128,8 +116,6 @@ tests:
 - name: "Pre-test hook failure (multiline stdout and stderr)"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
   hooks:
     pre-test:
     - name: "Fail pre-test hook (multiline stdout and stderr)"
@@ -150,8 +136,6 @@ tests:
 - name: "Post-test hook failure"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
     crds:
     - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml
@@ -172,8 +156,6 @@ tests:
 - name: "Invalid Post-test hook, template rendering error"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
   hooks:
     post-test:
     - name: "Invalid post-test hook (template rendering error)"
@@ -186,8 +168,6 @@ tests:
 - name: "Generate broken golden files"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
   hooks:
     post-test:
     - name: "Generate broken golden file for full render"
@@ -199,8 +179,6 @@ tests:
 - name: "Assertion failure"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
     crds:
     - ../../aws/xrd.yaml
     - ../../aws/crossplane.yaml
@@ -248,8 +226,6 @@ tests:
 - name: "Failed validation and assertion"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
     crds:
     - ../../gcp/xrd.yaml
     - ../../aws/crossplane.yaml
@@ -270,8 +246,6 @@ tests:
 - name: "Failed validation, assertion, and post-test hook"
   inputs:
     xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
     crds:
     - ../../gcp/xrd.yaml
     - ../../aws/crossplane.yaml

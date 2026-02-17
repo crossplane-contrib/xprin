@@ -16,6 +16,8 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 EXPECTED_DIR="${SCRIPT_DIR}/../expected"
 TESTCASES_FILE="${SCRIPT_DIR}/testcases.sh"
 NORMALIZE_SCRIPT="${SCRIPT_DIR}/normalize.sh"
+GEN_INVALID_TESTS_SCRIPT="${SCRIPT_DIR}/gen-invalid-tests.sh"
+E2E_TESTS_DIR="${PROJECT_ROOT}/examples/mytests/0_e2e"
 XPRIN_BIN="${XPRIN_BIN:-${PROJECT_ROOT}/xprin}"
 
 # Parse mode: v1 | v2 | cleanup | all (default)
@@ -33,6 +35,15 @@ case "${MODE}" in
 esac
 
 cd "${PROJECT_ROOT}"
+
+# Clean up generated_*.yaml on exit (created by gen-invalid-tests.sh)
+trap 'rm -f "${E2E_TESTS_DIR}"/generated_*.yaml' EXIT
+
+# Generate schema-invalid e2e testsuite files when running test passes (v1/v2/all)
+if [ "${MODE}" != "cleanup" ]; then
+    export E2E_TESTS_DIR
+    "${GEN_INVALID_TESTS_SCRIPT}"
+fi
 
 if [ ! -f "${TESTCASES_FILE}" ]; then
     echo "Test case list not found: ${TESTCASES_FILE}"

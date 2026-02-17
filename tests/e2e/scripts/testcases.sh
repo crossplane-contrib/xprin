@@ -21,15 +21,15 @@ testcase_004="examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml examp
 testcase_004_exit=1
 
 # Multiple Failures - Combined File (Non-Verbose)
-testcase_005="examples/mytests/0_e2e/failures_xprin.yaml"
+testcase_005="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml"
 testcase_005_exit=1
 
 # Multiple Failures - Combined File (Verbose)
-testcase_006="examples/mytests/0_e2e/failures_xprin.yaml -v"
+testcase_006="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml -v"
 testcase_006_exit=1
 
 # Multiple Failures - Combined File (Verbose, show flags)
-testcase_007="examples/mytests/0_e2e/failures_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_007="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
 testcase_007_exit=1
 
 # Successful with hooks/validate/assertions (Verbose, show flags)
@@ -42,5 +42,5 @@ testcase_009="examples/mytests/5_chained_tests/example1_chained-test-outputs_xpr
 testcase_010="examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml -v --show-render --show-validate"
 
 # Invalid testsuite file
-testcase_011="examples/mytests/0_e2e/invalid_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_011="examples/mytests/0_e2e/generated_invalid_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
 testcase_011_exit=1
