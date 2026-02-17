@@ -91,6 +91,10 @@ xprin config --check
 
 See [Configuration](configuration.md) for detailed configuration options.
 
+## Optional: Editor / IDE support
+
+To get autocompletion and validation for test suite YAML files (`xprin.yaml`, `*_xprin.yaml`) in VS Code, Cursor, or JetBrains, see [IDE integration](ide-integration.md).
+
 ---
 
 **Next Steps:**

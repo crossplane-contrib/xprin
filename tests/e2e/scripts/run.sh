@@ -8,6 +8,8 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 EXPECTED_DIR="${SCRIPT_DIR}/../expected"
 TESTCASES_FILE="${SCRIPT_DIR}/testcases.sh"
 NORMALIZE_SCRIPT="${SCRIPT_DIR}/normalize.sh"
+GEN_INVALID_TESTS_SCRIPT="${SCRIPT_DIR}/gen-invalid-tests.sh"
+E2E_TESTS_DIR="${PROJECT_ROOT}/examples/mytests/0_e2e"
 XPRIN_BIN="${XPRIN_BIN:-${PROJECT_ROOT}/xprin}"
 STATUS=0
 
@@ -67,7 +69,12 @@ FAILED=0
 FAILED_TESTS=()
 TMPDIRS=()
 
-trap 'for d in "${TMPDIRS[@]}"; do rm -rf "${d}"; done' EXIT
+export E2E_TESTS_DIR
+# Set trap before generating so we clean up on any exit (including script failure).
+trap 'for d in "${TMPDIRS[@]}"; do rm -rf "${d}"; done; rm -f "${E2E_TESTS_DIR}"/generated_*.yaml' EXIT
+
+# Generate schema-invalid e2e testsuite files so they are not committed.
+"${GEN_INVALID_TESTS_SCRIPT}"
 
 for test_var in "${TEST_CASES[@]}"; do
     test_id="${test_var#testcase_}"

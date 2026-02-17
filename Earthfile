@@ -37,6 +37,12 @@ multiplatform-build:
 # the build target. It's important to run it explicitly when code needs to be
 # generated, for example when you update an API type.
 generate:
+  BUILD +go-generate
+
+# tidy runs go mod tidy to clean up module dependencies. This is separated from
+# generate to avoid unnecessary downloads during development when source files
+# change but dependencies don't.
+tidy:
   BUILD +go-modules-tidy
 
 # go-modules downloads xprin's go modules. It's the base target of most Go
@@ -60,6 +66,14 @@ go-modules-tidy:
   RUN go mod verify
   SAVE ARTIFACT go.mod AS LOCAL go.mod
   SAVE ARTIFACT go.sum AS LOCAL go.sum
+
+go-generate:
+  FROM +go-modules
+  CACHE --id go-build --sharing shared /root/.cache/go-build
+  COPY --dir cmd/ internal/ .
+  COPY generate.go .
+  RUN go generate -tags 'generate' .
+  SAVE ARTIFACT data AS LOCAL data
 
 # go-build builds xprin binaries for your native OS and architecture.
 go-build:
@@ -152,7 +166,7 @@ test-e2e:
   RUN apk add --no-cache bash
   COPY +go-build/xprin .
   COPY --dir examples/ tests/ ./
-  RUN chmod +x tests/e2e/scripts/run.sh
+  RUN chmod +x tests/e2e/scripts/gen-invalid-tests.sh tests/e2e/scripts/run.sh
   WITH DOCKER
     RUN CROSSPLANE_VERSION=${CROSSPLANE_VERSION} /tests/e2e/scripts/run.sh
   END
@@ -181,7 +195,7 @@ regen-e2e-expected-v1:
   RUN apk add --no-cache bash
   COPY +go-build/xprin .
   COPY --dir examples/ tests/e2e/scripts/ ./
-  RUN chmod +x scripts/regen-expected.sh
+  RUN chmod +x scripts/gen-invalid-tests.sh scripts/regen-expected.sh
   RUN mkdir expected
   WITH DOCKER
     RUN CROSSPLANE_V1=/usr/local/bin/crossplane scripts/regen-expected.sh v1
@@ -199,7 +213,7 @@ regen-e2e-expected-v2:
   RUN apk add --no-cache bash
   COPY +go-build/xprin .
   COPY --dir examples/ tests/e2e/scripts/ ./
-  RUN chmod +x scripts/regen-expected.sh
+  RUN chmod +x scripts/gen-invalid-tests.sh scripts/regen-expected.sh
   RUN mkdir expected
   WITH DOCKER
     RUN CROSSPLANE_V2=/usr/local/bin/crossplane scripts/regen-expected.sh v2
@@ -217,6 +231,5 @@ regen-e2e-expected:
   COPY +regen-e2e-expected-v2/expected expected/
   COPY --dir tests/e2e/scripts/ ./
   RUN chmod +x scripts/regen-expected.sh
-  RUN ls -la expected
   RUN scripts/regen-expected.sh cleanup
   SAVE ARTIFACT expected AS LOCAL tests/e2e/expected

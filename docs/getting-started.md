@@ -4,6 +4,7 @@
 
 ## Table of Contents
 
+- [Testsuite filenames](#testsuite-filenames)
 - [Command Examples](#command-examples)
   - [How to Run Tests](#how-to-run-tests)
   - [Common Command Options](#common-command-options)
@@ -25,6 +26,12 @@
   - [Show Validation Results](#show-validation-results)
 - [Integration Examples](#integration-examples)
   - [With CI/CD Pipeline](#with-cicd-pipeline)
+
+---
+
+## Testsuite filenames
+
+Test suite files are discovered when they match either `xprin.yaml` or the `*_xprin.yaml` pattern.
 
 ---
 
@@ -51,7 +58,7 @@ xprin test tests/...
 xprin test tests/test1_xprin.yaml tests/... tests/test2_xprin.yaml
 ```
 
-### Common Command Options
+### Usual Command Options
 
 ```bash
 # Verbose output
