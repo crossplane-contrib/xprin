@@ -3002,7 +3002,7 @@ hooks:
   - name: "validate and count"
     run: "echo 'Validation: {{ .Outputs.Validate }}, Count: {{ .Outputs.RenderCount }}'"
 `
-		validatePath := "/path/to/validate.yaml"
+		validatePath := "/path/to/validate.txt"
 		outputs := &engine.Outputs{
 			XR:          "rendered-xr.yaml",
 			Render:      "rendered-resources.yaml",
@@ -3014,7 +3014,7 @@ hooks:
 		runner := &Runner{}
 		out, err := runner.renderTemplate(yaml, templateContext, "test")
 		require.NoError(t, err)
-		assert.Contains(t, out, "echo 'Validation: /path/to/validate.yaml, Count: 5'")
+		assert.Contains(t, out, "echo 'Validation: /path/to/validate.txt, Count: 5'")
 		assert.NotContains(t, out, "{{ .Outputs.Validate }}")
 		assert.NotContains(t, out, "{{ .Outputs.RenderCount }}")
 	})
@@ -3430,7 +3430,7 @@ metadata:
 	assert.Contains(t, result.Outputs.XR, "xr.yaml", "XR path should contain xr.yaml")
 
 	if result.Outputs.Validate != nil {
-		assert.Contains(t, *result.Outputs.Validate, "validate.yaml", "Validate path should contain validate.yaml")
+		assert.Contains(t, *result.Outputs.Validate, "validate.txt", "Validate path should contain validate.txt")
 	}
 
 	// Verify Rendered map contains the expected resources
@@ -3627,8 +3627,8 @@ metadata:
 		require.NoError(t, err, "rendered.yaml should be copied")
 		_, err = fs.Stat(filepath.Join(artifactsDir, "xr.yaml"))
 		require.NoError(t, err, "xr.yaml should be copied")
-		_, err = fs.Stat(filepath.Join(artifactsDir, "validate.yaml"))
-		require.NoError(t, err, "validate.yaml should be copied")
+		_, err = fs.Stat(filepath.Join(artifactsDir, "validate.txt"))
+		require.NoError(t, err, "validate.txt should be copied")
 		_, err = fs.Stat(filepath.Join(artifactsDir, "rendered-pod-test-pod.yaml"))
 		require.NoError(t, err, "rendered Pod resource should be copied")
 		_, err = fs.Stat(filepath.Join(artifactsDir, "rendered-configmap-test-configmap.yaml"))

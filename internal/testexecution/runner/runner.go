@@ -633,7 +633,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		result.ProcessValidateOutput()
 
 		// Write validation output to the outputs directory
-		validateOutputFile := filepath.Join(r.outputsDir, "validate.yaml")
+		validateOutputFile := filepath.Join(r.outputsDir, "validate.txt")
 		if err := afero.WriteFile(r.fs, validateOutputFile, result.RawValidateOutput, 0o600); err != nil {
 			return result.Fail(fmt.Errorf("failed to write validation output to file: %w", err))
 		}
@@ -723,7 +723,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 
 		result.Outputs.XR = filepath.Join(artifactsDir, "xr.yaml")
 		if result.Outputs.Validate != nil {
-			*result.Outputs.Validate = filepath.Join(artifactsDir, "validate.yaml")
+			*result.Outputs.Validate = filepath.Join(artifactsDir, "validate.txt")
 		}
 
 		// Update Rendered map paths to point to artifact paths

@@ -442,7 +442,7 @@ artifacts/
   {test-id-1}/
     xr.yaml
     render.yaml
-    validate.yaml (if validation ran)
+    validate.txt (if validation ran)
     rendered/
       Kind1-Name1.yaml
       Kind2-Name2.yaml

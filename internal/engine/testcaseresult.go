@@ -114,7 +114,7 @@ func NewTestCaseResult(name, id string, verbose, showRender, showValidate, showH
 type Outputs struct {
 	Render      string            // Path to rendered.yaml
 	XR          string            // Path to xr.yaml
-	Validate    *string           // Path to validate.yaml (nil if no CRDs)
+	Validate    *string           // Path to validate.txt (nil if no CRDs)
 	RenderCount int               // Number of resources in render output
 	Rendered    map[string]string // Kind/Name -> file path for individual rendered resources
 }
