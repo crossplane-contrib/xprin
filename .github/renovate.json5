@@ -1,0 +1,193 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    'helpers:pinGitHubActionDigests',
+    ':semanticCommits',
+  ],
+  // We only want renovate to rebase PRs when they have conflicts, default
+  // "auto" mode is not required.
+  rebaseWhen: 'conflicted',
+  // The maximum number of PRs to be created in parallel
+  prConcurrentLimit: 5,
+  // The branches renovate should target
+  // PLEASE UPDATE THIS WHEN RELEASING.
+  baseBranches: [
+    'main',
+  ],
+  postUpdateOptions: [
+    'gomodTidy',
+    'gomodUpdateImportPaths'
+  ],
+  // All PRs should have a label
+  labels: [
+    'automated',
+  ],
+  customManagers: [
+    {
+      customType: 'regex',
+      description: 'Bump Earthly version in GitHub workflows',
+      fileMatch: [
+        '^\\.github\\/workflows\\/[^/]+\\.ya?ml$',
+      ],
+      matchStrings: [
+        "EARTHLY_VERSION: '(?<currentValue>.*?)'\\n",
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'earthly/earthly',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump Go version in Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG --global GO_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'golang-version',
+      depNameTemplate: 'golang',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump golangci-lint version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG GOLANGCI_LINT_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'golangci/golangci-lint',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump E2E Crossplane v1 in Earthfile (latest stable 1.x, no rc)',
+      fileMatch: ['^Earthfile$'],
+      matchStrings: [
+        'ARG --global E2E_CROSSPLANE_V1=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'crossplane/crossplane',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump E2E Crossplane v2 in Earthfile (latest stable 2.x, no rc)',
+      fileMatch: ['^Earthfile$'],
+      matchStrings: [
+        'ARG --global E2E_CROSSPLANE_V2=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'crossplane/crossplane',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+  ],
+  // Renovate doesn't have native Earthfile support, but because Earthfile
+  // syntax is a superset of Dockerfile syntax this works to update FROM images.
+  // https://github.com/renovatebot/renovate/issues/15975
+  dockerfile: {
+    fileMatch: [
+      '(^|/)Earthfile$',
+    ],
+  },
+  crossplane: {
+    fileMatch: [
+      '(^|/)examples/(aws|gcp|base)/.*\\.yaml$',
+    ],
+  },
+  // PackageRules disabled below should be enabled in case of vulnerabilities
+  vulnerabilityAlerts: {
+    enabled: true,
+  },
+  osvVulnerabilityAlerts: true,
+  // Renovate evaluates all packageRules in order, so low priority rules should
+  // be at the beginning, high priority at the end
+  packageRules: [
+    {
+      matchManagers: [
+        'crossplane',
+      ],
+      matchFileNames: [
+        'examples/aws/**',
+        'examples/gcp/**',
+        'examples/base/**',
+      ],
+      groupName: 'example-manifests',
+    },
+    {
+      description: 'E2E Crossplane v1',
+      matchDepNames: ['crossplane/crossplane'],
+      matchCurrentVersion: '^1\\.',
+      allowedVersions: '^1\\.',
+      ignoreUnstable: true,
+    },
+    {
+      description: 'E2E Crossplane v2',
+      matchDepNames: ['crossplane/crossplane'],
+      matchCurrentVersion: '^2\\.',
+      allowedVersions: '^2\\.',
+      ignoreUnstable: true,
+    },
+    {
+      description: 'Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo',
+      matchDatasources: [
+        'go',
+      ],
+      matchDepNames: [
+        'k8s.io/client-go',
+      ],
+      allowedVersions: '<1.0',
+    },
+    {
+      description: 'Ignore k8s dependencies, should be updated on crossplane-runtime',
+      matchDatasources: [
+        'go',
+      ],
+      enabled: false,
+      matchPackageNames: [
+        'k8s.io{/,}**',
+        'sigs.k8s.io{/,}**',
+      ],
+    },
+    {
+      description: 'Only get dependency digest updates every month to reduce noise, except crossplane-runtime',
+      matchDatasources: [
+        'go',
+      ],
+      matchUpdateTypes: [
+        'digest',
+      ],
+      extends: [
+        'schedule:monthly',
+      ],
+      matchPackageNames: [
+        '!github.com/crossplane/crossplane-runtime',
+      ],
+    },
+    // Single PR: crossplane v2 + crossplane-runtime v2 in go.mod/go.sum AND E2E_CROSSPLANE_V2 in Earthfile
+    {
+      description: 'Group crossplane v2 and crossplane-runtime v2 (go.mod)',
+      matchPackageNames: [
+        'github.com/crossplane/crossplane/v2',
+        'github.com/crossplane/crossplane-runtime/v2',
+      ],
+      groupName: 'crossplane v2 and crossplane-runtime v2',
+    },
+    {
+      description: 'Group E2E_CROSSPLANE_V2 (Earthfile) with crossplane v2 go.mod upgrades',
+      matchDepNames: ['crossplane/crossplane'],
+      matchCurrentVersion: '^2\\.',
+      groupName: 'crossplane v2 and crossplane-runtime v2',
+    },
+    {
+      description: 'Group all go version updates',
+      matchDatasources: [
+        'golang-version',
+      ],
+      groupName: 'golang version',
+    },
+  ],
+}
