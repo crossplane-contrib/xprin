@@ -8,11 +8,69 @@
 
 ## Install xprin
 
+### Using the install script
+
+Download and run the official install script (Unix/macOS). It fetches a pre-built binary from [GitHub Releases](https://github.com/crossplane-contrib/xprin/releases).
+
+**Recommended: compressed tarball with SHA256 verification**
+
+Download the `.tar.gz` bundle and verify both the archive and the extracted binary using the release `.sha256` files. The script removes the tarball and hash files and keeps only the binary.
+
+```bash
+# Install latest version
+COMPRESSED=true VERIFY_SHA=true curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
+
+# Install a specific version (e.g. v0.1.0)
+COMPRESSED=true VERIFY_SHA=true VERSION=v0.1.0 curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
+```
+
+**Alternatives**
+
+- **Tarball only** (no verification): `COMPRESSED=true`
+- **Binary with SHA256 verification**: `VERIFY_SHA=true` (downloads the binary and its `.sha256`, verifies, then keeps only the binary)
+- **Binary only** (no verification): default; single binary download
+
+```bash
+# Tarball only
+COMPRESSED=true curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
+
+# Binary with verification
+VERIFY_SHA=true curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
+
+# Binary only (default)
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
+```
+
+Then move the binary to your PATH:
+
+```bash
+sudo mv xprin /usr/local/bin/
+xprin version
+```
+
+To install **xprin-helpers** instead, set `PACKAGE=xprin-helpers`:
+
+```bash
+PACKAGE=xprin-helpers curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
+sudo mv xprin-helpers /usr/local/bin/
+```
+
+You can override `OS` and `ARCH` if needed (e.g. for cross-installs).
+
+### Using Homebrew
+
+```bash
+brew install tampakrap/tap/xprin
+```
+
 ### Using Go
 
 ```bash
-# Install from source
+# Install from source (latest from main)
 go install github.com/crossplane-contrib/xprin/cmd/xprin@latest
+
+# Install a specific release version
+go install github.com/crossplane-contrib/xprin/cmd/xprin@v0.1.0
 
 # Or build locally
 git clone https://github.com/crossplane-contrib/xprin
@@ -32,12 +90,6 @@ earthly +build
 ```
 
 The built binaries are put under the `_output` directory.
-
-### Using Homebrew
-
-```bash
-brew install tampakrap/tap/xprin
-```
 
 ## Verify Installation
 
