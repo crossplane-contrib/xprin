@@ -1,0 +1,30 @@
+tests:
+- name: "Successful test with hooks, validation, and assertions"
+  patches:
+    xrd: ../../aws/xrd.yaml
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    observed-resources: ../../aws/observed
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+  hooks:
+    pre-test:
+    - name: "this is a pre-test hook"
+      run: echo "hello"
+    post-test:
+    - name: "this is a post-test hook"
+      run: echo "bye"
+  assertions:
+    xprin:
+    - name: "Number of resources"
+      type: "Count"
+      value: 3
+    - name: "SecurityGroup should exist"
+      type: "Exists"
+      resource: "SecurityGroup/platform-aws-sg"
+    diff:
+    - name: "Full render matches golden (using diff)"
+      expected: golden_full_render.yaml

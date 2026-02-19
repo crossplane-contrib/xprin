@@ -7,28 +7,38 @@ This document provides a deep dive into how xprin works under the hood, includin
 At its core, xprin executes test cases through a series of sequential phases:
 
 ```mermaid
-flowchart LR
-    A[Setup] --> B[Patch]
-    B --> C[Render]
-    C --> D[Validate]
-    D --> E[Assert]
-    E --> F[Finish]
+flowchart TD
+    A["Setup<br/>Pre-test Hooks"] --> B[Convert Claim to XR]
+    A --> C[Patch XR]
+    B --> D[Render]
+    C --> D
+    D --> E[Validate]
+    D --> F[Assertions]
+    E --> G[Post-test Hooks<br/>Export Artifacts]
+    F --> G
 
     style A fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
     style B fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
-    style C fill:#a855f7,stroke:#7e22ce,stroke-width:2px,color:#fff
+    style C fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
     style D fill:#a855f7,stroke:#7e22ce,stroke-width:2px,color:#fff
-    style E fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
-    style F fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style E fill:#a855f7,stroke:#7e22ce,stroke-width:2px,color:#fff
+    style F fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
+    style G fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
 ```
 
 **Phase Overview:**
-1. **Setup** - Expand inputs, resolve paths, copy to temp directory, execute pre-test hooks, convert Claims to XRs
-2. **Patch** - Apply XRD defaults and connection secrets to XRs
+1. **Setup** - Expand inputs, resolve paths, copy to temp directory
+  - Execute Pre-test hooks for further environment setup
+2. **Patch**
+  - Custom patching via Pre-test Hooks
+  - Convert Claim to XR (if needed)
+  - Apply XRD defaults and connection secrets to XRs
 3. **Render** - Execute `crossplane render` to generate manifests
 4. **Validate** - Execute `crossplane beta validate` (if CRDs provided)
-5. **Assert** - Run declarative assertions on rendered resources
-6. **Finish** - Execute post-test hooks, export artifacts (if test has ID)
+5. **Assert** - Run declarative Assertions on rendered resources
+6. **Final**
+  - Execute Post-test Hooks
+  - Export artifacts (if test has ID)
 
 ## Detailed Execution Flow
 
