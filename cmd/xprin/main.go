@@ -21,6 +21,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"slices"
 
 	"github.com/alecthomas/kong"
 	checkCmd "github.com/crossplane-contrib/xprin/cmd/xprin/check"
@@ -40,6 +41,37 @@ type CLI struct {
 	Version    version.Cmd   `cmd:""                         help:"Print the version of xprin"`
 }
 
+// commandsNotRequiringConfig returns subcommand names that do not need config (e.g. version).
+func commandsNotRequiringConfig() []string {
+	return []string{"version"}
+}
+
+// loadConfigAndInject loads config (from file or Fallback) and injects it into the CLI command structs.
+// Only called when the selected command is not in commandsNotRequiringConfig. Add new config-requiring commands here.
+func loadConfigAndInject(cli *CLI, fs afero.Fs) error {
+	configPath := cli.ConfigFile
+
+	cfg, err := internalConfig.Load(fs, configPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			configPath = ""
+			cfg, err = internalConfig.Fallback()
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	cli.Check.Config = cfg
+	cli.Check.ConfigPath = configPath
+	cli.Config.Config = cfg
+	cli.Config.ConfigPath = configPath
+	cli.Test.Config = cfg
+
+	return nil
+}
+
 func main() {
 	var cli CLI
 
@@ -49,33 +81,13 @@ func main() {
 		kong.UsageOnError(),
 	)
 
-	configPath := cli.ConfigFile
-	fs := afero.NewOsFs()
-
-	cfg, err := internalConfig.Load(fs, configPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			configPath = ""
-
-			cfg, err = internalConfig.Fallback()
-			if err != nil {
-				log.Fatalf("%v", err)
-			}
-		} else {
+	if !slices.Contains(commandsNotRequiringConfig(), ctx.Command()) {
+		if err := loadConfigAndInject(&cli, afero.NewOsFs()); err != nil {
 			log.Fatalf("Failed to load configuration: %v", err)
 		}
 	}
 
-	// Set config in the command structs
-	cli.Check.Config = cfg
-	cli.Check.ConfigPath = configPath
-	cli.Config.Config = cfg
-	cli.Config.ConfigPath = configPath
-	cli.Test.Config = cfg
-
-	// Run the selected command
-	err = ctx.Run()
-	if err != nil {
+	if err := ctx.Run(); err != nil {
 		log.Fatalf("%v", err)
 	}
 }
