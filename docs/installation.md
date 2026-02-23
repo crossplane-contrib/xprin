@@ -4,58 +4,59 @@
 
 - **Crossplane 1.15+**: Required for the `crossplane beta validate` command
 - **Docker daemon**: Required for running Composition Functions (alternatives like Podman are also supported)
-- **Go 1.24+**: Required for building from source
+- **Go 1.24+**: Optional, only if building from source
 
 ## Install xprin
 
 ### Using the install script
 
-Download and run the official install script (Unix/macOS). It fetches a pre-built binary from [GitHub Releases](https://github.com/crossplane-contrib/xprin/releases).
+The official install script (Unix/macOS) fetches a pre-built binary from [GitHub Releases](https://github.com/crossplane-contrib/xprin/releases). The script detects your OS and architecture and places the `xprin` binary in the current directory; add it to your `PATH` or move it as needed.
 
 **Recommended: compressed tarball with SHA256 verification**
 
-Download the `.tar.gz` bundle and verify both the archive and the extracted binary using the release `.sha256` files. The script removes the tarball and hash files and keeps only the binary.
+The following command will install the latest stable version:
 
 ```bash
-# Install latest version
-COMPRESSED=true VERIFY_SHA=true curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
-
-# Install a specific version (e.g. v0.1.0)
-COMPRESSED=true VERIFY_SHA=true VERSION=v0.1.0 curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | COMPRESSED=true VERIFY_SHA=true sh
 ```
 
-**Alternatives**
-
-- **Tarball only** (no verification): `COMPRESSED=true`
-- **Binary with SHA256 verification**: `VERIFY_SHA=true` (downloads the binary and its `.sha256`, verifies, then keeps only the binary)
-- **Binary only** (no verification): default; single binary download
+Install a specific version (e.g. v0.1.1):
 
 ```bash
-# Tarball only
-COMPRESSED=true curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | COMPRESSED=true VERIFY_SHA=true VERSION=v0.1.1 sh
+```
 
-# Binary with verification
-VERIFY_SHA=true curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
+**Other options**
 
-# Binary only (default)
+Tarball only (no checksum verification):
+
+```bash
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | COMPRESSED=true sh
+```
+
+Binary with SHA256 verification (single binary + `.sha256` file):
+
+```bash
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | VERIFY_SHA=true sh
+```
+
+Binary only:
+
+```bash
 curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
 ```
 
-Then move the binary to your PATH:
+To install **xprin-helpers** instead of xprin:
 
 ```bash
-sudo mv xprin /usr/local/bin/
-xprin version
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | PACKAGE=xprin-helpers sh
 ```
 
-To install **xprin-helpers** instead, set `PACKAGE=xprin-helpers`:
+You can override `OS` and `ARCH` if needed (e.g. for cross-installs): add them before `sh` in the command above (e.g. `ARCH=arm64 ... sh`).
 
-```bash
-PACKAGE=xprin-helpers curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
-sudo mv xprin-helpers /usr/local/bin/
-```
+### Manual install
 
-You can override `OS` and `ARCH` if needed (e.g. for cross-installs).
+If you prefer not to run the install script, download a binary or tarball for your platform from [GitHub Releases](https://github.com/crossplane-contrib/xprin/releases). Extract if needed, then move the binary to a directory in your `PATH` (e.g. `/usr/local/bin`).
 
 ### Using Homebrew
 
@@ -65,14 +66,21 @@ brew install tampakrap/tap/xprin
 
 ### Using Go
 
+Install from source (latest from main):
+
 ```bash
-# Install from source (latest from main)
 go install github.com/crossplane-contrib/xprin/cmd/xprin@latest
+```
 
-# Install a specific release version
-go install github.com/crossplane-contrib/xprin/cmd/xprin@v0.1.0
+Install a specific release version:
 
-# Or build locally
+```bash
+go install github.com/crossplane-contrib/xprin/cmd/xprin@v0.1.1
+```
+
+Or build locally:
+
+```bash
 git clone https://github.com/crossplane-contrib/xprin
 cd xprin
 go build -o xprin ./cmd/xprin
@@ -81,11 +89,8 @@ go build -o xprin ./cmd/xprin
 ### Using Earthly
 
 ```bash
-# Clone the repository
 git clone https://github.com/crossplane-contrib/xprin
 cd xprin
-
-# Build locally
 earthly +build
 ```
 
@@ -96,10 +101,10 @@ The built binaries are put under the `_output` directory.
 After installing xprin, verify that everything is set up correctly:
 
 ```bash
-# Check xprin installation
 xprin version
+```
 
-# Verify dependencies and configuration
+```bash
 xprin check
 ```
 
@@ -134,10 +139,10 @@ subcommands:
 Validate your configuration:
 
 ```bash
-# Check dependencies and configuration
 xprin check
+```
 
-# Or use the config command (equivalent)
+```bash
 xprin config --check
 ```
 
@@ -151,4 +156,5 @@ To get autocompletion and validation for test suite YAML files (`xprin.yaml`, `*
 
 **Next Steps:**
 - If you need custom subcommands (e.g., for older Crossplane versions) or want to use repositories as template variables, see [Configuration](configuration.md)
+- If you need autocompletion and validation of test suite YAML in your favorite IDE, see [IDE integration](ide-integration.md)
 - Otherwise, continue to [Getting Started](getting-started.md) to run your first test

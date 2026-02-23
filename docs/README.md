@@ -8,6 +8,7 @@ Follow this path for a complete learning journey:
 
 1. **[Installation](installation.md)** - Install xprin and verify your setup
    - Optional [Configuration](configuration.md) if you need custom subcommands or repositories
+   - Optional [IDE integration](ide-integration.md) for autocompletion and validation in your editor
 2. **[Getting Started](getting-started.md)** - Run your first test and learn basic commands
 3. **[Examples](../examples/README.md)** - Step-by-step examples with real outputs
 4. **[Test Suite Specification](testsuite-specification.md)** - Complete reference for all test suite fields and options
