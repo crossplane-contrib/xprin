@@ -169,12 +169,14 @@ The flow ensures that:
 
 ## Documentation
 
-- [Installation](docs/installation.md) & (Optional) [Configuration](docs/configuration.md)
-- [Getting Started](docs/getting-started.md)
+- [Installation](docs/installation.md) - Install xprin and verify your setup
+   - Optional [Configuration](docs/configuration.md) if you need custom subcommands or repositories
+   - Optional [IDE integration](docs/ide-integration.md) for autocompletion and validation in your editor
+- [Getting Started](docs/getting-started.md) - Run your first test and learn basic commands
 - [Examples](examples/README.md) - Step-by-step examples with real outputs
 - [Test Suite Specification](docs/testsuite-specification.md) - Complete reference for all test suite fields and options
 - [Assertions](docs/assertions.md) - Complete guide to declarative resource validation
-- [How It Works](docs/how-it-works.md) - Deep dive into how xprin works
+- [How It Works](docs/how-it-works.md) - Deep dive into how xprin works under the hood
 
 ## Commands
 
@@ -197,7 +199,7 @@ xprin version
 
 ## Requirements
 
-See [Installation & Setup](docs/installation.md#prerequisites) for detailed requirements. At minimum: Crossplane CLI, Docker daemon, and Go 1.24+.
+See [Installation](docs/installation.md#prerequisites) for detailed requirements. At minimum: Crossplane CLI and Docker daemon.
 
 ## License
 

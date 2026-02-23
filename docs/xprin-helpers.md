@@ -11,14 +11,13 @@ xprin-helpers consists of two main tools:
 
 ## Quick Start
 
+Install xprin-helpers (see [Installation](#installation) for all options), then run:
+
 ```bash
-# Install xprin-helpers
-go install github.com/crossplane-contrib/xprin/cmd/xprin-helpers@latest
-
-# Convert a Claim to XR
 xprin-helpers convert-claim-to-xr claim.yaml
+```
 
-# Patch an XR with defaults and connection secret
+```bash
 xprin-helpers patch-xr xr.yaml --xrd=xrd.yaml --add-connection-secret
 ```
 
@@ -57,13 +56,73 @@ These tools are automatically used by xprin when needed:
 
 ## Installation
 
-### Using Go
+### Using the install script
+
+The official install script (Unix/macOS) fetches a pre-built binary from [GitHub Releases](https://github.com/crossplane-contrib/xprin/releases). The script detects your OS and architecture and places the binary in the current directory; add it to your `PATH` or move it as needed.
+
+**Recommended: compressed tarball with SHA256 verification**
+
+The following command will install the latest stable version:
 
 ```bash
-# Install from source
-go install github.com/crossplane-contrib/xprin/cmd/xprin-helpers@latest
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | COMPRESSED=true VERIFY_SHA=true PACKAGE=xprin-helpers sh
+```
 
-# Or build locally
+Install a specific version (e.g. v0.1.1):
+
+```bash
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | COMPRESSED=true VERIFY_SHA=true PACKAGE=xprin-helpers VERSION=v0.1.1 sh
+```
+
+**Other options**
+
+Tarball only (no checksum verification):
+
+```bash
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | COMPRESSED=true PACKAGE=xprin-helpers sh
+```
+
+Binary with SHA256 verification (single binary + `.sha256` file):
+
+```bash
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | VERIFY_SHA=true PACKAGE=xprin-helpers sh
+```
+
+Binary only:
+
+```bash
+curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | PACKAGE=xprin-helpers sh
+```
+
+You can override `OS` and `ARCH` if needed (e.g. for cross-installs): add them before `sh` in the command above (e.g. `ARCH=arm64 ... sh`).
+
+### Manual install
+
+If you prefer not to run the install script, download the xprin-helpers binary or tarball for your platform from [GitHub Releases](https://github.com/crossplane-contrib/xprin/releases). Extract if needed, then move the binary to a directory in your `PATH` (e.g. `/usr/local/bin`).
+
+### Using Homebrew
+
+```bash
+brew install tampakrap/tap/xprin-helpers
+```
+
+### Using Go
+
+Install from source (latest from main):
+
+```bash
+go install github.com/crossplane-contrib/xprin/cmd/xprin-helpers@latest
+```
+
+Install a specific release version:
+
+```bash
+go install github.com/crossplane-contrib/xprin/cmd/xprin-helpers@v0.1.1
+```
+
+Or build locally:
+
+```bash
 git clone https://github.com/crossplane-contrib/xprin
 cd xprin
 go build -o xprin-helpers ./cmd/xprin-helpers
@@ -72,27 +131,18 @@ go build -o xprin-helpers ./cmd/xprin-helpers
 ### Using Earthly
 
 ```bash
-# Clone the repository
 git clone https://github.com/crossplane-contrib/xprin
 cd xprin
-
-# Build locally
 earthly +build
 ```
 
 The built binaries are put under the `_output` directory.
 
-
-### Using Homebrew
-
-```bash
-brew install tampakrap/tap/xprin-helpers
-```
-
 ## Verify Installation
 
+After installing xprin-helpers, verify that everything is set up correctly:
+
 ```bash
-# Check xprin-helpers installation
 xprin-helpers version
 ```
 
@@ -102,5 +152,8 @@ Each tool provides detailed help information:
 
 ```bash
 xprin-helpers convert-claim-to-xr --help
+```
+
+```bash
 xprin-helpers patch-xr --help
 ```
