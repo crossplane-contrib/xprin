@@ -70,7 +70,7 @@
         'ARG --global E2E_CROSSPLANE_V1=(?<currentValue>.*?)\\n',
       ],
       datasourceTemplate: 'github-releases',
-      depNameTemplate: 'crossplane/crossplane',
+      depNameTemplate: 'crossplane/crossplane-e2e-v1',
       extractVersionTemplate: '^v(?<version>.*)$',
     },
     {
@@ -81,7 +81,7 @@
         'ARG --global E2E_CROSSPLANE_V2=(?<currentValue>.*?)\\n',
       ],
       datasourceTemplate: 'github-releases',
-      depNameTemplate: 'crossplane/crossplane',
+      depNameTemplate: 'crossplane/crossplane-e2e-v2',
       extractVersionTemplate: '^v(?<version>.*)$',
     },
   ],
@@ -118,16 +118,14 @@
       groupName: 'example-manifests',
     },
     {
-      description: 'E2E Crossplane v1',
-      matchDepNames: ['crossplane/crossplane'],
-      matchCurrentVersion: '^1\\.',
+      description: 'E2E Crossplane v1 (Earthfile): only 1.x',
+      matchDepNames: ['crossplane/crossplane-e2e-v1'],
       allowedVersions: '^1\\.',
       ignoreUnstable: true,
     },
     {
-      description: 'E2E Crossplane v2',
-      matchDepNames: ['crossplane/crossplane'],
-      matchCurrentVersion: '^2\\.',
+      description: 'E2E Crossplane v2 (Earthfile): only 2.x',
+      matchDepNames: ['crossplane/crossplane-e2e-v2'],
       allowedVersions: '^2\\.',
       ignoreUnstable: true,
     },
@@ -178,8 +176,7 @@
     },
     {
       description: 'Group E2E_CROSSPLANE_V2 (Earthfile) with crossplane v2 go.mod upgrades',
-      matchDepNames: ['crossplane/crossplane'],
-      matchCurrentVersion: '^2\\.',
+      matchDepNames: ['crossplane/crossplane-e2e-v2'],
       groupName: 'crossplane v2 and crossplane-runtime v2',
     },
     {
