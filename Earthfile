@@ -171,7 +171,7 @@ go-lint:
 # If no CROSSPLANE_VERSION is provided, it will use the latest stable version.
 crossplane-cli:
   ARG CROSSPLANE_VERSION
-  FROM alpine:3.20
+  FROM alpine:3.23
   RUN apk add --no-cache curl
   RUN XP_VERSION="${CROSSPLANE_VERSION:+v${CROSSPLANE_VERSION}}" sh -c 'curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | sh'
   RUN mv crossplane /usr/local/bin/crossplane
@@ -208,7 +208,7 @@ e2e-v2:
 e2e-regen-expected:
   BUILD +e2e-regen-expected-v1
   BUILD +e2e-regen-expected-v2
-  FROM alpine:3.20
+  FROM alpine:3.23
   RUN apk add --no-cache bash
   WORKDIR /work
   COPY +e2e-regen-expected-v1/expected v1-expected/
