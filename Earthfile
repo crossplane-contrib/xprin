@@ -4,8 +4,8 @@ VERSION --try --raw-output 0.8
 PROJECT crossplane-contrib/xprin
 
 ARG --global GO_VERSION=1.24.7
-ARG --global E2E_CROSSPLANE_V1=v1.20.4
-ARG --global E2E_CROSSPLANE_V2=v2.1.3
+ARG --global E2E_CROSSPLANE_V1=1.20.4
+ARG --global E2E_CROSSPLANE_V2=2.1.3
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
@@ -173,7 +173,7 @@ crossplane-cli:
   ARG CROSSPLANE_VERSION
   FROM alpine:3.20
   RUN apk add --no-cache curl
-  RUN XP_VERSION="${CROSSPLANE_VERSION}" sh -c 'curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | sh'
+  RUN XP_VERSION="${CROSSPLANE_VERSION:+v${CROSSPLANE_VERSION}}" sh -c 'curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | sh'
   RUN mv crossplane /usr/local/bin/crossplane
   SAVE ARTIFACT /usr/local/bin/crossplane
 
