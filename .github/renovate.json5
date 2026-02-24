@@ -60,7 +60,6 @@
       ],
       datasourceTemplate: 'github-releases',
       depNameTemplate: 'golangci/golangci-lint',
-      extractVersionTemplate: '^v(?<version>.*)$',
     },
     {
       customType: 'regex',
