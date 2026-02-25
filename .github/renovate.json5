@@ -61,30 +61,6 @@
       datasourceTemplate: 'github-releases',
       depNameTemplate: 'golangci/golangci-lint',
     },
-    {
-      customType: 'regex',
-      description: 'Bump E2E Crossplane v1 in Earthfile (latest stable 1.x, no rc)',
-      fileMatch: ['^Earthfile$'],
-      matchStrings: [
-        'ARG --global E2E_CROSSPLANE_V1=(?<currentValue>.*?)\\n',
-      ],
-      datasourceTemplate: 'github-releases',
-      depNameTemplate: 'crossplane/crossplane-e2e-v1',
-      packageNameTemplate: 'crossplane/crossplane',
-      extractVersionTemplate: '^v(?<version>.*)$',
-    },
-    {
-      customType: 'regex',
-      description: 'Bump E2E Crossplane v2 in Earthfile (latest stable 2.x, no rc)',
-      fileMatch: ['^Earthfile$'],
-      matchStrings: [
-        'ARG --global E2E_CROSSPLANE_V2=(?<currentValue>.*?)\\n',
-      ],
-      datasourceTemplate: 'github-releases',
-      depNameTemplate: 'crossplane/crossplane-e2e-v2',
-      packageNameTemplate: 'crossplane/crossplane',
-      extractVersionTemplate: '^v(?<version>.*)$',
-    },
   ],
   // Renovate doesn't have native Earthfile support, but because Earthfile
   // syntax is a superset of Dockerfile syntax this works to update FROM images.
@@ -117,18 +93,6 @@
         'examples/base/**',
       ],
       groupName: 'example-manifests',
-    },
-    {
-      description: 'E2E Crossplane v1 (Earthfile): only 1.x',
-      matchDepNames: ['crossplane/crossplane-e2e-v1'],
-      allowedVersions: '^1\\.',
-      ignoreUnstable: true,
-    },
-    {
-      description: 'E2E Crossplane v2 (Earthfile): only 2.x',
-      matchDepNames: ['crossplane/crossplane-e2e-v2'],
-      allowedVersions: '^2\\.',
-      ignoreUnstable: true,
     },
     {
       description: 'Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo',
@@ -165,20 +129,6 @@
       matchPackageNames: [
         '!github.com/crossplane/crossplane-runtime',
       ],
-    },
-    // Single PR: crossplane v2 + crossplane-runtime v2 in go.mod/go.sum AND E2E_CROSSPLANE_V2 in Earthfile
-    {
-      description: 'Group crossplane v2 and crossplane-runtime v2 (go.mod)',
-      matchPackageNames: [
-        'github.com/crossplane/crossplane/v2',
-        'github.com/crossplane/crossplane-runtime/v2',
-      ],
-      groupName: 'crossplane v2 and crossplane-runtime v2',
-    },
-    {
-      description: 'Group E2E_CROSSPLANE_V2 (Earthfile) with crossplane v2 go.mod upgrades',
-      matchDepNames: ['crossplane/crossplane-e2e-v2'],
-      groupName: 'crossplane v2 and crossplane-runtime v2',
     },
     {
       description: 'Group all go version updates',
