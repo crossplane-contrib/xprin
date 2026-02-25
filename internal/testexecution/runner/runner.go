@@ -89,7 +89,7 @@ func NewRunner(options *testexecutionUtils.Options, testSuiteFile string, testSu
 		expandPathRelativeToTestSuiteFile: testexecutionUtils.ExpandPathRelativeToTestSuiteFile,
 		verifyPathExists:                  utils.VerifyPathExists,
 		runCommand: func(name string, args ...string) ([]byte, error) {
-			cmd := exec.Command(name, args...)
+			cmd := exec.Command(name, args...) //nolint:gosec // G204 - Used for Crossplane CLI and hooks, caller is trusted
 			cmd.Dir = testSuiteFileDir
 
 			var combined bytes.Buffer

@@ -31,9 +31,11 @@ type TestSuiteSpec struct {
 
 // Patches represents XR patching configuration.
 type Patches struct {
-	XRD                       string `json:"xrd,omitempty"`                         // Path to the XR's or Claim's XRD (Optional)
-	ConnectionSecret          *bool  `json:"connection-secret,omitempty"`           // When true, create a connection secret for the XR (Optional)
-	ConnectionSecretName      string `json:"connection-secret-name,omitempty"`      // Name of the connection secret (Optional)
+	XRD              string `json:"xrd,omitempty"`               // Path to the XR's or Claim's XRD (Optional)
+	ConnectionSecret *bool  `json:"connection-secret,omitempty"` // When true, create a connection secret for the XR (Optional)
+	//nolint:gosec // G117 - connection secret params, not secret values
+	ConnectionSecretName string `json:"connection-secret-name,omitempty"` // Name of the connection secret (Optional)
+	//nolint:gosec // G117 - connection secret params, not secret values
 	ConnectionSecretNamespace string `json:"connection-secret-namespace,omitempty"` // Namespace of the connection secret (Optional)
 }
 
