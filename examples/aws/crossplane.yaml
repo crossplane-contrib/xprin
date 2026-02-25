@@ -7,8 +7,8 @@ spec:
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
     package: xpkg.upbound.io/upbound/provider-aws-ec2
-    version: "v1.23.2"
+    version: "v2.4.0"
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
     package: xpkg.upbound.io/upbound/provider-aws-rds
-    version: "v1.23.2"
+    version: "v2.4.0"
