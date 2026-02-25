@@ -61,6 +61,19 @@
       datasourceTemplate: 'github-releases',
       depNameTemplate: 'golangci/golangci-lint',
     },
+    {
+      customType: 'regex',
+      description: 'Bump E2E Crossplane V1 version in Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG --global E2E_CROSSPLANE_V1=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'crossplane/crossplane',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
   ],
   // Renovate doesn't have native Earthfile support, but because Earthfile
   // syntax is a superset of Dockerfile syntax this works to update FROM images.
