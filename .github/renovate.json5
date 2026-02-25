@@ -103,7 +103,6 @@
         'spec.dependsOn.{ "depName": package, "currentValue": version, "depType": "provider" }',
       ],
       datasourceTemplate: 'docker',
-      extractVersionTemplate: '^v?(?<version>.*)$',
     },
   ],
   // Renovate doesn't have native Earthfile support, but because Earthfile
