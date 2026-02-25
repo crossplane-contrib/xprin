@@ -75,6 +75,20 @@
       packageNameTemplate: 'crossplane/crossplane',
       extractVersionTemplate: '^v(?<version>.*)$',
     },
+    {
+      customType: 'regex',
+      description: 'Bump E2E Crossplane v2 version in Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
+      matchStrings: [
+        'ARG --global E2E_CROSSPLANE_V2=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'crossplane/crossplane-e2e-v2',
+      packageNameTemplate: 'crossplane/crossplane',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
   ],
   // Renovate doesn't have native Earthfile support, but because Earthfile
   // syntax is a superset of Dockerfile syntax this works to update FROM images.
