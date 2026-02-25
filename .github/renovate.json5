@@ -92,6 +92,19 @@
       packageNameTemplate: 'crossplane/crossplane',
       extractVersionTemplate: '^v(?<version>.*)$',
     },
+    {
+      customType: 'jsonata',
+      description: 'Bump Crossplane provider versions in crossplane.yaml spec.dependsOn',
+      fileFormat: 'yaml',
+      managerFilePatterns: [
+        '/^examples\\/(aws|gcp|base)\\/crossplane\\.yaml$/',
+      ],
+      matchStrings: [
+        'spec.dependsOn.{ "depName": package, "currentValue": version, "depType": "provider" }',
+      ],
+      datasourceTemplate: 'docker',
+      extractVersionTemplate: '^v?(?<version>.*)$',
+    },
   ],
   // Renovate doesn't have native Earthfile support, but because Earthfile
   // syntax is a superset of Dockerfile syntax this works to update FROM images.
