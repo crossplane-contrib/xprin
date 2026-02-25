@@ -24,18 +24,18 @@ import (
 
 // DebugPrintf prints a debug message to stderr with "DEBUG: " prefix.
 // It uses the same formatting as fmt.Printf but writes to stderr instead of stdout.
-func DebugPrintf(format string, args ...interface{}) {
+func DebugPrintf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "DEBUG: "+format, args...)
 }
 
 // WarningPrintf prints a warning message to stderr with "WARNING: " prefix.
 // It uses the same formatting as fmt.Printf but writes to stderr instead of stdout.
-func WarningPrintf(format string, args ...interface{}) {
+func WarningPrintf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "WARNING: "+format, args...)
 }
 
 // OutputPrintf prints a formatted message to stdout.
 // It uses the same formatting as fmt.Printf but provides a consistent interface.
-func OutputPrintf(format string, args ...interface{}) {
+func OutputPrintf(format string, args ...any) {
 	_, _ = fmt.Fprintf(os.Stdout, format, args...)
 }

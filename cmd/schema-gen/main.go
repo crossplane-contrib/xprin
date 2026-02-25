@@ -31,6 +31,7 @@ import (
 
 func main() {
 	outPath := flag.String("out", "", "Output path for the generated schema (required)")
+
 	flag.Parse()
 
 	if *outPath == "" {

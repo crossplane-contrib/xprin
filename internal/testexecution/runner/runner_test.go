@@ -956,7 +956,7 @@ func TestRunTestCase(t *testing.T) {
 					ContextFiles: map[string]string{"ctx": "context_file.yaml"},
 					ContextValues: map[string]string{
 						"ctx": func() string {
-							val, err := json.Marshal(map[string]interface{}{"key": "value"})
+							val, err := json.Marshal(map[string]any{"key": "value"})
 							if err != nil {
 								return "{}" // fallback to empty JSON object
 							}

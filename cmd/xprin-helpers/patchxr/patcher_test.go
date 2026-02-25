@@ -33,13 +33,13 @@ import (
 
 // testXR is a basic test XR for testing patch functionality.
 var testXR = &unstructured.Unstructured{
-	Object: map[string]interface{}{
+	Object: map[string]any{
 		"apiVersion": "example.org/v1alpha1",
 		"kind":       "XTestApp",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name": "test-app",
 		},
-		"spec": map[string]interface{}{},
+		"spec": map[string]any{},
 	},
 }
 
@@ -337,14 +337,14 @@ func TestAddConnectionSecret(t *testing.T) {
 			want: want{
 				err: nil,
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app",
 						},
-						"spec": map[string]interface{}{
-							"writeConnectionSecretToRef": map[string]interface{}{
+						"spec": map[string]any{
+							"writeConnectionSecretToRef": map[string]any{
 								"name":      "generated-uuid", // Will be ignored in comparison
 								"namespace": "default",
 							},
@@ -363,14 +363,14 @@ func TestAddConnectionSecret(t *testing.T) {
 			want: want{
 				err: nil,
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app",
 						},
-						"spec": map[string]interface{}{
-							"writeConnectionSecretToRef": map[string]interface{}{
+						"spec": map[string]any{
+							"writeConnectionSecretToRef": map[string]any{
 								"name":      "my-custom-secret",
 								"namespace": "default",
 							},
@@ -389,14 +389,14 @@ func TestAddConnectionSecret(t *testing.T) {
 			want: want{
 				err: nil,
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app",
 						},
-						"spec": map[string]interface{}{
-							"writeConnectionSecretToRef": map[string]interface{}{
+						"spec": map[string]any{
+							"writeConnectionSecretToRef": map[string]any{
 								"name":      "generated-uuid", // Will be ignored in comparison
 								"namespace": "custom-namespace",
 							},
@@ -415,14 +415,14 @@ func TestAddConnectionSecret(t *testing.T) {
 			want: want{
 				err: nil,
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app",
 						},
-						"spec": map[string]interface{}{
-							"writeConnectionSecretToRef": map[string]interface{}{
+						"spec": map[string]any{
+							"writeConnectionSecretToRef": map[string]any{
 								"name":      "my-custom-secret",
 								"namespace": "custom-namespace",
 							},
@@ -450,7 +450,7 @@ func TestAddConnectionSecret(t *testing.T) {
 			}
 
 			// Use custom comparison to ignore generated values
-			opt := cmpopts.IgnoreMapEntries(func(k, v interface{}) bool {
+			opt := cmpopts.IgnoreMapEntries(func(k, v any) bool {
 				key, ok := k.(string)
 				if !ok {
 					return false
@@ -478,8 +478,8 @@ func TestAddConnectionSecret(t *testing.T) {
 			// Validate connection secret always has name and namespace
 			if got != nil {
 				if got.Object["spec"] != nil {
-					if spec, ok := got.Object["spec"].(map[string]interface{}); ok {
-						if writeConnSecret, ok := spec["writeConnectionSecretToRef"].(map[string]interface{}); ok {
+					if spec, ok := got.Object["spec"].(map[string]any); ok {
+						if writeConnSecret, ok := spec["writeConnectionSecretToRef"].(map[string]any); ok {
 							if secretName, ok := writeConnSecret["name"].(string); !ok || secretName == "" {
 								t.Errorf("\n%s\nConnection secret name should always be present and non-empty", tc.reason)
 							}
@@ -509,18 +509,18 @@ func TestAddConnectionSecret_UUIDGeneration(t *testing.T) {
 		}
 
 		// Check that a UID was generated and set
-		if uid, ok := got.Object["metadata"].(map[string]interface{})["uid"].(string); !ok || uid == "" {
+		if uid, ok := got.Object["metadata"].(map[string]any)["uid"].(string); !ok || uid == "" {
 			t.Error("Expected metadata.uid to be set")
 		}
 
 		// Check that writeConnectionSecretToRef name was generated (should be the UID)
-		spec, ok := got.Object["spec"].(map[string]interface{})
+		spec, ok := got.Object["spec"].(map[string]any)
 		if !ok {
 			t.Error("Expected spec to be present")
 			return
 		}
 
-		writeConnSecret, ok := spec["writeConnectionSecretToRef"].(map[string]interface{})
+		writeConnSecret, ok := spec["writeConnectionSecretToRef"].(map[string]any)
 		if !ok {
 			t.Error("Expected writeConnectionSecretToRef to be present")
 			return
@@ -544,7 +544,7 @@ func TestAddConnectionSecret_UUIDGeneration(t *testing.T) {
 		}
 
 		// Check that .metadata.uid is created and is a valid UUID
-		metadata, ok := got.Object["metadata"].(map[string]interface{})
+		metadata, ok := got.Object["metadata"].(map[string]any)
 		if !ok {
 			t.Error("XR metadata is not a map")
 			return

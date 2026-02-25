@@ -252,6 +252,26 @@ linters:
           - revive
         path: 'util/*'
         text: 'var-naming: avoid meaningless package names'
+
+      - linters:
+          - revive
+        path: 'internal/api/'
+        text: 'var-naming: avoid meaningless package names'
+
+      - linters:
+          - revive
+        path: 'internal/version/'
+        text: 'var-naming: avoid package names that conflict with Go standard library package names'
+
+      - linters:
+          - revive
+        path: 'cmd/xprin/version/'
+        text: 'var-naming: avoid package names that conflict with Go standard library package names'
+
+      - linters:
+          - revive
+        path: 'cmd/xprin-helpers/version/'
+        text: 'var-naming: avoid package names that conflict with Go standard library package names'
     paths:
       - zz_generated\..+\.go$
       - .+\.pb.go$

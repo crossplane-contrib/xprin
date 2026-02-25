@@ -34,14 +34,14 @@ import (
 // It accepts optional modifier functions that can customize the Claim's content.
 func generateTestClaim(opts ...func(*unstructured.Unstructured)) *unstructured.Unstructured {
 	claim := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "example.org/v1alpha1",
 			"kind":       "TestApp",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-app",
 				"namespace": "myclaims",
 			},
-			"spec": map[string]interface{}{},
+			"spec": map[string]any{},
 		},
 	}
 
@@ -57,7 +57,7 @@ var (
 	testClaim = generateTestClaim()
 
 	testClaimWithLabels = generateTestClaim(
-		withLabels(map[string]interface{}{
+		withLabels(map[string]any{
 			"existing-label": "value",
 		}),
 	)
@@ -67,7 +67,7 @@ var (
 	)
 
 	testClaimWithAnnotations = generateTestClaim(
-		withAnnotations(map[string]interface{}{
+		withAnnotations(map[string]any{
 			"test-annotation": "value",
 		}),
 	)
@@ -93,14 +93,14 @@ func withoutMandatoryField(field string) func(*unstructured.Unstructured) {
 // to the Claim's spec. This is used to test proper handling of different field types.
 func withMultiFieldSpec() func(*unstructured.Unstructured) {
 	return func(u *unstructured.Unstructured) {
-		u.Object["spec"] = map[string]interface{}{
+		u.Object["spec"] = map[string]any{
 			"stringField": "value1",
 			"numberField": float64(42), // YAML unmarshals integers as float64
 			"boolField":   true,
-			"objectField": map[string]interface{}{
+			"objectField": map[string]any{
 				"nested": "value",
 			},
-			"arrayField": []interface{}{
+			"arrayField": []any{
 				"item1",
 				"item2",
 			},
@@ -110,18 +110,18 @@ func withMultiFieldSpec() func(*unstructured.Unstructured) {
 
 // withLabels returns an option function that adds the specified labels to the Claim's metadata.
 // This is used to test proper handling and merging of existing labels with Crossplane-specific labels.
-func withLabels(labels map[string]interface{}) func(*unstructured.Unstructured) {
+func withLabels(labels map[string]any) func(*unstructured.Unstructured) {
 	return func(u *unstructured.Unstructured) {
-		meta := u.Object["metadata"].(map[string]interface{})
+		meta := u.Object["metadata"].(map[string]any)
 		meta["labels"] = labels
 	}
 }
 
 // withAnnotations returns an option function that adds the specified annotations to the Claim's metadata.
 // This is used to test proper copying of annotations from Claim to XR.
-func withAnnotations(annotations map[string]interface{}) func(*unstructured.Unstructured) {
+func withAnnotations(annotations map[string]any) func(*unstructured.Unstructured) {
 	return func(u *unstructured.Unstructured) {
-		meta := u.Object["metadata"].(map[string]interface{})
+		meta := u.Object["metadata"].(map[string]any)
 		meta["annotations"] = annotations
 	}
 }
@@ -137,22 +137,22 @@ func withAPIVersion(apiVersion string) func(*unstructured.Unstructured) {
 // withComplexSpec returns an option function that adds a complex nested spec to the Claim.
 func withComplexSpec() func(*unstructured.Unstructured) {
 	return func(u *unstructured.Unstructured) {
-		u.Object["spec"] = map[string]interface{}{
+		u.Object["spec"] = map[string]any{
 			"intField":    float64(42), // YAML unmarshals integers as float64
 			"floatField":  float64(3.14159),
 			"stringField": "hello",
 			"boolField":   true,
-			"objectField": map[string]interface{}{
+			"objectField": map[string]any{
 				"nestedInt":   float64(123), // YAML unmarshals integers as float64
 				"nestedFloat": float64(456.789),
-				"nestedObject": map[string]interface{}{
+				"nestedObject": map[string]any{
 					"deeplyNested": "value",
 				},
 			},
-			"arrayField": []interface{}{
+			"arrayField": []any{
 				float64(1234), // YAML unmarshals integers as float64
 				"string in array",
-				map[string]interface{}{
+				map[string]any{
 					"objectInArray": true,
 				},
 			},
@@ -174,27 +174,27 @@ func generateExpectedXR(claim *unstructured.Unstructured, kind string, direct bo
 
 	// Create base XR
 	xr := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "example.org/v1alpha1",
 			"kind":       xrKind,
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": name,
 			},
-			"spec": map[string]interface{}{},
+			"spec": map[string]any{},
 		},
 	}
 
 	if !direct {
 		// Add Crossplane labels
-		metadata := xr.Object["metadata"].(map[string]interface{})
+		metadata := xr.Object["metadata"].(map[string]any)
 		metadata["labels"] = map[string]any{
 			"crossplane.io/claim-name":      claim.GetName(),
 			"crossplane.io/claim-namespace": claim.GetNamespace(),
 		}
 
 		// Add claimRef
-		spec := xr.Object["spec"].(map[string]interface{})
-		spec["claimRef"] = map[string]interface{}{
+		spec := xr.Object["spec"].(map[string]any)
+		spec["claimRef"] = map[string]any{
 			"apiVersion": claim.GetAPIVersion(),
 			"kind":       claim.GetKind(),
 			"name":       claim.GetName(),
@@ -336,28 +336,28 @@ func TestConvertClaimToXR(t *testing.T) {
 			want: want{
 				err: nil,
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app",
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"intField":    int64(42), // Whole numbers become int64
 							"floatField":  float64(3.14159),
 							"stringField": "hello",
 							"boolField":   true,
-							"objectField": map[string]interface{}{
+							"objectField": map[string]any{
 								"nestedInt":   int64(123), // Whole numbers become int64
 								"nestedFloat": float64(456.789),
-								"nestedObject": map[string]interface{}{
+								"nestedObject": map[string]any{
 									"deeplyNested": "value",
 								},
 							},
-							"arrayField": []interface{}{
+							"arrayField": []any{
 								int64(1234), // Whole numbers become int64
 								"string in array",
-								map[string]interface{}{
+								map[string]any{
 									"objectInArray": true,
 								},
 							},
@@ -383,7 +383,7 @@ func TestConvertClaimToXR(t *testing.T) {
 			reason: "Should properly merge existing labels with Crossplane labels",
 			args: args{
 				claim: generateTestClaim(
-					withLabels(map[string]interface{}{
+					withLabels(map[string]any{
 						"existing-label": "value",
 						labelClaimName:   "old-value",
 					}),
@@ -394,10 +394,10 @@ func TestConvertClaimToXR(t *testing.T) {
 			want: want{
 				err: nil,
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app-abcde",
 							"labels": map[string]any{
 								"existing-label":    "value",
@@ -405,8 +405,8 @@ func TestConvertClaimToXR(t *testing.T) {
 								labelClaimNamespace: "myclaims",
 							},
 						},
-						"spec": map[string]interface{}{
-							"claimRef": map[string]interface{}{
+						"spec": map[string]any{
+							"claimRef": map[string]any{
 								"apiVersion": "example.org/v1alpha1",
 								"kind":       "TestApp",
 								"name":       "test-app",
@@ -427,10 +427,10 @@ func TestConvertClaimToXR(t *testing.T) {
 			want: want{
 				err: nil,
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app",
 							"annotations": map[string]any{
 								"test-annotation": "value",
@@ -486,13 +486,13 @@ func TestConvertClaimToXR(t *testing.T) {
 			},
 			want: want{
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app",
 						},
-						"spec": map[string]interface{}{},
+						"spec": map[string]any{},
 					},
 				},
 				err:     nil,
@@ -508,16 +508,16 @@ func TestConvertClaimToXR(t *testing.T) {
 			},
 			want: want{
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"existing-label": "value",
 							},
 						},
-						"spec": map[string]interface{}{},
+						"spec": map[string]any{},
 					},
 				},
 				err:     nil,
@@ -547,20 +547,20 @@ func TestConvertClaimToXR(t *testing.T) {
 			want: want{
 				err: nil,
 				xr: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "test-app",
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"stringField": "value1",
 							"numberField": int64(42), // Whole numbers become int64
 							"boolField":   true,
-							"objectField": map[string]interface{}{
+							"objectField": map[string]any{
 								"nested": "value",
 							},
-							"arrayField": []interface{}{
+							"arrayField": []any{
 								"item1",
 								"item2",
 							},
@@ -580,7 +580,7 @@ func TestConvertClaimToXR(t *testing.T) {
 			}
 
 			// Use custom comparison to ignore generated name suffixes
-			opt := cmpopts.IgnoreMapEntries(func(k, v interface{}) bool {
+			opt := cmpopts.IgnoreMapEntries(func(k, v any) bool {
 				key, ok := k.(string)
 				if !ok {
 					return false
