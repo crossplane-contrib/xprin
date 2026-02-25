@@ -63,8 +63,10 @@
     },
     {
       customType: 'regex',
-      description: 'Bump E2E Crossplane v1 in Earthfile (latest stable 1.x, no rc)',
-      fileMatch: ['^Earthfile$'],
+      description: 'Bump E2E Crossplane v1 version in Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
       matchStrings: [
         'ARG --global E2E_CROSSPLANE_V1=(?<currentValue>.*?)\\n',
       ],
@@ -75,8 +77,10 @@
     },
     {
       customType: 'regex',
-      description: 'Bump E2E Crossplane v2 in Earthfile (latest stable 2.x, no rc)',
-      fileMatch: ['^Earthfile$'],
+      description: 'Bump E2E Crossplane v2 version in Earthfile',
+      fileMatch: [
+        '^Earthfile$',
+      ],
       matchStrings: [
         'ARG --global E2E_CROSSPLANE_V2=(?<currentValue>.*?)\\n',
       ],
@@ -120,14 +124,10 @@
     },
     {
       description: 'E2E Crossplane v1 (Earthfile): only 1.x',
-      matchDepNames: ['crossplane/crossplane-e2e-v1'],
+      matchDepNames: [
+        'crossplane/crossplane-e2e-v1',
+      ],
       allowedVersions: '^1\\.',
-      ignoreUnstable: true,
-    },
-    {
-      description: 'E2E Crossplane v2 (Earthfile): only 2.x',
-      matchDepNames: ['crossplane/crossplane-e2e-v2'],
-      allowedVersions: '^2\\.',
       ignoreUnstable: true,
     },
     {
@@ -166,19 +166,20 @@
         '!github.com/crossplane/crossplane-runtime',
       ],
     },
-    // Single PR: crossplane v2 + crossplane-runtime v2 in go.mod/go.sum AND E2E_CROSSPLANE_V2 in Earthfile
     {
       description: 'Group crossplane v2 and crossplane-runtime v2 (go.mod)',
       matchPackageNames: [
         'github.com/crossplane/crossplane/v2',
         'github.com/crossplane/crossplane-runtime/v2',
       ],
-      groupName: 'crossplane v2 and crossplane-runtime v2',
+      groupName: 'Crossplane v2',
     },
     {
-      description: 'Group E2E_CROSSPLANE_V2 (Earthfile) with crossplane v2 go.mod upgrades',
-      matchDepNames: ['crossplane/crossplane-e2e-v2'],
-      groupName: 'crossplane v2 and crossplane-runtime v2',
+      description: 'Group E2E_CROSSPLANE_V2 (Earthfile) with crossplane v2 go.mod updates',
+      matchDepNames: [
+        'crossplane/crossplane-e2e-v2',
+      ],
+      groupName: 'Crossplane v2',
     },
     {
       description: 'Group all go version updates',
