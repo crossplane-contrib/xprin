@@ -10,7 +10,7 @@ require (
 	github.com/gertd/go-pluralize v0.2.1
 	github.com/go-git/go-git/v5 v5.16.5
 	github.com/gonvenience/bunt v1.4.3
-	github.com/gonvenience/ytbx v1.4.7
+	github.com/gonvenience/ytbx v1.4.8
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/homeport/dyff v1.10.2
@@ -69,9 +69,9 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/gonvenience/idem v0.0.2 // indirect
-	github.com/gonvenience/neat v1.3.16 // indirect
-	github.com/gonvenience/term v1.0.4 // indirect
-	github.com/gonvenience/text v1.0.9 // indirect
+	github.com/gonvenience/neat v1.3.17 // indirect
+	github.com/gonvenience/term v1.0.5 // indirect
+	github.com/gonvenience/text v1.0.10 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/cel-go v0.26.0 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
@@ -119,7 +119,7 @@ require (
 	go.opentelemetry.io/otel v1.36.0 // indirect
 	go.opentelemetry.io/otel/metric v1.36.0 // indirect
 	go.opentelemetry.io/otel/trace v1.36.0 // indirect
-	go.yaml.in/yaml/v2 v2.4.2 // indirect
+	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa // indirect
