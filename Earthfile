@@ -5,7 +5,7 @@ PROJECT crossplane-contrib/xprin
 
 ARG --global GO_VERSION=1.26.0
 ARG --global E2E_CROSSPLANE_V1=1.20.5
-ARG --global E2E_CROSSPLANE_V2=2.1.3
+ARG --global E2E_CROSSPLANE_V2=2.2.0
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
