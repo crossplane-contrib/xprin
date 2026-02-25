@@ -77,7 +77,7 @@ func VerifyPathExists(path string) error {
 
 // ValidateYAML checks if the output is valid YAML.
 func ValidateYAML(yamlData []byte) error {
-	var doc map[string]interface{}
+	var doc map[string]any
 	if err := yaml.Unmarshal(yamlData, &doc); err != nil {
 		return fmt.Errorf("invalid YAML: %w", err)
 	}

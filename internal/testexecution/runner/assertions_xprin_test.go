@@ -33,6 +33,7 @@ const (
 
 func filterFailedAssertions(results []engine.AssertionResult) []engine.AssertionResult {
 	var failed []engine.AssertionResult
+
 	for _, r := range results {
 		if r.Status == engine.StatusFail() {
 			failed = append(failed, r)

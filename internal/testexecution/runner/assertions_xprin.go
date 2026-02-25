@@ -489,7 +489,7 @@ func (e *assertionExecutor) findResource(expectedKind, expectedName string) (*un
 }
 
 // getFieldValue navigates to a field value using dot notation (e.g., "metadata.name").
-func (e *assertionExecutor) getFieldValue(obj map[string]interface{}, fieldPath string) (interface{}, error) {
+func (e *assertionExecutor) getFieldValue(obj map[string]any, fieldPath string) (any, error) {
 	parts := strings.Split(fieldPath, ".")
 	current := obj
 
@@ -504,7 +504,7 @@ func (e *assertionExecutor) getFieldValue(obj map[string]interface{}, fieldPath 
 		}
 
 		// Navigate deeper
-		if next, ok := current[part].(map[string]interface{}); ok {
+		if next, ok := current[part].(map[string]any); ok {
 			current = next
 		} else {
 			return nil, fmt.Errorf("field %s is not an object", strings.Join(parts[:i+1], "."))
@@ -515,7 +515,7 @@ func (e *assertionExecutor) getFieldValue(obj map[string]interface{}, fieldPath 
 }
 
 // checkFieldExists checks if a field exists using dot notation (e.g., "metadata.name").
-func (e *assertionExecutor) checkFieldExists(obj map[string]interface{}, fieldPath string) (bool, error) {
+func (e *assertionExecutor) checkFieldExists(obj map[string]any, fieldPath string) (bool, error) {
 	parts := strings.Split(fieldPath, ".")
 	current := obj
 
@@ -527,7 +527,7 @@ func (e *assertionExecutor) checkFieldExists(obj map[string]interface{}, fieldPa
 		}
 
 		// Navigate deeper
-		if next, ok := current[part].(map[string]interface{}); ok {
+		if next, ok := current[part].(map[string]any); ok {
 			current = next
 		} else {
 			return false, fmt.Errorf("field %s is not an object", strings.Join(parts[:i+1], "."))
@@ -538,7 +538,7 @@ func (e *assertionExecutor) checkFieldExists(obj map[string]interface{}, fieldPa
 }
 
 // getGoType returns the Go type name for a value.
-func (e *assertionExecutor) getGoType(value interface{}) string {
+func (e *assertionExecutor) getGoType(value any) string {
 	if value == nil {
 		return "null"
 	}
@@ -550,9 +550,9 @@ func (e *assertionExecutor) getGoType(value interface{}) string {
 		return "number"
 	case bool:
 		return "boolean"
-	case []interface{}:
+	case []any:
 		return "array"
-	case map[string]interface{}:
+	case map[string]any:
 		return "object"
 	default:
 		return fmt.Sprintf("%T", value)
@@ -560,7 +560,7 @@ func (e *assertionExecutor) getGoType(value interface{}) string {
 }
 
 // compareFieldValue compares a field value with an expected value using the specified operator.
-func (e *assertionExecutor) compareFieldValue(fieldValue interface{}, operator string, expectedValue interface{}) (bool, error) {
+func (e *assertionExecutor) compareFieldValue(fieldValue any, operator string, expectedValue any) (bool, error) {
 	switch operator {
 	case "==", "is":
 		return e.compareEqual(fieldValue, expectedValue)
@@ -570,7 +570,7 @@ func (e *assertionExecutor) compareFieldValue(fieldValue interface{}, operator s
 }
 
 // compareEqual compares two values for equality.
-func (e *assertionExecutor) compareEqual(fieldValue, expectedValue interface{}) (bool, error) {
+func (e *assertionExecutor) compareEqual(fieldValue, expectedValue any) (bool, error) {
 	// Handle nil values
 	if fieldValue == nil && expectedValue == nil {
 		return true, nil

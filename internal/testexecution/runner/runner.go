@@ -616,6 +616,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	}
 
 	var finalError []string
+
 	if len(testCase.Inputs.CRDs) >= 1 {
 		validateArgs := make([]string, 0, len(r.Validate)+3)
 		validateArgs = append(validateArgs, r.Validate...)

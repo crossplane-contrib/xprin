@@ -53,10 +53,10 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionUtils.O
 	var hasErrors bool
 
 	for _, path := range targets {
-		if strings.HasSuffix(path, "...") {
-			root := strings.TrimSuffix(path, "...")
-			if strings.HasSuffix(root, string(filepath.Separator)) {
-				root = strings.TrimSuffix(root, string(filepath.Separator))
+		if before, ok := strings.CutSuffix(path, "..."); ok {
+			root := before
+			if before, ok := strings.CutSuffix(root, string(filepath.Separator)); ok {
+				root = before
 			}
 
 			dirs, err := recursiveDirs(fs, root)

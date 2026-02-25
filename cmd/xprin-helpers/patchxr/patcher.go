@@ -115,7 +115,7 @@ func AddConnectionSecret(xr *unstructured.Unstructured, connectionSecretName, co
 		finalConnectionSecretNamespace = "default"
 	}
 
-	secretRef := map[string]interface{}{
+	secretRef := map[string]any{
 		"name":      finalConnectionSecretName,
 		"namespace": finalConnectionSecretNamespace,
 	}
