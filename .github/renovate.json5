@@ -8,8 +8,13 @@
   ignorePresets: [
     ':ignoreModulesAndTests',
   ],
+  // We only want renovate to rebase PRs when they have conflicts, default
+  // "auto" mode is not required.
   rebaseWhen: 'conflicted',
+  // The maximum number of PRs to be created in parallel
   prConcurrentLimit: 5,
+  // The branches renovate should target
+  // PLEASE UPDATE THIS WHEN RELEASING.
   baseBranchPatterns: [
     'main',
   ],
@@ -17,6 +22,7 @@
     'gomodTidy',
     'gomodUpdateImportPaths',
   ],
+  // All PRs should have a label
   labels: [
     'automated',
   ],
@@ -99,6 +105,9 @@
       datasourceTemplate: 'docker',
     },
   ],
+  // Renovate doesn't have native Earthfile support, but because Earthfile
+  // syntax is a superset of Dockerfile syntax this works to update FROM images.
+  // https://github.com/renovatebot/renovate/issues/15975
   dockerfile: {
     managerFilePatterns: [
       '/(^|/)Earthfile$/',
@@ -109,10 +118,13 @@
       '/(^|/)examples/(aws|gcp|base)/.*\\.yaml$/',
     ],
   },
+  // PackageRules disabled below should be enabled in case of vulnerabilities
   vulnerabilityAlerts: {
     enabled: true,
   },
   osvVulnerabilityAlerts: true,
+  // Renovate evaluates all packageRules in order, so low priority rules should
+  // be at the beginning, high priority at the end
   packageRules: [
     {
       matchManagers: [
