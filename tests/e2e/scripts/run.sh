@@ -47,6 +47,16 @@ fi
 source "${TESTCASES_FILE}"
 
 XP_MAJOR=$(xp_major_from_binary crossplane)
+
+# Guardrail: when EXPECTED_XP_MAJOR is set (optional; e.g. by Earthly e2e-v1/e2e-v2), ensure the Crossplane in PATH matches.
+if [ -n "${EXPECTED_XP_MAJOR:-}" ]; then
+    if [ "${XP_MAJOR}" -ne "${EXPECTED_XP_MAJOR}" ]; then
+        echo "E2E guardrail: expected Crossplane major version ${EXPECTED_XP_MAJOR}, but crossplane binary reports major ${XP_MAJOR}"
+        echo "  Crossplane version: $(crossplane version --client 2>/dev/null || true)"
+        exit 1
+    fi
+fi
+
 TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit$' | LC_ALL=C sort))
 if [ "${#TEST_CASES[@]}" -eq 0 ]; then
     echo "No test cases defined in ${TESTCASES_FILE}"

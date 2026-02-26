@@ -6,9 +6,9 @@ spec:
   dependsOn:
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
-    package: xpkg.upbound.io/upbound/provider-aws-ec2
+    package: ghcr.io/crossplane-contrib/provider-aws-ec2
     version: "v2.4.0"
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
-    package: xpkg.upbound.io/upbound/provider-aws-rds
+    package: ghcr.io/crossplane-contrib/provider-aws-rds
     version: "v2.4.0"
