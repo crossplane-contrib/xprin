@@ -147,6 +147,16 @@
       ignoreUnstable: true,
     },
     {
+      description: 'Only get Docker image updates every 2 weeks to reduce noise',
+      matchDatasources: [
+        'docker',
+      ],
+      schedule: [
+        'every 2 week on monday',
+      ],
+      enabled: true,
+    },
+    {
       description: 'Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo',
       matchDatasources: [
         'go',
