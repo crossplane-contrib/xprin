@@ -7,8 +7,8 @@ spec:
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
     package: ghcr.io/crossplane-contrib/provider-gcp-compute
-    version: "v2.4.0"
+    version: "v2.5.0"
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
     package: ghcr.io/crossplane-contrib/provider-gcp-sql
-    version: "v2.4.0"
+    version: "v2.5.0"
