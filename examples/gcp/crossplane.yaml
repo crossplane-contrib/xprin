@@ -6,9 +6,9 @@ spec:
   dependsOn:
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
-    package: xpkg.upbound.io/upbound/provider-gcp-compute
-    version: "v2.4.1"
+    package: ghcr.io/crossplane-contrib/provider-gcp-compute
+    version: "v2.4.0"
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
-    package: xpkg.upbound.io/upbound/provider-gcp-sql
-    version: "v2.4.1"
+    package: ghcr.io/crossplane-contrib/provider-gcp-sql
+    version: "v2.4.0"

@@ -6,5 +6,5 @@ spec:
   dependsOn:
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
-    package: xpkg.upbound.io/upbound/provider-kubernetes
-    version: "v1.2.1"
+    package: ghcr.io/crossplane-contrib/provider-kubernetes
+    version: "v1.2.0"
