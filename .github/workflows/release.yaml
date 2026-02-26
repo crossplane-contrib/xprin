@@ -25,7 +25,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Earthly
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
+        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ env.EARTHLY_VERSION }}
