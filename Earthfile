@@ -160,26 +160,32 @@ go-lint:
   # This cache is private because golangci-lint doesn't support concurrent runs.
   CACHE --id go-lint --sharing private /root/.cache/golangci-lint
   CACHE --id go-build --sharing shared /root/.cache/go-build
-  RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_LINT_VERSION}
+  COPY (+golangci-lint-setup/golangci-lint --GOLANGCI_LINT_VERSION=${GOLANGCI_LINT_VERSION}) $(go env GOPATH)/bin/golangci-lint
   COPY .golangci.yml .
   COPY --dir cmd/ internal/ .
   RUN golangci-lint run --fix
   SAVE ARTIFACT cmd AS LOCAL cmd
   SAVE ARTIFACT internal AS LOCAL internal
 
-# crossplane-cli builds the Crossplane CLI binary (cached by Earthly; reused across e2e runs).
+# golangci-lint-setup is used by other targets to setup golangci-lint.
+golangci-lint-setup:
+  ARG GOLANGCI_LINT_VERSION=v2.10.1
+  ARG NATIVEPLATFORM
+  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.18.0
+  RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b . ${GOLANGCI_LINT_VERSION}
+  SAVE ARTIFACT golangci-lint
+
+# crossplane-cli-setup is used by other targets to setup the crossplane CLI.
 # If no CROSSPLANE_VERSION is provided, it will use the latest stable version.
-crossplane-cli:
+crossplane-cli-setup:
   ARG CROSSPLANE_VERSION
-  FROM alpine:3.23
-  RUN apk add --no-cache curl
-  RUN XP_VERSION="${CROSSPLANE_VERSION:+v${CROSSPLANE_VERSION}}" sh -c 'curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | sh'
-  RUN mv crossplane /usr/local/bin/crossplane
-  SAVE ARTIFACT /usr/local/bin/crossplane
+  ARG NATIVEPLATFORM
+  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.18.0
+  RUN curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | XP_VERSION="${CROSSPLANE_VERSION:+v${CROSSPLANE_VERSION}}" sh
+  SAVE ARTIFACT crossplane
 
 # e2e-run runs e2e tests using a specific Crossplane version.
 # If no CROSSPLANE_VERSION is provided, it will use the latest stable version.
-# It uses +crossplane-cli artifact so the CLI install is cached.
 e2e-run:
   ARG TARGETARCH
   ARG TARGETOS
@@ -187,8 +193,8 @@ e2e-run:
   ARG GOOS=${TARGETOS}
   ARG CROSSPLANE_VERSION
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
-  COPY +crossplane-cli/crossplane /usr/local/bin/crossplane
   RUN apk add --no-cache bash
+  COPY +crossplane-cli-setup/crossplane /usr/local/bin/crossplane
   COPY +go-build/xprin .
   COPY --dir examples/ tests/ ./
   RUN chmod +x tests/e2e/scripts/gen-invalid-tests.sh tests/e2e/scripts/run.sh
@@ -227,7 +233,7 @@ e2e-regen-expected-v1:
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
-  COPY (+crossplane-cli/crossplane --CROSSPLANE_VERSION=$E2E_CROSSPLANE_V1) /usr/local/bin/crossplane
+  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_VERSION=$E2E_CROSSPLANE_V1) /usr/local/bin/crossplane
   RUN apk add --no-cache bash
   COPY +go-build/xprin .
   COPY --dir examples/ tests/e2e/scripts/ ./
@@ -245,7 +251,7 @@ e2e-regen-expected-v2:
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
-  COPY (+crossplane-cli/crossplane --CROSSPLANE_VERSION=$E2E_CROSSPLANE_V2) /usr/local/bin/crossplane
+  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_VERSION=$E2E_CROSSPLANE_V2) /usr/local/bin/crossplane
   RUN apk add --no-cache bash
   COPY +go-build/xprin .
   COPY --dir examples/ tests/e2e/scripts/ ./
