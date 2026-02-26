@@ -46,7 +46,7 @@ jobs:
         run: earthly --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +generate
 
       - name: Tidy Modules
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +tidy
+        run: earthly --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +tidy
 
       - name: Count Changed Files
         id: changed_files
