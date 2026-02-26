@@ -7,8 +7,8 @@ spec:
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
     package: xpkg.upbound.io/upbound/provider-gcp-compute
-    version: "v1.14.0"
+    version: "v2.4.1"
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
     package: xpkg.upbound.io/upbound/provider-gcp-sql
-    version: "v1.14.0"
+    version: "v2.4.1"
