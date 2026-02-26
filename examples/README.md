@@ -662,11 +662,12 @@ ok	examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml	2.6
 
 **File**: [`mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml`](mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml)
 
-This example demonstrates cross-composition chaining, where one composition renders an XR that becomes the input to another composition. The base composition creates an AWS XR, and then the AWS composition uses that XR as input.
+This example demonstrates cross-composition chaining, where one composition renders XRs that become the input to other compositions. The base composition creates both AWS and GCP XRs; the GCP and AWS layer tests each use the corresponding rendered XR as input.
 
 **Key Points:**
-- The base composition renders an `XAWSInfrastructure` XR as part of its output
-- The second test uses `{{ index .Tests.base_final.Outputs.Rendered "XAWSInfrastructure/platform-base-aws" }}` to extract the specific rendered resource from the first test's output
+- The base composition renders `XAWSInfrastructure` and `XGCPInfrastructure` XRs as part of its output
+- The GCP test uses `{{ index .Tests.base_final.Outputs.Rendered "XGCPInfrastructure/platform-base-gcp" }}` to extract the GCP XR from the first test's output
+- The AWS test uses `{{ index .Tests.base_final.Outputs.Rendered "XAWSInfrastructure/platform-base-aws" }}` to extract the AWS XR from the first test's output
 - This enables testing compositions that depend on outputs from other compositions
 
 <details>
@@ -688,6 +689,15 @@ This example demonstrates cross-composition chaining, where one composition rend
         [✓] gcp.example.com/v1, Kind=XGCPInfrastructure, platform-base-gcp validated successfully
         [✓] kubernetes.crossplane.io/v1alpha2, Kind=Object, platform-base-base-namespace validated successfully
         Total 4 resources: 0 missing schemas, 4 success cases, 0 failure cases
+=== RUN   GCP layer first loop
+--- PASS: GCP layer first loop (0.95s)
+    Render:
+        ├── XGCPInfrastructure/platform-base-gcp
+        └── Firewall/platform-base-gcp-firewall
+    Validate:
+        [✓] gcp.example.com/v1, Kind=XGCPInfrastructure, platform-base-gcp validated successfully
+        [✓] compute.gcp.upbound.io/v1beta1, Kind=Firewall, platform-base-gcp-firewall validated successfully
+        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 === RUN   AWS layer first loop
 --- PASS: AWS layer first loop (1.28s)
     Render:
@@ -698,7 +708,7 @@ This example demonstrates cross-composition chaining, where one composition rend
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-base-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 PASS
-ok	examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml	2.139s
+ok	examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml	3.09s
 ```
 
 </details>

@@ -13,6 +13,18 @@ tests:
     - ../../aws/xrd.yaml
     - ../../gcp/xrd.yaml
 
+- name: "GCP layer first loop"
+  id: gcp_first
+  patches:
+    xrd: ../../gcp/xrd.yaml
+  inputs:
+    xr: {{ index .Tests.base_final.Outputs.Rendered "XGCPInfrastructure/platform-base-gcp" }}
+    composition: ../../gcp/composition.yaml
+    functions: ../../gcp/functions.yaml
+    crds:
+    - ../../gcp/xrd.yaml
+    - ../../gcp/crossplane.yaml
+
 - name: "AWS layer first loop"
   id: aws_first
   patches:

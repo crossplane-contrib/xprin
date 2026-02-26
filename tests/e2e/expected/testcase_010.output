@@ -11,6 +11,15 @@
         [✓] gcp.example.com/v1, Kind=XGCPInfrastructure, platform-base-gcp validated successfully
         [✓] kubernetes.crossplane.io/v1alpha2, Kind=Object, platform-base-base-namespace validated successfully
         Total 4 resources: 0 missing schemas, 4 success cases, 0 failure cases
+=== RUN   GCP layer first loop
+--- PASS: GCP layer first loop (X.XXXs)
+    Render:
+        ├── XGCPInfrastructure/platform-base-gcp
+        └── Firewall/platform-base-gcp-firewall
+    Validate:
+        [✓] gcp.example.com/v1, Kind=XGCPInfrastructure, platform-base-gcp validated successfully
+        [✓] compute.gcp.upbound.io/v1beta1, Kind=Firewall, platform-base-gcp-firewall validated successfully
+        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 === RUN   AWS layer first loop
 --- PASS: AWS layer first loop (X.XXXs)
     Render:
