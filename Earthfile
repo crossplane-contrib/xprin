@@ -185,14 +185,17 @@ crossplane-cli-setup:
   SAVE ARTIFACT crossplane
 
 # e2e-run runs e2e tests using a specific Crossplane version.
-# If no CROSSPLANE_VERSION is provided, it will use the latest stable version.
+# CROSSPLANE_VERSION is optional. If it is not provided, it will use the latest stable version.
+# EXPECTED_XP_MAJOR (1 or 2) is optional. When set by e2e-v1/e2e-v2, run.sh verifies the installed Crossplane matches.
 e2e-run:
   ARG TARGETARCH
   ARG TARGETOS
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
   ARG CROSSPLANE_VERSION
+  ARG EXPECTED_XP_MAJOR=""
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
+  ENV EXPECTED_XP_MAJOR=$EXPECTED_XP_MAJOR
   RUN apk add --no-cache bash
   COPY +crossplane-cli-setup/crossplane /usr/local/bin/crossplane
   COPY +go-build/xprin .
@@ -204,11 +207,11 @@ e2e-run:
 
 # e2e-v1 runs e2e tests against Crossplane v1.
 e2e-v1:
-  BUILD --build-arg CROSSPLANE_VERSION=$E2E_CROSSPLANE_V1 +e2e-run
+  BUILD --build-arg CROSSPLANE_VERSION=$E2E_CROSSPLANE_V1 --build-arg EXPECTED_XP_MAJOR=1 +e2e-run
 
 # e2e-v2 runs e2e tests against Crossplane v2.
 e2e-v2:
-  BUILD --build-arg CROSSPLANE_VERSION=$E2E_CROSSPLANE_V2 +e2e-run
+  BUILD --build-arg CROSSPLANE_VERSION=$E2E_CROSSPLANE_V2 --build-arg EXPECTED_XP_MAJOR=2 +e2e-run
 
 # e2e-regen-expected runs v1 and v2 in parallel, merges artifacts, runs cleanup, then exports.
 e2e-regen-expected:
