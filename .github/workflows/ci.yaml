@@ -36,9 +36,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly Cache
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
-        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+        run: |
+          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
+          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Generate Files
         run: earthly --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +generate
@@ -76,9 +78,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly Cache
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
-        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+        run: |
+          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
+          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Lint
         run: earthly --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +lint
@@ -103,9 +107,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly Cache
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
-        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+        run: |
+          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
+          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Run Unit Tests
         run: earthly -P --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +test
@@ -136,9 +142,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly Cache
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
-        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+        run: |
+          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
+          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Run E2E Tests
         run: earthly -P --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }}-${{ matrix.earthly_target }} +${{ matrix.earthly_target }}
