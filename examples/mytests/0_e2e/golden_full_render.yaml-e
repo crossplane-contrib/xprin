@@ -1,0 +1,42 @@
+---
+apiVersion: aws.example.com/v1
+kind: XAWSInfrastructure
+metadata:
+  labels:
+    app: myplatform
+    environment: staging
+  name: platform-aws
+spec:
+  dbUsername: admin
+  region: us-west-2
+  sshPublicKey: qa_ssh_key
+  team: devops
+  vpcId: vpc-12345678
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: sg'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroup
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: sg
+  generateName: platform-aws-
+  labels:
+    crossplane.io/composite: platform-aws
+  name: platform-aws-sg
+  ownerReferences:
+  - apiVersion: aws.example.com/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XAWSInfrastructure
+    name: platform-aws
+    uid: ""
+spec:
+  forProvider:
+    description: Security group for platform-aws
+    region: us-west-2
