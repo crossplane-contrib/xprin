@@ -2,7 +2,9 @@
 --- PASS: Generate golden files (X.XXXs)
     Render:
         ├── XAWSInfrastructure/platform-aws
+        ├── Instance/platform-aws-primary-ec2
         ├── Cluster/platform-aws-rds
+        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Post-test Hooks:
         [✓] cp "{{.Outputs.Render}}" golden_full_render.yaml
@@ -20,15 +22,19 @@
             unnamed pre-test hook
     Render:
         ├── XAWSInfrastructure/platform-aws
+        ├── Instance/platform-aws-primary-ec2
         ├── Cluster/platform-aws-rds
+        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Validate:
         [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-primary-ec2 validated successfully
         [✓] rds.aws.upbound.io/v1beta1, Kind=Cluster, platform-aws-rds validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-secondary-ec2 validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
+        Total 5 resources: 0 missing schemas, 5 success cases, 0 failure cases
     Assertions:
-        [✓] Number of resources - found 3 resources (as expected)
+        [✓] Number of resources - found 5 resources (as expected)
         [✓] SecurityGroup should exist - resource SecurityGroup/platform-aws-sg found
         [✓] RDS should exist - resource Cluster/platform-aws-rds found
         [✓] SecurityGroup should have a name - field metadata.name exists
@@ -51,11 +57,15 @@
 --- PASS: CRDs with same base name are not overwritten (X.XXXs)
     Render:
         ├── XAWSInfrastructure/platform-aws
+        ├── Instance/platform-aws-primary-ec2
+        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Validate:
         [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-primary-ec2 validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-secondary-ec2 validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
+        Total 4 resources: 0 missing schemas, 4 success cases, 0 failure cases
     Post-test Hooks:
         [✓] List CRDs in inputs (xrd.yaml, xrd_1.yaml, xrd_2.yaml, ...)
             crossplane.yaml

@@ -50,4 +50,4 @@ xprin-helpers patch-xr <xr-file> [options]
 - **Template Variables**: Use `{{ .Repositories.name }}` for dynamic paths
 - **Hooks**: Execute shell commands before and after tests
 - **XR Patching**: Apply defaults and connection secrets to XRs
-- **Assertions**: Declarative validation of rendered resources (count, existence, field type/value checks)
+- **Assertions**: Declarative validation of rendered resources (count, existence, field checks; supports resource pattern matching)

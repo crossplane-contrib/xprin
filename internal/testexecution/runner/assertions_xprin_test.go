@@ -49,7 +49,7 @@ func TestAssertionExecutor_ExecuteAssertions(t *testing.T) {
 		resource1Path := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				testResource1File: resource1Path,
+				"Pod/test-pod": resource1Path,
 			},
 		}
 
@@ -82,7 +82,7 @@ metadata:
 		resource1Path := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				testResource1File: resource1Path,
+				"Pod/test-pod": resource1Path,
 			},
 		}
 
@@ -150,8 +150,8 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 		resource2Path := testResource2File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				testResource1File: resource1Path,
-				testResource2File: resource2Path,
+				"Pod/test-pod":  resource1Path,
+				"Pod/test-pod2": resource2Path,
 			},
 		}
 
@@ -164,11 +164,11 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "count-test", Type: "Count", Value: 2}
-		result, err := executor.executeCountAssertion(assertion)
+		results, err := executor.executeCountAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "found 2 resources")
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
+		assert.Contains(t, results[0].Message, "found 2 resources")
 	})
 
 	t.Run("fails when count does not match", func(t *testing.T) {
@@ -176,7 +176,7 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -186,11 +186,11 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "count-test", Type: "Count", Value: 5}
-		result, err := executor.executeCountAssertion(assertion)
+		results, err := executor.executeCountAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "expected 5 resources, got 1")
+		assert.Equal(t, engine.StatusFail(), results[0].Status)
+		assert.Contains(t, results[0].Message, "expected 5 resources, got 1")
 	})
 
 	t.Run("handles float64 value from YAML", func(t *testing.T) {
@@ -198,7 +198,7 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -208,10 +208,10 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "count-test", Type: "Count", Value: float64(1)}
-		result, err := executor.executeCountAssertion(assertion)
+		results, err := executor.executeCountAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
 	})
 
 	t.Run("fails with invalid value type", func(t *testing.T) {
@@ -222,11 +222,11 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "count-test", Type: "Count", Value: "not-a-number"}
-		result, err := executor.executeCountAssertion(assertion)
+		results, err := executor.executeCountAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "count assertion value must be a number")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "count assertion value must be a number")
 	})
 }
 
@@ -236,7 +236,7 @@ func TestAssertionExecutor_executeExistsAssertion(t *testing.T) {
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -251,11 +251,11 @@ metadata:
 		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "exists-test", Type: "Exists", Resource: "Pod/test-pod"}
-		result, err := executor.executeExistsAssertion(assertion)
+		results, err := executor.executeExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "found")
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
+		assert.Contains(t, results[0].Message, "found")
 	})
 
 	t.Run("fails when resource does not exist", func(t *testing.T) {
@@ -263,7 +263,7 @@ metadata:
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -278,11 +278,11 @@ metadata:
 		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "exists-test", Type: "Exists", Resource: "Service/my-service"}
-		result, err := executor.executeExistsAssertion(assertion)
+		results, err := executor.executeExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "not found")
+		assert.Equal(t, engine.StatusFail(), results[0].Status)
+		assert.Contains(t, results[0].Message, "not found")
 	})
 
 	t.Run("fails when resource field is missing", func(t *testing.T) {
@@ -293,11 +293,11 @@ metadata:
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "exists-test", Type: "Exists", Resource: ""}
-		result, err := executor.executeExistsAssertion(assertion)
+		results, err := executor.executeExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires resource field")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "requires resource field")
 	})
 
 	t.Run("fails with invalid resource format", func(t *testing.T) {
@@ -308,11 +308,11 @@ metadata:
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "exists-test", Type: "Exists", Resource: "Pod/name/extra"}
-		result, err := executor.executeExistsAssertion(assertion)
+		results, err := executor.executeExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "must be in format")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "must be in format")
 	})
 }
 
@@ -322,7 +322,7 @@ func TestAssertionExecutor_executeNotExistsAssertion(t *testing.T) {
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -337,11 +337,11 @@ metadata:
 		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "not-exists-test", Type: "NotExists", Resource: "Service/my-service"}
-		result, err := executor.executeNotExistsAssertion(assertion)
+		results, err := executor.executeNotExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "not found (as expected)")
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
+		assert.Contains(t, results[0].Message, "not found (as expected)")
 	})
 
 	t.Run("fails when resource exists", func(t *testing.T) {
@@ -349,7 +349,7 @@ metadata:
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -364,11 +364,11 @@ metadata:
 		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "not-exists-test", Type: "NotExists", Resource: "Pod/test-pod"}
-		result, err := executor.executeNotExistsAssertion(assertion)
+		results, err := executor.executeNotExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "found (should not exist)")
+		assert.Equal(t, engine.StatusFail(), results[0].Status)
+		assert.Contains(t, results[0].Message, "found (should not exist)")
 	})
 
 	t.Run("fails when resource field is missing", func(t *testing.T) {
@@ -379,11 +379,11 @@ metadata:
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
 
 		assertion := api.AssertionXprin{Name: "not-exists-test", Type: "NotExists", Resource: ""}
-		result, err := executor.executeNotExistsAssertion(assertion)
+		results, err := executor.executeNotExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires resource field")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "requires resource field")
 	})
 }
 
@@ -393,7 +393,7 @@ func TestAssertionExecutor_executeFieldTypeAssertion(t *testing.T) {
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -417,10 +417,10 @@ spec:
 			Field:    "spec.replicas",
 			Value:    "number",
 		}
-		result, err := executor.executeFieldTypeAssertion(assertion)
+		results, err := executor.executeFieldTypeAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
 	})
 
 	t.Run("fails when field type does not match", func(t *testing.T) {
@@ -428,7 +428,7 @@ spec:
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -451,11 +451,11 @@ spec:
 			Field:    "spec.replicas",
 			Value:    "string",
 		}
-		result, err := executor.executeFieldTypeAssertion(assertion)
+		results, err := executor.executeFieldTypeAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "expected string")
+		assert.Equal(t, engine.StatusFail(), results[0].Status)
+		assert.Contains(t, results[0].Message, "expected string")
 	})
 
 	t.Run("fails when required fields are missing", func(t *testing.T) {
@@ -467,17 +467,17 @@ spec:
 
 		// Missing resource
 		assertion := api.AssertionXprin{Name: "field-type-test", Type: "FieldType", Field: "spec.replicas", Value: "int"}
-		result, err := executor.executeFieldTypeAssertion(assertion)
+		results, err := executor.executeFieldTypeAssertion(assertion)
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires resource field")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "requires resource field")
 
 		// Missing field
 		assertion = api.AssertionXprin{Name: "field-type-test", Type: "FieldType", Resource: "Pod/test", Value: "int"}
-		result, err = executor.executeFieldTypeAssertion(assertion)
+		results, err = executor.executeFieldTypeAssertion(assertion)
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires field")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "requires field")
 	})
 }
 
@@ -487,7 +487,7 @@ func TestAssertionExecutor_executeFieldExistsAssertion(t *testing.T) {
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -509,11 +509,11 @@ spec:
 			Resource: "Pod/test-pod",
 			Field:    "spec.replicas",
 		}
-		result, err := executor.executeFieldExistsAssertion(assertion)
+		results, err := executor.executeFieldExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "exists")
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
+		assert.Contains(t, results[0].Message, "exists")
 	})
 
 	t.Run("fails when field does not exist", func(t *testing.T) {
@@ -521,7 +521,7 @@ spec:
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -542,11 +542,11 @@ spec: {}
 			Resource: "Pod/test-pod",
 			Field:    "spec.replicas",
 		}
-		result, err := executor.executeFieldExistsAssertion(assertion)
+		results, err := executor.executeFieldExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "does not exist")
+		assert.Equal(t, engine.StatusFail(), results[0].Status)
+		assert.Contains(t, results[0].Message, "does not exist")
 	})
 }
 
@@ -556,7 +556,7 @@ func TestAssertionExecutor_executeFieldNotExistsAssertion(t *testing.T) {
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -577,11 +577,11 @@ spec: {}
 			Resource: "Pod/test-pod",
 			Field:    "spec.replicas",
 		}
-		result, err := executor.executeFieldNotExistsAssertion(assertion)
+		results, err := executor.executeFieldNotExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
-		assert.Contains(t, result.Message, "does not exist (as expected)")
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
+		assert.Contains(t, results[0].Message, "does not exist (as expected)")
 	})
 
 	t.Run("fails when field exists", func(t *testing.T) {
@@ -589,7 +589,7 @@ spec: {}
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -611,11 +611,11 @@ spec:
 			Resource: "Pod/test-pod",
 			Field:    "spec.replicas",
 		}
-		result, err := executor.executeFieldNotExistsAssertion(assertion)
+		results, err := executor.executeFieldNotExistsAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "exists (should not exist)")
+		assert.Equal(t, engine.StatusFail(), results[0].Status)
+		assert.Contains(t, results[0].Message, "exists (should not exist)")
 	})
 }
 
@@ -625,7 +625,7 @@ func TestAssertionExecutor_executeFieldValueAssertion(t *testing.T) {
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -649,10 +649,10 @@ spec:
 			Operator: "==",
 			Value:    float64(3), // YAML numbers are parsed as float64
 		}
-		result, err := executor.executeFieldValueAssertion(assertion)
+		results, err := executor.executeFieldValueAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
 	})
 
 	t.Run("fails when field value does not match with ==", func(t *testing.T) {
@@ -660,7 +660,7 @@ spec:
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -684,11 +684,11 @@ spec:
 			Operator: "==",
 			Value:    float64(5), // YAML numbers are parsed as float64
 		}
-		result, err := executor.executeFieldValueAssertion(assertion)
+		results, err := executor.executeFieldValueAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusFail(), result.Status)
-		assert.Contains(t, result.Message, "expected ==")
+		assert.Equal(t, engine.StatusFail(), results[0].Status)
+		assert.Contains(t, results[0].Message, "expected ==")
 	})
 
 	t.Run("fails when required fields are missing", func(t *testing.T) {
@@ -700,31 +700,31 @@ spec:
 
 		// Missing resource
 		assertion := api.AssertionXprin{Name: "field-value-test", Type: "FieldValue", Field: "spec.replicas", Operator: "==", Value: float64(3)}
-		result, err := executor.executeFieldValueAssertion(assertion)
+		results, err := executor.executeFieldValueAssertion(assertion)
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires resource field")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "requires resource field")
 
 		// Missing field
 		assertion = api.AssertionXprin{Name: "field-value-test", Type: "FieldValue", Resource: "Pod/test", Operator: "==", Value: float64(3)}
-		result, err = executor.executeFieldValueAssertion(assertion)
+		results, err = executor.executeFieldValueAssertion(assertion)
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires field")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "requires field")
 
 		// Missing operator
 		assertion = api.AssertionXprin{Name: "field-value-test", Type: "FieldValue", Resource: "Pod/test", Field: "spec.replicas", Value: 3}
-		result, err = executor.executeFieldValueAssertion(assertion)
+		results, err = executor.executeFieldValueAssertion(assertion)
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires operator field")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "requires operator field")
 
 		// Missing value
 		assertion = api.AssertionXprin{Name: "field-value-test", Type: "FieldValue", Resource: "Pod/test", Field: "spec.replicas", Operator: "=="}
-		result, err = executor.executeFieldValueAssertion(assertion)
+		results, err = executor.executeFieldValueAssertion(assertion)
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "requires value field")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "requires value field")
 	})
 
 	t.Run("fails with unsupported operator", func(t *testing.T) {
@@ -732,7 +732,7 @@ spec:
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
 			Rendered: map[string]string{
-				"resource1.yaml": resourcePath,
+				"Pod/test-pod": resourcePath,
 			},
 		}
 
@@ -756,11 +756,11 @@ spec:
 			Operator: "unsupported",
 			Value:    float64(3),
 		}
-		result, err := executor.executeFieldValueAssertion(assertion)
+		results, err := executor.executeFieldValueAssertion(assertion)
 
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "unsupported operator")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "unsupported operator")
 	})
 }
 
@@ -774,15 +774,15 @@ func TestAssertionExecutor_executeAssertionXprin(t *testing.T) {
 
 		// Test Count
 		assertion := api.AssertionXprin{Name: "test", Type: "Count", Value: 0}
-		result, err := executor.executeAssertionXprin(assertion)
+		results, err := executor.executeAssertionXprin(assertion)
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusPass(), result.Status)
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
 
 		// Test unsupported type
 		assertion = api.AssertionXprin{Name: "test", Type: "Unsupported", Value: "test"}
-		result, err = executor.executeAssertionXprin(assertion)
+		results, err = executor.executeAssertionXprin(assertion)
 		require.NoError(t, err)
-		assert.Equal(t, engine.StatusError(), result.Status)
-		assert.Contains(t, result.Message, "unsupported assertion type")
+		assert.Equal(t, engine.StatusError(), results[0].Status)
+		assert.Contains(t, results[0].Message, "unsupported assertion type")
 	})
 }

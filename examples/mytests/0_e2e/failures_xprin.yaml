@@ -15,7 +15,7 @@ tests:
     xprin:
     - name: "Successful assertion, it should never be shown"
       type: "Count"
-      value: 2
+      value: 4
     - name: "Failed assertion, it should never be shown"
       type: "Count"
       value: 0
@@ -41,7 +41,7 @@ tests:
     xprin:
     - name: "Successful assertion"
       type: "Count"
-      value: 2
+      value: 4
   hooks:
     pre-test:
     - run: echo "hello"
@@ -65,7 +65,7 @@ tests:
     xprin:
     - name: "Successful assertion, it should never be shown"
       type: "Count"
-      value: 2
+      value: 4
     - name: "Failed assertion, it should never be shown"
       type: "Count"
       value: 0
@@ -143,7 +143,7 @@ tests:
     xprin:
     - name: "Successful assertion"
       type: "Count"
-      value: 2
+      value: 4
   hooks:
     pre-test:
     - run: echo "hello"
@@ -186,7 +186,7 @@ tests:
     xprin:
     - name: "Resource count should be two"
       type: "Count"
-      value: 2
+      value: 4
     - name: "Resource count should be zero"
       type: "Count"
       value: 0
@@ -233,7 +233,7 @@ tests:
     xprin:
     - name: "Successful assertion"
       type: "Count"
-      value: 2
+      value: 4
     - name: "Failed assertion"
       type: "Count"
       value: 0
@@ -253,7 +253,7 @@ tests:
     xprin:
     - name: "Successful assertion"
       type: "Count"
-      value: 2
+      value: 4
     - name: "Failed assertion"
       type: "Count"
       value: 0

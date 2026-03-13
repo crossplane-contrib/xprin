@@ -18,10 +18,32 @@ tests:
 
   assertions:
     xprin:
-    # Count assertion
-    - name: "Number of resources"
+    # Count assertion (optional 'resource' field: when omitted, counts all rendered resources)
+    - name: "Exact count of all resources of all types"
       type: "Count"
-      value: 3
+      value: 5
+
+    - name: "Exactly 1 resource of a certain Kind/Name should exist"
+      type: "Count"
+      value: 1
+      resource: "SecurityGroup/platform-aws-sg"
+
+    - name: "Exactly 0 resources of a certain Kind/Name (resource should not exist)"
+      type: "Count"
+      value: 0
+      resource: "EC2/platform-aws-ec2"
+
+    # Same effect as omitting the 'resource' field: count all resources
+    - name: "Exact count of all resources of all types (using a pattern)"
+      type: "Count"
+      value: 5
+      resource: "*/*"                             # Match all Kind/Name combinations
+
+    - name: "Exactly 2 Instance resources with '-ec2' suffix should exist"
+      type: "Count"
+      value: 2
+      resource: "Instance/*-ec2"
+                      
 
     # Exists assertions
     - name: "SecurityGroup should exist"
@@ -44,11 +66,20 @@ tests:
       type: "FieldExists"
       resource: "SecurityGroup/platform-aws-sg"
       field: "metadata.name"
+    - name: "All resources should have a name set"
+      type: "FieldExists"
+      resource: "*/*"                                     # Match all resources (including the XR)
+      field: "metadata.name"
 
     # FieldNotExists assertion
     - name: "RDS should not have deprecated field"
       type: "FieldNotExists"
       resource: "Cluster/platform-aws-rds"
+      field: "spec.deprecatedField"
+
+    - name: "RDS of a certain name pattern should not have deprecated field"
+      type: "FieldNotExists"
+      resource: "Cluster/platform-*-rds"                  # Match resources with unpredictable names
       field: "spec.deprecatedField"
 
     # FieldType assertions - all supported types
@@ -87,6 +118,12 @@ tests:
       resource: "Cluster/platform-aws-rds"
       field: "spec.forProvider.finalSnapshotIdentifier"
 
+    - name: "RDS backupRetentionPeriod for all clusters should be number"
+      type: "FieldType"
+      resource: "Cluster/*"
+      field: "spec.forProvider.backupRetentionPeriod"
+      value: "number"
+
     # FieldValue assertions
     - name: "RDS should be Aurora PostgreSQL"
       type: "FieldValue"
@@ -101,3 +138,10 @@ tests:
       field: "spec.forProvider.backupRetentionPeriod"
       operator: "=="
       value: 1
+
+    - name: "Instance resources with '-primary-ec2' suffix should be 't2.micro'"
+      type: "FieldValue"
+      resource: "Instance/*-primary-ec2"                  
+      field: "spec.forProvider.instanceType"
+      operator: "=="
+      value: "t2.micro"

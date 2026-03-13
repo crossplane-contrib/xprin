@@ -208,7 +208,7 @@ The table below covers **xprin** assertion item fields:
 |-------|----------|------|-------------|
 | `name` | ✅ | string | Assertion name (descriptive identifier) |
 | `type` | ✅ | string | Assertion type (xprin only; see [Assertions](assertions.md#assertion-types-xprin)) |
-| `resource` | ✅* | string | Resource identifier (format: `Kind/name` or `Kind` depending on assertion type) |
+| `resource` | ✅* | string | Resource identifier: exact name, kind only, or pattern (see [Assertions – Resource field: patterns](assertions.md#resource-field-patterns-globbing)) |
 | `field` | ✅* | string | Field path for field-based assertions (e.g., `metadata.name`, `spec.replicas`) |
 | `operator` | ✅* | string | Operator for field value assertions (e.g., `==`, `is`) |
 | `value` | ✅* | any | Expected value for count, type, or field value assertions |
