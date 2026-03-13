@@ -15,10 +15,64 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: sg'
+    message: 'Unready resources: ec2, secondary-ec2, and sg'
     reason: Creating
     status: "False"
     type: Ready
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Instance
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: ec2
+  generateName: platform-aws-
+  labels:
+    app: platform-aws
+    crossplane.io/composite: platform-aws
+    environment: staging
+  name: platform-aws-primary-ec2
+  ownerReferences:
+  - apiVersion: aws.example.com/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XAWSInfrastructure
+    name: platform-aws
+    uid: ""
+spec:
+  forProvider:
+    ami: ami-0c02fb55956c7d316
+    instanceType: t2.micro
+    keyName: qa_ssh_key
+    region: us-west-2
+    vpcSecurityGroupIds:
+    - <no value>
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Instance
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: secondary-ec2
+  generateName: platform-aws-
+  labels:
+    app: platform-aws
+    crossplane.io/composite: platform-aws
+    environment: staging
+  name: platform-aws-secondary-ec2
+  ownerReferences:
+  - apiVersion: aws.example.com/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XAWSInfrastructure
+    name: platform-aws
+    uid: ""
+spec:
+  forProvider:
+    ami: ami-0c02fb55956c7d316
+    instanceType: t3.medium
+    keyName: qa_ssh_key
+    region: us-west-2
+    vpcSecurityGroupIds:
+    - <no value>
 ---
 apiVersion: ec2.aws.upbound.io/v1beta1
 kind: SecurityGroup
