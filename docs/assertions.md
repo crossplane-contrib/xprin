@@ -9,6 +9,7 @@ Assertions are executed after Crossplane validation (if CRDs are provided) or af
 **Key Features:**
 - Declarative validation without custom scripts
 - Multiple assertion types (count, existence, field checks)
+- Resource patterns (globbing) in xprin assertions: match by exact name, kind only, or shell-style pattern (e.g. `SecurityGroup/group-*`) so one assertion applies to all matching resources
 - Golden-file comparison against full render or a single resource file
 - Support for common and test-level assertions
 - All assertions evaluated even if some fail
@@ -99,49 +100,80 @@ When `resource` is set, the runner uses the path of that resource’s rendered f
 
 ## Assertion types (xprin)
 
-## Field Reference
+### Field Reference
 
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
 | `name` | ✅ | string | Assertion name (descriptive identifier) |
 | `type` | ✅ | string | Assertion type (see [Assertion types (xprin)](#assertion-types-xprin)) |
-| `resource` | ✅* | string | Resource identifier (format: `Kind/name` or `Kind` depending on assertion type) |
+| `resource` | ✅* | string | Resource identifier: exact name, kind only, or pattern (see [Resource field: patterns](#resource-field-patterns-globbing)) |
 | `field` | ✅* | string | Field path for field-based assertions (e.g., `metadata.name`, `spec.replicas`) |
 | `operator` | ✅* | string | Operator for field value assertions (e.g., `==`, `is`) |
 | `value` | ✅* | any | Expected value for count, type, or field value assertions |
 
 *Required fields depend on assertion type (see [Assertion types (xprin)](#assertion-types-xprin))
 
+### Resource field: patterns (globbing)
+
+For **xprin** assertions, the `resource` field supports **shell-style globbing (patterns)**. The assertion is applied to every resource that matches the pattern, so you can match resources with unpredictable names and avoid repeating the same assertion for multiple resources.
+
+**Rules:**
+
+- The `/` character cannot be matched by `*`. So you either specify **kind only** or a **full pattern** in the form `Kind/Name`.
+- **Kind only** – All resources of that kind are matched. Example: `resource: "SecurityGroup"` matches every `SecurityGroup` resource.
+- **Full pattern** – Use `Kind/name-pattern` with `*` in the name part. Examples:
+  - `resource: "SecurityGroup/group-*"` – All `SecurityGroup` resources whose name starts with `group-`
+  - `resource: "*/*"` – All resources of all kinds
+  - `resource: "SecurityGroup/mygroup"` – Exact name (no wildcards); matches only that resource
+
+**Behavior:** For assertion types that use `resource` (Exists, NotExists, FieldType, FieldExists, FieldNotExists, FieldValue), the assertion is evaluated against **each** matching resource. For **Count**, when `resource` is set, the count is the number of resources that match the pattern; when `resource` is omitted, the count is the total number of rendered resources (see [Count](#count)).
+
 ### Count
 
-Validates the total number of rendered resources.
+Validates the number of rendered resources. With an optional `resource` pattern, validates the number of resources that match that pattern.
 
 **Required Fields:**
 - `name` - Assertion name
 - `type` - Must be `"Count"`
-- `value` - Expected resource count (number)
+- `value` - Expected count (number)
 
-**Example:**
+**Optional Fields:**
+- `resource` - If set, only resources matching this pattern are counted. If omitted, all rendered resources are counted (same as before).
+
+**Examples:**
 ```yaml
 assertions:
   xprin:
+  # Count all rendered resources 
   - name: "renders-three-resources"
     type: "Count"
     value: 3
+
+  # Count only resources matching a pattern
+  - name: "three-security-groups"
+    type: "Count"
+    resource: "SecurityGroup/group-*"
+    value: 3
+
+  # Count all resources of a kind
+  - name: "exactly-two-deployments"
+    type: "Count"
+    resource: "Deployment"
+    value: 2
 ```
 
-**Use Case:** Ensure a composition renders exactly the expected number of resources.
+**Use Case:** Ensure the total number of rendered resources, or the number of resources matching a pattern, is as expected. Count with `resource` can replace multiple Exists/NotExists assertions when you only care about how many match.
 
 ---
 
 ### Exists
 
-Validates that a specific resource exists in the rendered output.
+Validates that at least one resource matching the given pattern exists in the rendered output. Supports exact names, kind only, and [patterns](#resource-field-patterns-globbing).
 
 **Required Fields:**
 - `name` - Assertion name
 - `type` - Must be `"Exists"`
-- `resource` - Resource identifier in format `Kind/name` (e.g., `"Deployment/my-app"`)
+- `resource` - Resource identifier: exact `Kind/name`, kind only, or pattern (e.g., `"Deployment/my-app"`, `"SecurityGroup/group-*"`)
 
 **Example:**
 ```yaml
@@ -153,20 +185,23 @@ assertions:
   - name: "service-exists"
     type: "Exists"
     resource: "Service/my-app"
+  - name: "at-least-one-security-group"
+    type: "Exists"
+    resource: "SecurityGroup/group-*"
 ```
 
-**Use Case:** Verify that specific resources are created by the composition.
+**Use Case:** Verify that specific resources (or resources matching a pattern) are created by the composition.
 
 ---
 
 ### NotExists
 
-Validates that a resource does not exist in the rendered output.
+Validates that no resource matching the given pattern exists in the rendered output. Supports exact names, kind-only, and [patterns](#resource-field-patterns-globbing).
 
 **Required Fields:**
 - `name` - Assertion name
 - `type` - Must be `"NotExists"`
-- `resource` - Resource identifier in format `Kind/name` or `Kind` (e.g., `"Deployment/old-app"` or `"Pod"`)
+- `resource` - Resource identifier: exact `Kind/name`, `Kind` (all of that kind), or pattern (e.g., `"Deployment/old-app"`, `"Pod"`, `"Deployment/legacy-*"`)
 
 **Example:**
 ```yaml
@@ -178,20 +213,23 @@ assertions:
   - name: "no-pods"
     type: "NotExists"
     resource: "Pod"
+  - name: "no-legacy-security-groups"
+    type: "NotExists"
+    resource: "SecurityGroup/legacy-*"
 ```
 
-**Use Case:** Ensure deprecated resources are not created, or verify that certain resource types are excluded.
+**Use Case:** Ensure deprecated resources are not created, or verify that certain resource types or name patterns are excluded.
 
 ---
 
 ### FieldType
 
-Validates the type of a field in a resource.
+Validates the type of a field in each resource matching the given pattern. Applied to every matched resource.
 
 **Required Fields:**
 - `name` - Assertion name
 - `type` - Must be `"FieldType"`
-- `resource` - Resource identifier in format `Kind/name`
+- `resource` - Resource identifier: exact `Kind/name`, kind only, or [pattern](#resource-field-patterns-globbing)
 - `field` - Field path using dot notation (e.g., `"spec.replicas"`, `"metadata.labels.app"`)
 - `value` - Expected type: `"string"`, `"number"`, `"boolean"`, `"array"`, `"object"`, or `"null"`
 
@@ -245,12 +283,12 @@ assertions:
 
 ### FieldExists
 
-Validates that a field exists at a given path in a resource.
+Validates that a field exists at a given path in each resource matching the given pattern. Applied to every matched resource.
 
 **Required Fields:**
 - `name` - Assertion name
 - `type` - Must be `"FieldExists"`
-- `resource` - Resource identifier in format `Kind/name`
+- `resource` - Resource identifier: exact `Kind/name`, kind only, or [pattern](#resource-field-patterns-globbing)
 - `field` - Field path using dot notation (e.g., `"spec.replicas"`, `"metadata.labels.app"`)
 
 **Example:**
@@ -273,12 +311,12 @@ assertions:
 
 ### FieldNotExists
 
-Validates that a field does not exist at a given path in a resource.
+Validates that a field does not exist at a given path in each resource matching the given pattern. Applied to every matched resource.
 
 **Required Fields:**
 - `name` - Assertion name
 - `type` - Must be `"FieldNotExists"`
-- `resource` - Resource identifier in format `Kind/name`
+- `resource` - Resource identifier: exact `Kind/name`, kind only, or [pattern](#resource-field-patterns-globbing)
 - `field` - Field path using dot notation (e.g., `"spec.deprecated"`)
 
 **Example:**
@@ -297,12 +335,12 @@ assertions:
 
 ### FieldValue
 
-Validates the value of a field in a resource using comparison operators.
+Validates the value of a field in each resource matching the given pattern using comparison operators. Applied to every matched resource.
 
 **Required Fields:**
 - `name` - Assertion name
 - `type` - Must be `"FieldValue"`
-- `resource` - Resource identifier in format `Kind/name`
+- `resource` - Resource identifier: exact `Kind/name`, kind only, or [pattern](#resource-field-patterns-globbing)
 - `field` - Field path using dot notation (e.g., `"spec.replicas"`)
 - `operator` - Comparison operator: `"=="` (equals) or `"is"` (string comparison)
 - `value` - Expected value (type must match field type)
@@ -381,6 +419,12 @@ tests:
       type: "FieldExists"
       resource: "Service/my-app"
       field: "spec.selector"
+
+    # Pattern: assert on all SecurityGroups whose name starts with "group-"
+    - name: "security-groups-have-vpc"
+      type: "FieldExists"
+      resource: "SecurityGroup/group-*"
+      field: "spec.forProvider.vpcId"
 ```
 
 ### Comprehensive Example
@@ -408,6 +452,9 @@ tests:
     - name: "service-exists"
       type: "Exists"
       resource: "Service/my-app"
+    - name: "service-with-unpredictable-name-exists"
+      type: "Exists"
+      resource: "Service/*-app"
 
     # Resource non-existence
     - name: "no-old-deployment"
@@ -416,16 +463,24 @@ tests:
     - name: "no-pods"
       type: "NotExists"
       resource: "Pod"
+    - name: "no-deployments-exist"
+      type: "NotExists"
+      resource: "Deployment"
 
     # Field existence
     - name: "has-replicas-field"
       type: "FieldExists"
       resource: "Deployment/my-app"
       field: "spec.replicas"
+    - name: "all-deployments-have-team-label"
+      type: "FieldExists"
+      resource: "Deployment"
+      field: "metadata.labels.team"
     - name: "no-deprecated-field"
       type: "FieldNotExists"
       resource: "Deployment/my-app"
       field: "spec.deprecated"
+
 
     # Field type validation (all supported types)
     - name: "replicas-is-number"
@@ -472,6 +527,12 @@ tests:
       field: "spec.forProvider.engine"
       operator: "is"
       value: "postgresql"
+    - name: "all-clusters-with-name-suffix-have-env-prod-label"
+      type: "FieldValue"
+      resource: "Cluster/*-db"
+      field: "metadata.labels.env"
+      operator: "is"
+      value: "prod"
 ```
 
 ## Common vs Test-Level Assertions
@@ -497,6 +558,10 @@ common:
     - name: "common-exists"
       type: "Exists"
       resource: "Deployment/my-app"
+    - name: "two-services-exist"
+      type: "Count"
+      value: 2
+      resource: "Service"
 
 tests:
 - name: "Test 1"

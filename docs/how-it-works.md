@@ -189,13 +189,13 @@ flowchart TD
 - **dyff**: Golden-file comparison using structural YAML diff (document-aware)
 
 **xprin assertion types** (examples):
-- **Count**: Validates total number of rendered resources
-- **Exists**: Checks if a specific resource exists (format: `Kind/name`)
-- **NotExists**: Checks if a resource does not exist (format: `Kind/name` or `Kind`)
-- **FieldType**: Validates field type (`string`, `number`, `boolean`, `array`, `object`, `null`)
-- **FieldExists**: Checks if a field exists at a given path
-- **FieldNotExists**: Checks if a field does not exist at a given path
-- **FieldValue**: Validates field value using operators (`==`, `is`)
+- **Count**: Validates number of rendered resources (optionally only those matching a `resource` pattern)
+- **Exists**: Checks that at least one resource matching the pattern exists (supports exact name, kind only, or glob pattern)
+- **NotExists**: Checks that no resource matching the pattern exists (supports exact name, kind, or pattern)
+- **FieldType**: Validates field type on each matching resource (`string`, `number`, `boolean`, `array`, `object`, `null`)
+- **FieldExists**: Checks if a field exists at a given path in each matching resource
+- **FieldNotExists**: Checks if a field does not exist at a given path in each matching resource
+- **FieldValue**: Validates field value using operators (`==`, `is`) in each matching resource
 
 **Error Handling:**
 - All assertions are evaluated even if some fail
@@ -205,7 +205,7 @@ flowchart TD
 
 **Resource Access:**
 - Assertions access rendered resources from the temp directory
-- Resources are identified by `Kind/name` format
+- Resources are identified by exact `Kind/name`, kind only (`Kind`), or shell-style patterns (e.g. `SecurityGroup/group-*`, `*/*`); see [Assertions – Resource field: patterns](assertions.md#resource-field-patterns-globbing)
 - Field paths use dot notation (e.g., `spec.replicas`, `metadata.labels.app`)
 
 **Output Files:**
