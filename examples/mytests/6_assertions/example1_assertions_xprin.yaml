@@ -18,24 +18,32 @@ tests:
 
   assertions:
     xprin:
-    ##########################################
-    ###### Exact resource name matching ######
-    ##########################################
-
-    # Count assertion
-    - name: "Number of resources"
+    # Count assertion (optional 'resource' field: when omitted, counts all rendered resources)
+    - name: "Exact count of all resources of all types"
       type: "Count"
       value: 5
 
-    - name: "SecurityGroup should exist"
+    - name: "Exactly 1 resource of a certain Kind/Name should exist"
       type: "Count"
       value: 1
-      resource: "SecurityGroup/platform-aws-sg"   # 'resource' field is optional for count asssertions
+      resource: "SecurityGroup/platform-aws-sg"
 
-    - name: "EC2 should not exist"
+    - name: "Exactly 0 resources of a certain Kind/Name (resource should not exist)"
       type: "Count"
       value: 0
-      resource: "EC2/platform-aws-ec2"            # 'resource' field is optional for count asssertions
+      resource: "EC2/platform-aws-ec2"
+
+    # Same effect as omitting the 'resource' field: count all resources
+    - name: "Exact count of all resources of all types (using a pattern)"
+      type: "Count"
+      value: 5
+      resource: "*/*"                             # Match all Kind/Name combinations
+
+    - name: "Exactly 2 Instance resources with '-ec2' suffix should exist"
+      type: "Count"
+      value: 2
+      resource: "Instance/*-ec2"
+                      
 
     # Exists assertions
     - name: "SecurityGroup should exist"
@@ -58,11 +66,20 @@ tests:
       type: "FieldExists"
       resource: "SecurityGroup/platform-aws-sg"
       field: "metadata.name"
+    - name: "All resources should have a name set"
+      type: "FieldExists"
+      resource: "*/*"                                     # Match all resources (including the XR)
+      field: "metadata.name"
 
     # FieldNotExists assertion
     - name: "RDS should not have deprecated field"
       type: "FieldNotExists"
       resource: "Cluster/platform-aws-rds"
+      field: "spec.deprecatedField"
+
+    - name: "RDS of a certain name pattern should not have deprecated field"
+      type: "FieldNotExists"
+      resource: "Cluster/platform-*-rds"                  # Match resources with unpredictable names
       field: "spec.deprecatedField"
 
     # FieldType assertions - all supported types
@@ -101,6 +118,12 @@ tests:
       resource: "Cluster/platform-aws-rds"
       field: "spec.forProvider.finalSnapshotIdentifier"
 
+    - name: "RDS backupRetentionPeriod for all clusters should be number"
+      type: "FieldType"
+      resource: "Cluster/*"
+      field: "spec.forProvider.backupRetentionPeriod"
+      value: "number"
+
     # FieldValue assertions
     - name: "RDS should be Aurora PostgreSQL"
       type: "FieldValue"
@@ -116,57 +139,9 @@ tests:
       operator: "=="
       value: 1
 
-
-    #############################################
-    ###### Pattern matching resource names ######
-    #############################################
-
-    # Count assertions
-    - name: "Number of resources"
-      type: "Count"
-      value: 5
-      resource: "*/*"                             # Match all Kind/Name combinations(Same effect as just omitting the 'resource' field)
-
-    - name: "Two EC2 instances should exist"
-      type: "Count"
-      value: 2
-      resource: "Instance/*"                      # Match Instance kind with any name
-
-    - name: "CloudFront should not exist"
-      type: "Count"
-      value: 0
-      resource: "CloudFront/*"                    # No CloudFront resources should exist
-
-    # FieldExists assertion    
-    - name: "All EC2 instances should have 'app' label"
-      type: "FieldExists"
-      resource: "Instance/*"                      # Match all Instances          
-      field: "metadata.labels.app"
-
-    # FieldNotExists assertion
-    - name: "RDS should not have deprecated field"
-      type: "FieldNotExists"
-      resource: "Cluster/platform-*-rds"          # Match an undeterministic name
-      field: "spec.deprecatedField"
-
-    # Field value
-    - name: "One EC2 should be t2.micro"
+    - name: "Instance resources with '-primary-ec2' suffix should be 't2.micro'"
       type: "FieldValue"
-      resource: "Instance/*-primary-ec2"          # Match Instance with a specific name suffix
+      resource: "Instance/*-primary-ec2"                  
       field: "spec.forProvider.instanceType"
       operator: "=="
       value: "t2.micro"
-
-    - name: "Other EC2 instance should be t3.medium"
-      type: "FieldValue"
-      resource: "Instance/*-secondary-ec2"        # Match Instance with a specific name suffix
-      field: "spec.forProvider.instanceType"
-      operator: "=="
-      value: "t3.medium"
-  
-    # FieldType assertion
-    - name: "RDS backupRetentionPeriod for all clusters should be number"
-      type: "FieldType"
-      resource: "Cluster/*"
-      field: "spec.forProvider.backupRetentionPeriod"
-      value: "number"
