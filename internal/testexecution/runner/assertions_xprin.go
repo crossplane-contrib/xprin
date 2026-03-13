@@ -123,8 +123,12 @@ func (e *assertionExecutor) executeExistsAssertion(assertion api.AssertionXprin)
 	}
 
 	var message string
-	if len(resources) == 1 {
-		message = fmt.Sprintf("resource %s/%s found", resources[0].GetKind(), resources[0].GetName())
+	if len(resources) > 0 {
+		identifiers := make([]string, len(resources))
+		for i, r := range resources {
+			identifiers[i] = fmt.Sprintf("%s/%s", r.GetKind(), r.GetName())
+		}
+		message = fmt.Sprintf("resource %s found", strings.Join(identifiers, ", "))
 	} else {
 		message = "resource not found"
 	}
@@ -155,9 +159,12 @@ func (e *assertionExecutor) executeNotExistsAssertion(assertion api.AssertionXpr
 	var message string
 	if len(resources) == 0 {
 		message = "resource not found (as expected)"
-
 	} else {
-		message = fmt.Sprintf("resource %s/%s found (should not exist)", resources[0].GetKind(), resources[0].GetName())
+		identifiers := make([]string, len(resources))
+		for i, r := range resources {
+			identifiers[i] = fmt.Sprintf("%s/%s", r.GetKind(), r.GetName())
+		}
+		message = fmt.Sprintf("resource %s found (should not exist)", strings.Join(identifiers, ", "))
 	}
 
 	status := engine.StatusFail()
