@@ -48,9 +48,9 @@ func (c *Cmd) Run(_ *kong.Context) error {
 
 	if !c.Quiet {
 		if c.ConfigPath == "" {
-			utils.OutputPrintf("No configuration file provided, using detected dependencies\n")
+			utils.OutputPrintf("No global configuration file provided. Using detected dependencies and default settings...\n")
 		} else {
-			utils.OutputPrintf("Configuration file: %s\n\n", c.ConfigPath)
+			utils.OutputPrintf("Configuration file: %s\n", c.ConfigPath)
 		}
 	}
 
@@ -68,14 +68,12 @@ func (c *Cmd) Run(_ *kong.Context) error {
 	}
 
 	if len(allErrors) > 0 {
-		return fmt.Errorf("configuration check failed:\n%s", strings.Join(allErrors, "\n"))
+		return fmt.Errorf("error: configuration check failed:\n%s", strings.Join(allErrors, "\n"))
 	}
 
 	if c.Quiet {
 		return nil
 	}
-
-	utils.OutputPrintf("Configuration check successful\n")
 
 	utils.OutputPrintf("\nDependencies:\n")
 
@@ -102,6 +100,8 @@ func (c *Cmd) Run(_ *kong.Context) error {
 			utils.OutputPrintf("- %s: %s\n", name, path)
 		}
 	}
+
+	utils.OutputPrintf("\nOK: dependencies and settings verified\n")
 
 	return nil
 }

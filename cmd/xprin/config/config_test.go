@@ -95,7 +95,7 @@ func TestOperation_Run(t *testing.T) {
 			config: cfg,
 			wantOutput: []string{
 				"Configuration file:",
-				"Configuration check successful",
+				"OK: dependencies and settings verified",
 				"Repositories:",
 				"test-repo:",
 				"Dependencies:",
@@ -229,11 +229,20 @@ func TestOperation_Run(t *testing.T) {
 				return
 			}
 
-			// Check error message content if expected
-			if tt.wantErr && tt.wantErrContain != "" && err != nil {
-				if !strings.Contains(err.Error(), tt.wantErrContain) && !strings.Contains(captured.Stderr, tt.wantErrContain) {
-					t.Errorf("Operation.Run() error message = %v, want to contain %v",
-						err.Error(), tt.wantErrContain)
+			// Check error message content if expected (generic "configuration check failed" always; specific via wantErrContain)
+			if tt.wantErr && err != nil {
+				errStr := err.Error()
+				stderr := captured.Stderr
+
+				contains := func(s string) bool {
+					return strings.Contains(errStr, s) || strings.Contains(stderr, s)
+				}
+				if !contains("configuration check failed") {
+					t.Errorf("Operation.Run() error message = %v, want to contain %q", errStr, "error: configuration check failed")
+				}
+
+				if tt.wantErrContain != "" && !contains(tt.wantErrContain) {
+					t.Errorf("Operation.Run() error message = %v, want to contain %v", errStr, tt.wantErrContain)
 				}
 			}
 

@@ -47,28 +47,26 @@ func (c *Cmd) Run(_ *kong.Context) error {
 	var allErrors []string
 
 	if c.ConfigPath == "" {
-		utils.OutputPrintf("No configuration file provided, using detected dependencies\n")
+		utils.OutputPrintf("No global configuration file provided. Using detected dependencies and default settings...\n")
 	} else {
-		utils.OutputPrintf("Configuration file: %s\n\n", c.ConfigPath)
+		utils.OutputPrintf("Configuration file: %s\n", c.ConfigPath)
+	}
 
-		if c.Check {
-			if err := c.Config.CheckDependencies(); err != nil {
-				allErrors = append(allErrors, err.Error())
-			}
+	if c.Check {
+		if err := c.Config.CheckDependencies(); err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
 
-			if err := c.Config.CheckSubcommands(); err != nil {
-				allErrors = append(allErrors, err.Error())
-			}
+		if err := c.Config.CheckSubcommands(); err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
 
-			if err := c.Config.CheckRepositories(); err != nil {
-				allErrors = append(allErrors, err.Error())
-			}
+		if err := c.Config.CheckRepositories(); err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
 
-			if len(allErrors) > 0 {
-				return fmt.Errorf("configuration check failed:\n%s", strings.Join(allErrors, "\n"))
-			}
-
-			utils.OutputPrintf("Configuration check successful\n")
+		if len(allErrors) > 0 {
+			return fmt.Errorf("error: configuration check failed:\n%s", strings.Join(allErrors, "\n"))
 		}
 	}
 
@@ -96,6 +94,10 @@ func (c *Cmd) Run(_ *kong.Context) error {
 		for name, path := range c.Config.Repositories {
 			utils.OutputPrintf("- %s: %s\n", name, path)
 		}
+	}
+
+	if c.Check {
+		utils.OutputPrintf("\nOK: dependencies and settings verified\n")
 	}
 
 	return nil
