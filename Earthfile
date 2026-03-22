@@ -155,7 +155,7 @@ go-test:
 
 # go-lint lints Go code.
 go-lint:
-  ARG GOLANGCI_LINT_VERSION=v2.11.3
+  ARG GOLANGCI_LINT_VERSION=v2.11.4
   FROM +go-modules
   # This cache is private because golangci-lint doesn't support concurrent runs.
   CACHE --id go-lint --sharing private /root/.cache/golangci-lint
@@ -169,7 +169,7 @@ go-lint:
 
 # golangci-lint-setup is used by other targets to setup golangci-lint.
 golangci-lint-setup:
-  ARG GOLANGCI_LINT_VERSION=v2.11.3
+  ARG GOLANGCI_LINT_VERSION=v2.11.4
   ARG NATIVEPLATFORM
   FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.18.0
   RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b . ${GOLANGCI_LINT_VERSION}
