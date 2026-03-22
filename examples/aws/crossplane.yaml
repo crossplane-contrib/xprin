@@ -7,8 +7,8 @@ spec:
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
     package: ghcr.io/crossplane-contrib/provider-aws-ec2
-    version: "v2.4.0"
+    version: "v2.5.0"
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
     package: ghcr.io/crossplane-contrib/provider-aws-rds
-    version: "v2.4.0"
+    version: "v2.5.0"
