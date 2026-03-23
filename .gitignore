@@ -22,3 +22,11 @@ Zone.Identifier
 # go build output
 /xprin
 /xprin-helpers
+
+# Test artifacts
+examples/mytests/0_e2e/golden_single_resource.yaml
+examples/mytests/0_e2e/golden_single_resource.yaml-e
+examples/mytests/0_e2e/golden_full_render.yaml-e
+examples/mytests/0_e2e/golden_full_render.yaml
+examples/mytests/6_assertions/golden_full_render.yaml
+examples/mytests/6_assertions/golden_single_resource.yaml
