@@ -72,6 +72,7 @@ metadata:
 		allResults := executor.executeAssertionsXprin(assertions)
 		assert.Len(t, allResults, 2)
 		assert.Equal(t, "count-1", allResults[0].Name)
+		assert.Contains(t, allResults[0].Message, "found 1 resources (as expected)")
 		assert.Equal(t, "exists-1", allResults[1].Name)
 		failed := filterFailedAssertions(allResults)
 		assert.Empty(t, failed)
@@ -106,6 +107,7 @@ metadata:
 		assert.Len(t, allResults, 2)
 		assert.Equal(t, engine.StatusFail(), allResults[0].Status)
 		assert.Equal(t, engine.StatusPass(), allResults[1].Status)
+		assert.Contains(t, allResults[1].Message, "resources found: Pod/test-pod")
 		failed := filterFailedAssertions(allResults)
 		assert.Len(t, failed, 1)
 		assert.Equal(t, "count-wrong", failed[0].Name)
@@ -168,7 +170,72 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, engine.StatusPass(), results[0].Status)
-		assert.Contains(t, results[0].Message, "found 2 resources")
+		assert.Contains(t, results[0].Message, "found 2 resources (as expected)")
+	})
+
+	t.Run("lists matched resource identifiers when pattern count matches", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		resource1Path := testResource1File
+		resource2Path := testResource2File
+		outputs := &engine.Outputs{
+			Rendered: map[string]string{
+				"Pod/test-pod":  resource1Path,
+				"Pod/test-pod2": resource2Path,
+			},
+		}
+
+		err := afero.WriteFile(fs, resource1Path, []byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+`), 0o644)
+		require.NoError(t, err)
+		err = afero.WriteFile(fs, resource2Path, []byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod2
+`), 0o644)
+		require.NoError(t, err)
+
+		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
+
+		assertion := api.AssertionXprin{Name: "count-test", Type: "Count", Resource: "Pod/*", Value: 2}
+		results, err := executor.executeCountAssertion(assertion)
+
+		require.NoError(t, err)
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
+		assert.Contains(t, results[0].Message, "Pod/test-pod")
+		assert.Contains(t, results[0].Message, "Pod/test-pod2")
+	})
+
+	t.Run("lists matched resource identifiers when pattern count does not match", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		resourcePath := testResource1File
+		outputs := &engine.Outputs{
+			Rendered: map[string]string{
+				"Pod/test-pod": resourcePath,
+			},
+		}
+
+		err := afero.WriteFile(fs, resourcePath, []byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+`), 0o644)
+		require.NoError(t, err)
+
+		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
+
+		assertion := api.AssertionXprin{Name: "count-test", Type: "Count", Resource: "Pod/*", Value: 5}
+		results, err := executor.executeCountAssertion(assertion)
+
+		require.NoError(t, err)
+		assert.Equal(t, engine.StatusFail(), results[0].Status)
+		assert.Contains(t, results[0].Message, "expected 5 resources, got 1 resources:")
+		assert.Contains(t, results[0].Message, "Pod/test-pod")
 	})
 
 	t.Run("fails when count does not match", func(t *testing.T) {
@@ -255,7 +322,44 @@ metadata:
 
 		require.NoError(t, err)
 		assert.Equal(t, engine.StatusPass(), results[0].Status)
-		assert.Contains(t, results[0].Message, "found")
+		assert.Equal(t, "resources found: Pod/test-pod", results[0].Message)
+	})
+
+	t.Run("passes when multiple resources match pattern and lists all identifiers", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		resource1Path := testResource1File
+		resource2Path := testResource2File
+		outputs := &engine.Outputs{
+			Rendered: map[string]string{
+				"Pod/a": resource1Path,
+				"Pod/b": resource2Path,
+			},
+		}
+
+		err := afero.WriteFile(fs, resource1Path, []byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: a
+`), 0o644)
+		require.NoError(t, err)
+		err = afero.WriteFile(fs, resource2Path, []byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: b
+`), 0o644)
+		require.NoError(t, err)
+
+		executor := newAssertionExecutor(fs, outputs, false, "", nil, false)
+
+		assertion := api.AssertionXprin{Name: "exists-test", Type: "Exists", Resource: "Pod/*"}
+		results, err := executor.executeExistsAssertion(assertion)
+
+		require.NoError(t, err)
+		assert.Equal(t, engine.StatusPass(), results[0].Status)
+		assert.Contains(t, results[0].Message, "Pod/a")
+		assert.Contains(t, results[0].Message, "Pod/b")
 	})
 
 	t.Run("fails when resource does not exist", func(t *testing.T) {
@@ -368,7 +472,8 @@ metadata:
 
 		require.NoError(t, err)
 		assert.Equal(t, engine.StatusFail(), results[0].Status)
-		assert.Contains(t, results[0].Message, "found (should not exist)")
+		assert.Contains(t, results[0].Message, "resources found (should not exist):")
+		assert.Contains(t, results[0].Message, "Pod/test-pod")
 	})
 
 	t.Run("fails when resource field is missing", func(t *testing.T) {
