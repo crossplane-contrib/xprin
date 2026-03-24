@@ -56,7 +56,7 @@
 --- FAIL: Assertion failure (X.XXXs)
     Assertions:
         [x] Resource count should be zero - expected 0 resources, got 2
-        [!] Wrong resource name - resource Cluster/doesnotexist not found
+        [!] Wrong resource name - no rendered resource matched the given name Cluster/doesnotexist
         [x] Full render matches golden (using diff)
             --- golden_full_render.yaml
             +++ rendered.yaml

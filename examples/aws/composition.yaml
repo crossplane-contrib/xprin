@@ -66,14 +66,32 @@ spec:
             metadata:
               annotations:
                 {{ setResourceNameAnnotation ("ec2") }}
-              name: {{ $.observed.composite.resource.metadata.name }}-ec2
+              name: {{ $.observed.composite.resource.metadata.name }}-primary-ec2
               labels:
                 app: {{ $.observed.composite.resource.metadata.name }}
                 environment: {{ $.observed.composite.resource.metadata.labels.environment }}
             spec:
               forProvider:
                 region: {{ $.observed.composite.resource.spec.region }}
-                instanceType: {{ if eq $.observed.composite.resource.metadata.labels.environment "production" }}t3.medium{{ else }}t3.micro{{ end }}
+                instanceType: {{ if eq $.observed.composite.resource.metadata.labels.environment "production" }}t3.medium{{ else }}t2.micro{{ end }}
+                ami: ami-0c02fb55956c7d316  # Amazon Linux 2 AMI
+                keyName: {{ $.observed.composite.resource.spec.sshPublicKey }}
+                vpcSecurityGroupIds:
+                  - {{ $.observed.resources.sg.resource.status.atProvider.id }}
+            ---
+            apiVersion: ec2.aws.upbound.io/v1beta1
+            kind: Instance
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation ("secondary-ec2") }}
+              name: {{ $.observed.composite.resource.metadata.name }}-secondary-ec2
+              labels:
+                app: {{ $.observed.composite.resource.metadata.name }}
+                environment: {{ $.observed.composite.resource.metadata.labels.environment }}
+            spec:
+              forProvider:
+                region: {{ $.observed.composite.resource.spec.region }}
+                instanceType: {{ if eq $.observed.composite.resource.metadata.labels.environment "production" }}t2.large{{ else }}t3.medium{{ end }}
                 ami: ami-0c02fb55956c7d316  # Amazon Linux 2 AMI
                 keyName: {{ $.observed.composite.resource.spec.sshPublicKey }}
                 vpcSecurityGroupIds:

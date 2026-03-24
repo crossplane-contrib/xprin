@@ -1,0 +1,67 @@
+tests:
+- name: "Second reconciliation loop (with patterns)"
+  patches:
+    xrd: ../../aws/xrd.yaml
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    observed-resources: ../../aws/observed
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+  hooks:
+    pre-test:
+    - name: "Set RDS status in XR"
+      run: yq -i '.status.rds = "my-rds-instance"' {{ .Inputs.XR }}
+
+  assertions:
+    xprin:
+    # Same effect as omitting the 'resource' field: count all resources
+    - name: "Exactly 2 Instance resources with '-ec2' suffix should exist"
+      type: "Count"
+      value: 2
+      resource: "Instance/*-ec2"
+                      
+    # Exists assertions
+    - name: "SecurityGroup should exist"
+      type: "Exists"
+      resource: "SecurityGroup/platform-aws-sg"
+    - name: "RDS should exist"
+      type: "Exists"
+      resource: "Cluster/platform-*"              # Match unpredictable names
+
+    # NotExists assertions
+    - name: "No EC2 instances should exist"
+      type: "NotExists"
+      resource: "EC2"                             # Match all resources of type EC2
+    - name: "No EC2 should not exist (alternative)"
+      type: "NotExists"
+      resource: "EC2/*"                           # Match all resources of type EC2 (alternative way)
+
+    # FieldExists assertion
+    - name: "All resources should have a name set"
+      type: "FieldExists"
+      resource: "*/*"                                     # Match all resources (including the XR)
+      field: "metadata.name"
+
+    # FieldNotExists assertion
+    - name: "RDS of a certain name pattern should not have deprecated field"
+      type: "FieldNotExists"
+      resource: "Cluster/platform-*-rds"                 
+      field: "spec.deprecatedField"
+
+    # FieldType assertions - all supported types
+    - name: "Every kind with a certain name should have descrption field"
+      type: "FieldType"
+      resource: "*/platform-aws-sg"                       
+      field: "spec.forProvider.description"
+      value: "string"
+
+    # FieldValue assertions
+    - name: "Instance resources with '-primary-ec2' suffix should be 't2.micro'"
+      type: "FieldValue"
+      resource: "Instance/*-primary-ec2"                  
+      field: "spec.forProvider.instanceType"
+      operator: "=="
+      value: "t2.micro"

@@ -19,20 +19,29 @@ tests:
   assertions:
     xprin:
     # Count assertion
-    - name: "Number of resources"
+    - name: "Number of all rendered resources (including XR)"
       type: "Count"
       value: 3
+    # optional 'resource' field
+    - name: "Exactly 1 resource of a certain Kind/Name should exist"
+      type: "Count"
+      value: 1
+      resource: "SecurityGroup/platform-aws-sg"   
+    - name: "Exactly 0 resources of a certain Kind/Name (basically - resource should not exist)"
+      type: "Count"
+      value: 0
+      resource: "EC2/platform-aws-ec2"            
 
     # Exists assertions
-    - name: "SecurityGroup should exist"
+    - name: "At least 1 SecurityGroup should exist"
       type: "Exists"
-      resource: "SecurityGroup/platform-aws-sg"
-    - name: "RDS should exist"
+      resource: "SecurityGroup"
+    - name: "RDS cluster named platform-aws-rds should exist"
       type: "Exists"
       resource: "Cluster/platform-aws-rds"
 
     # NotExists assertions
-    - name: "EC2 should not exist"
+    - name: "EC2 with a certain name should not exist"
       type: "NotExists"
       resource: "EC2/platform-aws-ec2"
     - name: "No EC2 instances should exist"
