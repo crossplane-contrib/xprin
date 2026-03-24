@@ -11,5 +11,3 @@ spec:
   dbUsername: admin
   sshPublicKey: qa_ssh_key
   team: devops
-status:
-  rds: 12443-123423-23432-12342

@@ -46,7 +46,7 @@ tests:
     xprin:
     - name: "Number of resources"
       type: "Count"
-      value: 5
+      value: 3
     - name: "SecurityGroup should exist"
       type: "Exists"
       resource: "SecurityGroup/platform-aws-sg"

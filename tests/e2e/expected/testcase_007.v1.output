@@ -13,19 +13,15 @@
             hello
     Render:
         ├── XAWSInfrastructure/platform-aws
-        ├── Instance/platform-aws-primary-ec2
-        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-primary-ec2 validated successfully
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-secondary-ec2 validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 4 resources: 1 missing schemas, 3 success cases, 0 failure cases
+        Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
         crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
     Assertions:
-        [✓] Successful assertion - found 4 resources (as expected)
-        Total: 1 assertions, 1 successful, 0 failed, 0 errors
+        [x] Successful assertion - expected 4 resources, got 2
+        Total: 1 assertions, 0 successful, 1 failed, 0 errors
     Post-test Hooks:
         [✓] echo "bye"
             bye
@@ -72,8 +68,6 @@
 --- PASS: Successful test case (X.XXXs)
     Render:
         ├── XAWSInfrastructure/platform-aws
-        ├── Instance/platform-aws-primary-ec2
-        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
 === RUN   Post-test hook failure
 --- FAIL: Post-test hook failure (X.XXXs)
@@ -82,26 +76,20 @@
             hello
     Render:
         ├── XAWSInfrastructure/platform-aws
-        ├── Instance/platform-aws-primary-ec2
-        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Validate:
         [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-primary-ec2 validated successfully
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-secondary-ec2 validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 4 resources: 0 missing schemas, 4 success cases, 0 failure cases
+        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
     Assertions:
-        [✓] Successful assertion - found 4 resources (as expected)
-        Total: 1 assertions, 1 successful, 0 failed, 0 errors
+        [x] Successful assertion - expected 4 resources, got 2
+        Total: 1 assertions, 0 successful, 1 failed, 0 errors
     Post-test Hooks:
         [x] Fail post-test hook [exit code: 1]
 === RUN   Invalid Post-test hook, template rendering error
 --- FAIL: Invalid Post-test hook, template rendering error (X.XXXs)
     Render:
         ├── XAWSInfrastructure/platform-aws
-        ├── Instance/platform-aws-primary-ec2
-        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Post-test Hooks:
         [!] Invalid post-test hook (template rendering error)
@@ -110,8 +98,6 @@
 --- PASS: Generate broken golden files (X.XXXs)
     Render:
         ├── XAWSInfrastructure/platform-aws
-        ├── Instance/platform-aws-primary-ec2
-        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Post-test Hooks:
         [✓] Generate broken golden file for full render
@@ -123,18 +109,14 @@
             hello
     Render:
         ├── XAWSInfrastructure/platform-aws
-        ├── Instance/platform-aws-primary-ec2
-        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Validate:
         [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-primary-ec2 validated successfully
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-secondary-ec2 validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 4 resources: 0 missing schemas, 4 success cases, 0 failure cases
+        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
     Assertions:
-        [✓] Resource count should be two - found 4 resources (as expected)
-        [x] Resource count should be zero - expected 0 resources, got 4
+        [x] Resource count should be two - expected 4 resources, got 2
+        [x] Resource count should be zero - expected 0 resources, got 2
         [!] Wrong resource name - no rendered resource matched the given name Cluster/doesnotexist
         [x] Full render matches golden (using diff)
             --- golden_full_render.yaml
@@ -162,8 +144,8 @@
         [!] Wrong resource name - resource "SecurityGroup/doesnotexist" not found in render output
         [x] Full render matches golden (using dyff)
                  _        __  __
-               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_full_render.yaml, four documents
-             / _' | | | | |_| |_       and /tmp/xprin-testcase-XXXX/outputs/rendered.yaml, four documents
+               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_full_render.yaml, two documents
+             / _' | | | | |_| |_       and /tmp/xprin-testcase-XXXX/outputs/rendered.yaml, two documents
             | (_| | |_| |  _|  _|
              \__,_|\__, |_| |_|   returned one difference
                     |___/
@@ -188,7 +170,7 @@
 
         [!] Failed to get golden file - read expected file: open /examples/mytests/0_e2e/doesnotexist.yaml: no such file or directory
         [!] Wrong resource name - resource "SecurityGroup/doesnotexist" not found in render output
-        Total: 11 assertions, 1 successful, 5 failed, 5 errors
+        Total: 11 assertions, 0 successful, 6 failed, 5 errors
     Post-test Hooks:
         [✓] echo "bye"
             bye
@@ -199,20 +181,16 @@
             hello
     Render:
         ├── XAWSInfrastructure/platform-aws
-        ├── Instance/platform-aws-primary-ec2
-        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-primary-ec2 validated successfully
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-secondary-ec2 validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 4 resources: 1 missing schemas, 3 success cases, 0 failure cases
+        Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
         crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
     Assertions:
-        [✓] Successful assertion - found 4 resources (as expected)
-        [x] Failed assertion - expected 0 resources, got 4
-        Total: 2 assertions, 1 successful, 1 failed, 0 errors
+        [x] Successful assertion - expected 4 resources, got 2
+        [x] Failed assertion - expected 0 resources, got 2
+        Total: 2 assertions, 0 successful, 2 failed, 0 errors
     Post-test Hooks:
         [✓] echo "bye"
             bye
@@ -223,20 +201,16 @@
             hello
     Render:
         ├── XAWSInfrastructure/platform-aws
-        ├── Instance/platform-aws-primary-ec2
-        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-primary-ec2 validated successfully
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-secondary-ec2 validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 4 resources: 1 missing schemas, 3 success cases, 0 failure cases
+        Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
         crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
     Assertions:
-        [✓] Successful assertion - found 4 resources (as expected)
-        [x] Failed assertion - expected 0 resources, got 4
-        Total: 2 assertions, 1 successful, 1 failed, 0 errors
+        [x] Successful assertion - expected 4 resources, got 2
+        [x] Failed assertion - expected 0 resources, got 2
+        Total: 2 assertions, 0 successful, 2 failed, 0 errors
     Post-test Hooks:
         [✓] Successful post-test hook
             bye

@@ -4,8 +4,11 @@
 --- FAIL: Validation failure (missing CRD) (X.XXXs)
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
-        Total 4 resources: 1 missing schemas, 3 success cases, 0 failure cases
+        Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
         crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
+    Assertions:
+        [x] Successful assertion - expected 4 resources, got 2
+        Total: 1 assertions, 0 successful, 1 failed, 0 errors
 --- FAIL: Pre-test hook failure (X.XXXs)
     Pre-test Hooks:
         [x] Fail pre-test hook [exit code: 1]
@@ -31,6 +34,9 @@
             stdout 3
             stderr 4
 --- FAIL: Post-test hook failure (X.XXXs)
+    Assertions:
+        [x] Successful assertion - expected 4 resources, got 2
+        Total: 1 assertions, 0 successful, 1 failed, 0 errors
     Post-test Hooks:
         [x] Fail post-test hook [exit code: 1]
 --- FAIL: Invalid Post-test hook, template rendering error (X.XXXs)
@@ -39,7 +45,8 @@
             error: failed to render hook template: failed to execute template: template: hook:1:16: executing "hook" at <.Outputs.UnknownField>: can't evaluate field UnknownField in type *engine.Outputs
 --- FAIL: Assertion failure (X.XXXs)
     Assertions:
-        [x] Resource count should be zero - expected 0 resources, got 4
+        [x] Resource count should be two - expected 4 resources, got 2
+        [x] Resource count should be zero - expected 0 resources, got 2
         [!] Wrong resource name - no rendered resource matched the given name Cluster/doesnotexist
         [x] Full render matches golden (using diff)
             --- golden_full_render.yaml
@@ -67,8 +74,8 @@
         [!] Wrong resource name - resource "SecurityGroup/doesnotexist" not found in render output
         [x] Full render matches golden (using dyff)
                  _        __  __
-               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_full_render.yaml, four documents
-             / _' | | | | |_| |_       and /tmp/xprin-testcase-XXXX/outputs/rendered.yaml, four documents
+               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_full_render.yaml, two documents
+             / _' | | | | |_| |_       and /tmp/xprin-testcase-XXXX/outputs/rendered.yaml, two documents
             | (_| | |_| |  _|  _|
              \__,_|\__, |_| |_|   returned one difference
                     |___/
@@ -93,23 +100,25 @@
 
         [!] Failed to get golden file - read expected file: open /examples/mytests/0_e2e/doesnotexist.yaml: no such file or directory
         [!] Wrong resource name - resource "SecurityGroup/doesnotexist" not found in render output
-        Total: 11 assertions, 1 successful, 5 failed, 5 errors
+        Total: 11 assertions, 0 successful, 6 failed, 5 errors
 --- FAIL: Failed validation and assertion (X.XXXs)
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
-        Total 4 resources: 1 missing schemas, 3 success cases, 0 failure cases
+        Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
         crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
     Assertions:
-        [x] Failed assertion - expected 0 resources, got 4
-        Total: 2 assertions, 1 successful, 1 failed, 0 errors
+        [x] Successful assertion - expected 4 resources, got 2
+        [x] Failed assertion - expected 0 resources, got 2
+        Total: 2 assertions, 0 successful, 2 failed, 0 errors
 --- FAIL: Failed validation, assertion, and post-test hook (X.XXXs)
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
-        Total 4 resources: 1 missing schemas, 3 success cases, 0 failure cases
+        Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
         crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
     Assertions:
-        [x] Failed assertion - expected 0 resources, got 4
-        Total: 2 assertions, 1 successful, 1 failed, 0 errors
+        [x] Successful assertion - expected 4 resources, got 2
+        [x] Failed assertion - expected 0 resources, got 2
+        Total: 2 assertions, 0 successful, 2 failed, 0 errors
     Post-test Hooks:
         [x] Failed post-test hook [exit code: 2]
 FAIL

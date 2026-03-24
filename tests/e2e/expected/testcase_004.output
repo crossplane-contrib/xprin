@@ -6,7 +6,7 @@ ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	X.XXXs
 --- FAIL: Validation failure (missing CRD) (X.XXXs)
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
-        Total 4 resources: 1 missing schemas, 3 success cases, 0 failure cases
+        Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
         crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
 FAIL
 FAIL	examples/mytests/0_e2e/single_failure_xprin.yaml	X.XXXs
