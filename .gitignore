@@ -10,11 +10,12 @@ cover.out
 Zone.Identifier
 .tmp-earthly-out/
 
-# ignore vscode files (debug config etc...)
+# ignore IDE configs
 /.vscode
 /.idea
 /.devcontainer
 /.cursor
+/.claude
 
 # Crossplane packages
 *.xpkg
@@ -23,10 +24,6 @@ Zone.Identifier
 /xprin
 /xprin-helpers
 
-# Test artifacts
-examples/mytests/0_e2e/golden_single_resource.yaml
-examples/mytests/0_e2e/golden_single_resource.yaml-e
-examples/mytests/0_e2e/golden_full_render.yaml-e
-examples/mytests/0_e2e/golden_full_render.yaml
-examples/mytests/6_assertions/golden_full_render.yaml
-examples/mytests/6_assertions/golden_single_resource.yaml
+# testdata
+golden_full_render.yaml
+golden_single_resource.yaml

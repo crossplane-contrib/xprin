@@ -58,6 +58,7 @@ spec:
                 preferredMaintenanceWindow: "sun:09:00-sun:11:00"
                 vpcSecurityGroupIds:
                   - {{ $.observed.resources.sg.resource.status.atProvider.id }}
+                storageEncrypted: false
             {{ end }}
             {{ if $.observed.composite.resource.status.rds }}
             ---

@@ -43,6 +43,10 @@ spec:
               project:
                 type: string
                 description: Project name
+              optionalNote:
+                type: string
+                nullable: true
+                description: Optional note (nullable)
             required:
             - region
             - team

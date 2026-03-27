@@ -33,7 +33,7 @@ testcase_007="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/
 testcase_007_exit=1
 
 # Successful with hooks/validate/assertions (Verbose, show flags)
-testcase_008="examples/mytests/0_e2e/success_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_008="examples/mytests/0_e2e/generate_golden_files_xprin.yaml examples/mytests/0_e2e/success_xprin.yaml examples/mytests/6_assertions/ -v --show-render --show-validate --show-hooks --show-assertions"
 
 # Test with Chained Outputs
 testcase_009="examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml -v --show-render --show-validate"

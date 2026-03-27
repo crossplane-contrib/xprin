@@ -11,3 +11,4 @@ spec:
   dbUsername: admin
   sshPublicKey: qa_ssh_key
   team: devops
+  optionalNote: null
