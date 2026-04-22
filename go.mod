@@ -6,7 +6,7 @@ toolchain go1.26.1
 
 require (
 	github.com/alecthomas/assert/v2 v2.11.0
-	github.com/alecthomas/kong v1.14.0
+	github.com/alecthomas/kong v1.15.0
 	github.com/crossplane/crossplane-runtime/v2 v2.2.0
 	github.com/crossplane/crossplane/v2 v2.2.0
 	github.com/gertd/go-pluralize v0.2.1
