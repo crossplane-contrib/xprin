@@ -20,6 +20,7 @@ package runner
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
@@ -435,7 +436,17 @@ func (e *assertionExecutor) findResources(pattern string) ([]*unstructured.Unstr
 		pattern += "/*"
 	}
 
-	for resourceIdentifier, resourcePath := range e.outputs.Rendered {
+	// Extract keys and sort them to get deterministic ordering in assertions
+	keys := make([]string, 0, len(e.outputs.Rendered))
+	for k := range e.outputs.Rendered {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	for _, resourceIdentifier := range keys {
+		resourcePath := e.outputs.Rendered[resourceIdentifier]
+
 		isMatched, err := filepath.Match(pattern, resourceIdentifier)
 		if err != nil {
 			return nil, fmt.Errorf("invalid resource pattern %q: %w", pattern, err)
