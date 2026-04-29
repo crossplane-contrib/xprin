@@ -755,22 +755,25 @@ xprin test examples/mytests/6_assertions/example1_assertions_xprin.yaml -v --sho
 === RUN   Second reconciliation loop
 --- PASS: Second reconciliation loop (1.45s)
     Assertions:
-        [✓] Number of resources - found 3 resources (as expected)
-        [✓] SecurityGroup should exist - resource SecurityGroup/platform-aws-sg found
-        [✓] RDS should exist - resource Cluster/platform-aws-rds found
-        [✓] EC2 should not exist - resource EC2/platform-aws-ec2 not found (as expected)
-        [✓] No EC2 instances should exist - no resources of kind EC2 found (as expected)
-        [✓] SecurityGroup should have a name - field metadata.name exists
-        [✓] RDS should not have deprecated field - field spec.deprecatedField does not exist (as expected)
-        [✓] SecurityGroup description should be string - field spec.forProvider.description has expected type string
-        [✓] RDS port should be number - field spec.forProvider.port has expected type number
-        [✓] SecurityGroup vpcSecurityGroupIds should be array - field spec.forProvider.vpcSecurityGroupIds has expected type array
-        [✓] SecurityGroup metadata labels should be object - field metadata.labels has expected type object
-        [✓] Example boolean field check - field spec.forProvider.enableDnsHostnames has expected type boolean
-        [✓] Example null field check - field spec.forProvider.finalSnapshotIdentifier has expected type null
-        [✓] RDS should be Aurora PostgreSQL - field spec.forProvider.engine is aurora-postgresql, expected is aurora-postgresql
-        [✓] SecurityGroup port should equal 443 - field spec.forProvider.port is 443, expected == 443
-        Total: 15 assertions, 15 successful, 0 failed, 0 errors
+        [✓] Number of all rendered resources (including XR) - found 3 resources (as expected)
+        [✓] Exactly 1 resource of a certain Kind/Name should exist - found 1 resources (as expected): SecurityGroup/platform-aws-sg
+        [✓] Exactly 0 resources of a certain Kind/Name (basically - resource should not exist) - found 0 resources (as expected)
+        [✓] At least 1 SecurityGroup should exist - resources found: SecurityGroup/platform-aws-sg
+        [✓] RDS cluster named platform-aws-rds should exist - resources found: Cluster/platform-aws-rds
+        [✓] EC2 with a certain name should not exist - resource EC2/platform-aws-ec2 not found (as expected)
+        [✓] No EC2 instances should exist - resource EC2 not found (as expected)
+        [✓] SecurityGroup should have a name - field metadata.name exists on resource SecurityGroup/platform-aws-sg
+        [✓] RDS should not have deprecated field - field spec.deprecatedField does not exist (as expected) on resource Cluster/platform-aws-rds
+        [✓] SecurityGroup description should be string - field spec.forProvider.description has expected type string on resource SecurityGroup/platform-aws-sg
+        [✓] RDS backupRetentionPeriod should be number - field spec.forProvider.backupRetentionPeriod has expected type number on resource Cluster/platform-aws-rds
+        [✓] RDS vpcSecurityGroupIds should be array - field spec.forProvider.vpcSecurityGroupIds has expected type array on resource Cluster/platform-aws-rds
+        [✓] SecurityGroup metadata labels should be object - field metadata.labels has expected type object on resource SecurityGroup/platform-aws-sg
+        [✓] RDS masterPasswordSecretRef should be object - field spec.forProvider.masterPasswordSecretRef has expected type object on resource Cluster/platform-aws-rds
+        [✓] RDS storageEncrypted should be boolean - field spec.forProvider.storageEncrypted has expected type boolean on resource Cluster/platform-aws-rds
+        [✓] XR optionalNote should be null - field spec.optionalNote has expected type null on resource XAWSInfrastructure/platform-aws
+        [✓] RDS should be Aurora PostgreSQL - field spec.forProvider.engine is aurora-postgresql on resource Cluster/platform-aws-rds
+        [✓] RDS backupRetentionPeriod should equal 1 - field spec.forProvider.backupRetentionPeriod == 1 on resource Cluster/platform-aws-rds
+        Total: 18 assertions, 18 successful, 0 failed, 0 errors
 PASS
 ok	examples/mytests/6_assertions/example1_assertions_xprin.yaml	1.450s
 ```
@@ -783,9 +786,19 @@ ok	examples/mytests/6_assertions/example1_assertions_xprin.yaml	1.450s
 - Assertions complement post-test hooks: use assertions for declarative validation, hooks for complex operations or external tool integration
 - Failed assertions are clearly reported in the output, making it easy to identify validation issues
 
-### Example 2: Diff and Dyff (golden-file) assertions
+### Example 2: Pattern-matching assertions
 
-**File**: [`mytests/6_assertions/example2_golden_file_xprin.yaml`](mytests/6_assertions/example2_golden_file_xprin.yaml)
+**File**: [`mytests/6_assertions/example2_assertions_pattern_xprin.yaml`](mytests/6_assertions/example2_assertions_pattern_xprin.yaml)
+
+This example demonstrates wildcard pattern matching in resource identifiers (e.g. `Instance/*-ec2`, `Cluster/platform-*`, `*/*`). Patterns can be used with `Count`, `Exists`, `NotExists`, `FieldExists`, `FieldNotExists`, `FieldType`, and `FieldValue` assertions to match multiple resources at once or to target resources whose names are not fully predictable.
+
+```bash
+xprin test examples/mytests/6_assertions/example2_assertions_pattern_xprin.yaml -v --show-assertions
+```
+
+### Example 3: Diff and Dyff (golden-file) assertions
+
+**File**: [`mytests/6_assertions/example3_golden_file_xprin.yaml`](mytests/6_assertions/example3_golden_file_xprin.yaml)
 
 - **Diff** assertions compare the full render (or a single resource file) to a golden file using a byte-for-byte comparison.
 - **Dyff** assertions do a structural YAML comparison and produce a human-readable diff on failure.
@@ -799,5 +812,5 @@ The file includes a commented-out preliminary test “Generate golden files”. 
 Edit one of the golden files (e.g. change a value) and run the test again; the assertion will fail and show the diff or dyff output.
 
 ```bash
-xprin test examples/mytests/6_assertions/example2_golden_file_xprin.yaml -v --show-assertions
+xprin test examples/mytests/6_assertions/example3_golden_file_xprin.yaml -v --show-assertions
 ```

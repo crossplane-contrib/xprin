@@ -5,8 +5,10 @@
         ├── Cluster/platform-aws-rds
         └── SecurityGroup/platform-aws-sg
     Post-test Hooks:
-        [✓] cp "{{.Outputs.Render}}" golden_full_render.yaml
-        [✓] cp "{{index .Outputs.Rendered "Cluster/platform-aws-rds"}}" golden_single_resource.yaml
+        [✓] cp "{{.Outputs.Render}}" ../6_assertions/golden_full_render.yaml
+        [✓] cp "{{index .Outputs.Rendered "Cluster/platform-aws-rds"}}" ../6_assertions/golden_single_resource.yaml
+PASS
+ok	examples/mytests/0_e2e/generate_golden_files_xprin.yaml	X.XXXs
 === RUN   Successful test with hooks, validation, and assertions
 --- PASS: Successful test with hooks, validation, and assertions (X.XXXs)
     Pre-test Hooks:
@@ -30,14 +32,7 @@
     Assertions:
         [✓] Number of resources - found 3 resources (as expected)
         [✓] SecurityGroup should exist - resources found: SecurityGroup/platform-aws-sg
-        [✓] RDS should exist - resources found: Cluster/platform-aws-rds
-        [✓] SecurityGroup should have a name - field metadata.name exists on resource SecurityGroup/platform-aws-sg
-        [✓] SecurityGroup description should be string - field spec.forProvider.description has expected type string on resource SecurityGroup/platform-aws-sg
-        [✓] Full render matches golden (using diff) - files match
-        [✓] Cluster resource matches golden (using diff) - files match
-        [✓] Full render matches golden (using dyff) - files match
-        [✓] Cluster resource matches golden (using dyff) - files match
-        Total: 9 assertions, 9 successful, 0 failed, 0 errors
+        Total: 2 assertions, 2 successful, 0 failed, 0 errors
     Post-test Hooks:
         [✓] Post-test hook
             running post-test hook
@@ -66,3 +61,72 @@
             All 3 CRDs present (not overwritten)
 PASS
 ok	examples/mytests/0_e2e/success_xprin.yaml	X.XXXs
+=== RUN   Second reconciliation loop
+--- PASS: Second reconciliation loop (X.XXXs)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        ├── Cluster/platform-aws-rds
+        └── SecurityGroup/platform-aws-sg
+    Assertions:
+        [✓] Number of all rendered resources (including XR) - found 3 resources (as expected)
+        [✓] Exactly 1 resource of a certain Kind/Name should exist - found 1 resources (as expected): SecurityGroup/platform-aws-sg
+        [✓] Exactly 0 resources of a certain Kind/Name (basically - resource should not exist) - found 0 resources (as expected)
+        [✓] At least 1 SecurityGroup should exist - resources found: SecurityGroup/platform-aws-sg
+        [✓] RDS cluster named platform-aws-rds should exist - resources found: Cluster/platform-aws-rds
+        [✓] EC2 with a certain name should not exist - resource EC2/platform-aws-ec2 not found (as expected)
+        [✓] No EC2 instances should exist - resource EC2 not found (as expected)
+        [✓] SecurityGroup should have a name - field metadata.name exists on resource SecurityGroup/platform-aws-sg
+        [✓] RDS should not have deprecated field - field spec.deprecatedField does not exist (as expected) on resource Cluster/platform-aws-rds
+        [✓] SecurityGroup description should be string - field spec.forProvider.description has expected type string on resource SecurityGroup/platform-aws-sg
+        [✓] RDS backupRetentionPeriod should be number - field spec.forProvider.backupRetentionPeriod has expected type number on resource Cluster/platform-aws-rds
+        [✓] RDS vpcSecurityGroupIds should be array - field spec.forProvider.vpcSecurityGroupIds has expected type array on resource Cluster/platform-aws-rds
+        [✓] SecurityGroup metadata labels should be object - field metadata.labels has expected type object on resource SecurityGroup/platform-aws-sg
+        [✓] RDS masterPasswordSecretRef should be object - field spec.forProvider.masterPasswordSecretRef has expected type object on resource Cluster/platform-aws-rds
+        [✓] RDS storageEncrypted should be boolean - field spec.forProvider.storageEncrypted has expected type boolean on resource Cluster/platform-aws-rds
+        [✓] XR optionalNote should be null - field spec.optionalNote has expected type null on resource XAWSInfrastructure/platform-aws
+        [✓] RDS should be Aurora PostgreSQL - field spec.forProvider.engine is aurora-postgresql on resource Cluster/platform-aws-rds
+        [✓] RDS backupRetentionPeriod should equal 1 - field spec.forProvider.backupRetentionPeriod == 1 on resource Cluster/platform-aws-rds
+        Total: 18 assertions, 18 successful, 0 failed, 0 errors
+PASS
+ok	examples/mytests/6_assertions/example1_assertions_xprin.yaml	X.XXXs
+=== RUN   Second reconciliation loop (with patterns)
+--- PASS: Second reconciliation loop (with patterns) (X.XXXs)
+    Pre-test Hooks:
+        [✓] Set RDS status in XR
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        ├── Instance/platform-aws-primary-ec2
+        ├── Cluster/platform-aws-rds
+        ├── Instance/platform-aws-secondary-ec2
+        └── SecurityGroup/platform-aws-sg
+    Assertions:
+        [✓] Exactly 2 Instance resources with '-ec2' suffix should exist - found 2 resources (as expected): Instance/platform-aws-primary-ec2, Instance/platform-aws-secondary-ec2
+        [✓] SecurityGroup should exist - resources found: SecurityGroup/platform-aws-sg
+        [✓] RDS should exist - resources found: Cluster/platform-aws-rds
+        [✓] No EC2 instances should exist - resource EC2 not found (as expected)
+        [✓] No EC2 should not exist (alternative) - resource EC2/* not found (as expected)
+        [✓] All resources should have a name set - field metadata.name exists on resource Cluster/platform-aws-rds
+        [✓] All resources should have a name set - field metadata.name exists on resource Instance/platform-aws-primary-ec2
+        [✓] All resources should have a name set - field metadata.name exists on resource Instance/platform-aws-secondary-ec2
+        [✓] All resources should have a name set - field metadata.name exists on resource SecurityGroup/platform-aws-sg
+        [✓] All resources should have a name set - field metadata.name exists on resource XAWSInfrastructure/platform-aws
+        [✓] RDS of a certain name pattern should not have deprecated field - field spec.deprecatedField does not exist (as expected) on resource Cluster/platform-aws-rds
+        [✓] Every kind with a certain name should have descrption field - field spec.forProvider.description has expected type string on resource SecurityGroup/platform-aws-sg
+        [✓] Instance resources with '-primary-ec2' suffix should be 't2.micro' - field spec.forProvider.instanceType == t2.micro on resource Instance/platform-aws-primary-ec2
+        Total: 13 assertions, 13 successful, 0 failed, 0 errors
+PASS
+ok	examples/mytests/6_assertions/example2_assertions_pattern_xprin.yaml	X.XXXs
+=== RUN   Successful assertions against golden files
+--- PASS: Successful assertions against golden files (X.XXXs)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        ├── Cluster/platform-aws-rds
+        └── SecurityGroup/platform-aws-sg
+    Assertions:
+        [✓] Full render matches golden (using diff) - files match
+        [✓] Cluster resource matches golden (using diff) - files match
+        [✓] Full render matches golden (using dyff) - files match
+        [✓] Cluster resource matches golden (using dyff) - files match
+        Total: 4 assertions, 4 successful, 0 failed, 0 errors
+PASS
+ok	examples/mytests/6_assertions/example3_golden_file_xprin.yaml	X.XXXs

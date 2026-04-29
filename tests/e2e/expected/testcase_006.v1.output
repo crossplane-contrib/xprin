@@ -60,12 +60,20 @@
 --- FAIL: Assertion failure (X.XXXs)
     Assertions:
         [x] Resource count should be zero - expected 0 resources, got 2
-        [!] Wrong resource name - no rendered resource matched the given name Cluster/doesnotexist
+        [!] FieldExists with wrong resource name - no rendered resource matched the given name Cluster/doesnotexist
+        [x] FieldExists with non-existent field - field spec.forProvider.nonExistentField does not exist on resource SecurityGroup/platform-aws-sg
+        [x] Count with pattern expects too many Pods - expected 99 resources, got 0
+        [x] Exists with pattern finds nothing - resource Deployment/will-never-exist-* not found
+        [!] FieldExists pattern matches nothing - no rendered resource matched the given name Cluster/no-such-name-*
+        [x] NotExists should fail - SecurityGroup exists - resources found (should not exist): SecurityGroup/platform-aws-sg
+        [x] FieldNotExists should fail - metadata.name exists - field metadata.name exists (should not exist) on resource SecurityGroup/platform-aws-sg
+        [x] FieldType should fail - wrong type - field metadata.name has type string, expected number on resource SecurityGroup/platform-aws-sg
+        [x] FieldValue should fail - wrong value - field metadata.name is platform-aws-sg, expected == wrong-value on resource SecurityGroup/platform-aws-sg
         [x] Full render matches golden (using diff)
             --- golden_full_render.yaml
             +++ rendered.yaml
-            @@ -10,7 +10,7 @@
-               dbUsername: admin
+            @@ -11,7 +11,7 @@
+               optionalNote: null
                region: us-west-2
                sshPublicKey: qa_ssh_key
             -  team: doesnotexist
@@ -113,7 +121,7 @@
 
         [!] Failed to get golden file - read expected file: open /examples/mytests/0_e2e/doesnotexist.yaml: no such file or directory
         [!] Wrong resource name - resource "SecurityGroup/doesnotexist" not found in render output
-        Total: 11 assertions, 1 successful, 5 failed, 5 errors
+        Total: 19 assertions, 1 successful, 12 failed, 6 errors
 === RUN   Failed validation and assertion
 --- FAIL: Failed validation and assertion (X.XXXs)
     Validate:

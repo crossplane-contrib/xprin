@@ -103,7 +103,7 @@ tests:
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
     Assertions:
         [✓] Number of resources - found 3 resources (as expected)
-        [✓] SecurityGroup should exist - resource SecurityGroup/platform-aws-sg found
+        [✓] SecurityGroup should exist - resources found: SecurityGroup/platform-aws-sg
         [✓] Full render matches golden (using diff) - files match
         Total: 3 assertions, 3 successful, 0 failed, 0 errors
     Post-test Hooks:

@@ -7,14 +7,6 @@ tests:
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     observed-resources: ../../aws/observed
-    crds:
-    - ../../aws/xrd.yaml
-    - ../../aws/crossplane.yaml
-  hooks:
-    pre-test:
-    - run: echo "Running pre-test hook"
-    post-test:
-    - run: echo "Running post-test hook"
 
   assertions:
     xprin:
@@ -91,10 +83,17 @@ tests:
       field: "spec.forProvider.masterPasswordSecretRef"
       value: "object"
 
-    - name: "RDS finalSnapshotIdentifier should not exist"
-      type: "FieldNotExists"
+    - name: "RDS storageEncrypted should be boolean"
+      type: "FieldType"
       resource: "Cluster/platform-aws-rds"
-      field: "spec.forProvider.finalSnapshotIdentifier"
+      field: "spec.forProvider.storageEncrypted"
+      value: "boolean"
+
+    - name: "XR optionalNote should be null"
+      type: "FieldType"
+      resource: "XAWSInfrastructure/platform-aws"
+      field: "spec.optionalNote"
+      value: "null"
 
     # FieldValue assertions
     - name: "RDS should be Aurora PostgreSQL"
