@@ -34,4 +34,11 @@ type Options struct {
 	IsV1CLI           bool
 	IsLegacyCLI       bool
 	CrossplaneVersion string
+	// WorkingDir is the process working directory captured once at xprin test start.
+	// Used for display paths in test output and for computing testsuite relpaths in artifact export.
+	WorkingDir string
+	// Artifact export: ArtifactsBaseDir is the user-supplied parent directory; empty disables export.
+	// ArtifactsRunDir is set lazily to <parent>/xprin-artifacts-<YYYYMMDDHHMMSS>/ on first test run.
+	ArtifactsBaseDir string
+	ArtifactsRunDir  string
 }

@@ -18,6 +18,8 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/alecthomas/kong"
@@ -31,23 +33,33 @@ import (
 
 // Cmd represents the test subcommand.
 type Cmd struct {
-	Targets           []string            `arg:""                                                                                                                          help:"One or more test targets: individual files (e.g., 'tests/aws_xprin.yaml'), directories (e.g., 'tests/aws/'), or recursive directories (e.g., 'tests/aws/...'). Files must be named 'xprin.yaml' or '*_xprin.yaml'"`
-	ShowRender        bool                `help:"Display a list of the rendered resources in Kind/Name format. Requires --verbose."                                        name:"show-render"`
-	ShowValidate      bool                `help:"Display validation results for each resource. Requires --verbose."                                                        name:"show-validate"`
-	ShowHooks         bool                `help:"Display the execution hooks for each test case. Requires --verbose."                                                      name:"show-hooks"`
-	ShowAssertions    bool                `help:"Display assertion results for each test case. Requires --verbose."                                                        name:"show-assertions"`
-	Verbose           bool                `help:"Show verbose test output (RUN, PASS/FAIL, etc.). Independent of -q; can be used together."                                short:"v"`
-	Quiet             bool                `help:"Suppress '[no testsuite files]' and '[no test cases found]' messages. Independent of -v; does not reduce verbose output." name:"quiet"                                                                                                                                                                                                             short:"q"`
+	Targets           []string            `arg:""                                                                                                                                                                    help:"One or more test targets: individual files (e.g., 'tests/aws_xprin.yaml'), directories (e.g., 'tests/aws/'), or recursive directories (e.g., 'tests/aws/...'). Files must be named 'xprin.yaml' or '*_xprin.yaml'"`
+	ShowRender        bool                `help:"Display a list of the rendered resources in Kind/Name format. Requires --verbose."                                                                                  name:"show-render"`
+	ShowValidate      bool                `help:"Display validation results for each resource. Requires --verbose."                                                                                                  name:"show-validate"`
+	ShowHooks         bool                `help:"Display the execution hooks for each test case. Requires --verbose."                                                                                                name:"show-hooks"`
+	ShowAssertions    bool                `help:"Display assertion results for each test case. Requires --verbose."                                                                                                  name:"show-assertions"`
+	Verbose           bool                `help:"Show verbose test output (RUN, PASS/FAIL, etc.). Independent of -q; can be used together."                                                                          short:"v"`
+	Quiet             bool                `help:"Suppress '[no testsuite files]' and '[no test cases found]' messages. Independent of -v; does not reduce verbose output."                                           name:"quiet"                                                                                                                                                                                                             short:"q"`
 	Debug             bool                `help:"Show detailed debug information about test discovery, path resolution, and execution"`
-	Color             string              `default:"auto"                                                                                                                  enum:"on,off,auto"                                                                                                                                                                                                       help:"Specify color usage: on, off, or auto (default auto)." name:"color"`
-	CrossplaneVersion string              `help:"Version of the Crossplane controller image, passed at both render and validate."                                          name:"crossplane-version"`
+	Color             string              `default:"auto"                                                                                                                                                            enum:"on,off,auto"                                                                                                                                                                                                       help:"Specify color usage: on, off, or auto (default auto)." name:"color"`
+	CrossplaneVersion string              `help:"Version of the Crossplane controller image, passed at both render and validate."                                                                                    name:"crossplane-version"`
+	ArtifactsBaseDir  string              `help:"Parent directory for exported test artifacts. Each invocation creates <dir>/xprin-artifacts-<YYYYMMDDHHMMSS>/ containing inputs/ and outputs/ for every test case." name:"artifacts-dir"                                                                                                                                                                                                     short:"a"`
 	Config            *internalcfg.Config `kong:"-"`
+	cwd               string
 	fs                afero.Fs
 }
 
 // AfterApply implements kong.AfterApply.
 func (c *Cmd) AfterApply() error {
 	c.fs = afero.NewOsFs()
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	c.cwd = cwd
+
 	return nil
 }
 
@@ -121,5 +133,7 @@ func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionUtils.Options {
 		IsV1CLI:           cfg.IsV1CLI,
 		IsLegacyCLI:       cfg.IsLegacyCLI,
 		CrossplaneVersion: c.CrossplaneVersion,
+		WorkingDir:        c.cwd,
+		ArtifactsBaseDir:  c.ArtifactsBaseDir,
 	}
 }
