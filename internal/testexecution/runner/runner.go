@@ -418,7 +418,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 
 	// Copy all inputs to the temporary inputs directory
 	if testCase.HasXR() {
-		testCase.Inputs.XR, err = r.copyInput(testCase.Inputs.XR, "xr")
+		testCase.Inputs.XR, err = r.copyXRInput(testCase.Inputs.XR, testCase.Inputs.ObservedResources)
 		if err != nil {
 			return result.Fail(err)
 		}
