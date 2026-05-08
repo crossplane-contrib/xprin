@@ -30,7 +30,7 @@ Converts Crossplane Claims to XRs so they can be used with `crossplane render`. 
 **Key features:**
 - Automatic kind conversion (Claim → XClaim)
 - Optional direct XR creation (no Claim references)
-- Custom kind support
+- Custom kind, name, and `metadata.uid` support
 - Integration with `crossplane render`
 
 [📖 Full Documentation](xprin-helpers/convert-claim-to-xr.md)

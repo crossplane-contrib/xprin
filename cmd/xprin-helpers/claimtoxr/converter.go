@@ -19,6 +19,7 @@ package claimtoxr
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apiserver/pkg/storage/names"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -41,8 +42,28 @@ const (
 	labelComposite      = "crossplane.io/composite"
 )
 
+// Options configures ConvertClaimToXR.
+type Options struct {
+	// Name is the XR name. Empty falls back to:
+	//   - claim.Name when Direct is true
+	//   - claim.Name with a random suffix when Direct is false
+	// A non-empty Name overrides both fallbacks.
+	Name string
+
+	// Kind is the XR kind. Empty defaults to "X" + claim.Kind.
+	Kind string
+
+	// Direct controls XR linkage to the claim:
+	//   - true:  no spec.claimRef; no claim-name/claim-namespace labels
+	//   - false: spec.claimRef is set; claim-name/claim-namespace labels added
+	Direct bool
+
+	// GenerateUID, when true, sets metadata.uid to a fresh random UUID.
+	GenerateUID bool
+}
+
 // ConvertClaimToXR converts a Crossplane Claim to a Composite Resource (XR).
-func ConvertClaimToXR(claim *unstructured.Unstructured, kind string, direct bool) (*unstructured.Unstructured, error) {
+func ConvertClaimToXR(claim *unstructured.Unstructured, opts Options) (*composite.Unstructured, error) {
 	if claim == nil {
 		return nil, errors.New(errNilInput)
 	}
@@ -92,7 +113,8 @@ func ConvertClaimToXR(claim *unstructured.Unstructured, kind string, direct bool
 		return nil, errors.Wrap(err, "failed to set apiVersion")
 	}
 
-	// Set XR kind - either from flag or by prepending X to Claim's kind
+	// Set XR kind - either from opts or by prepending X to Claim's kind
+	kind := opts.Kind
 	if kind == "" {
 		kind = "X" + claimKind
 	}
@@ -113,7 +135,7 @@ func ConvertClaimToXR(claim *unstructured.Unstructured, kind string, direct bool
 
 	xrName := claimName
 
-	if !direct {
+	if !opts.Direct {
 		xrName = names.SimpleNameGenerator.GenerateName(claimName + "-")
 		labels[labelClaimName] = claim.GetName()
 
@@ -128,6 +150,11 @@ func ConvertClaimToXR(claim *unstructured.Unstructured, kind string, direct bool
 		}
 	}
 
+	// Explicit Name overrides both Direct's claim-name default and the generated suffix.
+	if opts.Name != "" {
+		xrName = opts.Name
+	}
+
 	if err := xrPaved.SetString("metadata.name", xrName); err != nil {
 		return nil, errors.Wrap(err, "failed to set name")
 	}
@@ -140,6 +167,9 @@ func ConvertClaimToXR(claim *unstructured.Unstructured, kind string, direct bool
 		}
 	}
 
-	// Convert from composite.Unstructured to unstructured.Unstructured
-	return &unstructured.Unstructured{Object: xr.UnstructuredContent()}, nil
+	if opts.GenerateUID {
+		xr.SetUID(uuid.NewUUID())
+	}
+
+	return xr, nil
 }

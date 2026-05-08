@@ -115,7 +115,7 @@ func (r *Runner) convertClaimToXR(claimPath, outputPath string) (string, error) 
 		utils.DebugPrintf("Converting Claim to XR\n")
 	}
 
-	xr, err := claimtoxr.ConvertClaimToXR(claim, "", false)
+	xr, err := claimtoxr.ConvertClaimToXR(claim, claimtoxr.Options{})
 	if err != nil {
 		return "", fmt.Errorf("failed to convert claim to XR: %w", err)
 	}
