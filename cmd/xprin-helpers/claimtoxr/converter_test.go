@@ -212,15 +212,15 @@ func generateExpectedXR(claim *unstructured.Unstructured, kind string, direct bo
 
 func TestConvertClaimToXR(t *testing.T) {
 	type args struct {
-		claim  *unstructured.Unstructured
-		kind   string
-		direct bool
+		claim *unstructured.Unstructured
+		opts  Options
 	}
 
 	type want struct {
-		xr      *unstructured.Unstructured
-		err     error
-		nameLen int // Length of the generated name, for validation of suffix length
+		xr        *unstructured.Unstructured
+		err       error
+		nameLen   int  // Length of the generated name, for validation of suffix length
+		expectUID bool // Whether the result should have a non-empty metadata.uid
 	}
 
 	cases := map[string]struct {
@@ -231,9 +231,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"NilClaim": {
 			reason: "Should return error when Claim is nil",
 			args: args{
-				claim:  nil,
-				kind:   "",
-				direct: false,
+				claim: nil,
+				opts:  Options{},
 			},
 			want: want{
 				xr:  nil,
@@ -243,9 +242,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"EmptyObject": {
 			reason: "Should return error when Claim object is nil",
 			args: args{
-				claim:  &unstructured.Unstructured{},
-				kind:   "",
-				direct: false,
+				claim: &unstructured.Unstructured{},
+				opts:  Options{},
 			},
 			want: want{
 				xr:  nil,
@@ -255,9 +253,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"Direct": {
 			reason: "Should keep original name when Direct is true",
 			args: args{
-				claim:  testClaim,
-				kind:   "",
-				direct: true,
+				claim: testClaim,
+				opts:  Options{Direct: true},
 			},
 			want: want{
 				xr:      generateExpectedXR(testClaim, "", true),
@@ -268,9 +265,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"NotDirect": {
 			reason: "Should append random suffix when Direct is false",
 			args: args{
-				claim:  testClaim,
-				kind:   "",
-				direct: false,
+				claim: testClaim,
+				opts:  Options{},
 			},
 			want: want{
 				xr:      generateExpectedXR(testClaim, "", false),
@@ -281,9 +277,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"ErrNoAPIVersion": {
 			reason: "Should return error when Claim has no apiVersion",
 			args: args{
-				claim:  generateTestClaim(withoutMandatoryField("apiVersion")),
-				kind:   "",
-				direct: false,
+				claim: generateTestClaim(withoutMandatoryField("apiVersion")),
+				opts:  Options{},
 			},
 			want: want{
 				xr:  nil,
@@ -293,9 +288,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"InvalidAPIVersion": {
 			reason: "Should return error for invalid API version",
 			args: args{
-				claim:  testClaimInvalidAPIVersion,
-				kind:   "",
-				direct: false,
+				claim: testClaimInvalidAPIVersion,
+				opts:  Options{},
 			},
 			want: want{
 				xr:  nil,
@@ -305,9 +299,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"ErrNoKind": {
 			reason: "Should return error when Claim has no kind",
 			args: args{
-				claim:  generateTestClaim(withoutMandatoryField("kind")),
-				kind:   "",
-				direct: false,
+				claim: generateTestClaim(withoutMandatoryField("kind")),
+				opts:  Options{},
 			},
 			want: want{
 				xr:  nil,
@@ -317,9 +310,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"ErrNoSpec": {
 			reason: "Should return error when Claim has no spec",
 			args: args{
-				claim:  generateTestClaim(withoutMandatoryField("spec")),
-				kind:   "",
-				direct: false,
+				claim: generateTestClaim(withoutMandatoryField("spec")),
+				opts:  Options{},
 			},
 			want: want{
 				xr:  nil,
@@ -329,9 +321,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"PreservesComplexSpec": {
 			reason: "Should preserve complex spec fields and their native types when converting from Claim to XR",
 			args: args{
-				claim:  testClaimWithComplexSpec,
-				kind:   "",
-				direct: true,
+				claim: testClaimWithComplexSpec,
+				opts:  Options{Direct: true},
 			},
 			want: want{
 				err: nil,
@@ -369,9 +360,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"StandardLabelsWithoutExistingLabels": {
 			reason: "Should add standard Crossplane labels when no other labels exist",
 			args: args{
-				claim:  testClaim,
-				kind:   "",
-				direct: false,
+				claim: testClaim,
+				opts:  Options{},
 			},
 			want: want{
 				err:     nil,
@@ -388,8 +378,7 @@ func TestConvertClaimToXR(t *testing.T) {
 						labelClaimName:   "old-value",
 					}),
 				),
-				kind:   "",
-				direct: false,
+				opts: Options{},
 			},
 			want: want{
 				err: nil,
@@ -420,9 +409,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"WithAnnotations": {
 			reason: "Should properly copy annotations from Claim to XR",
 			args: args{
-				claim:  testClaimWithAnnotations,
-				kind:   "",
-				direct: true,
+				claim: testClaimWithAnnotations,
+				opts:  Options{Direct: true},
 			},
 			want: want{
 				err: nil,
@@ -444,9 +432,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"NoNamespaceInXR": {
 			reason: "Should not include namespace in XR metadata as XRs are cluster-scoped",
 			args: args{
-				claim:  testClaim,
-				kind:   "",
-				direct: false,
+				claim: testClaim,
+				opts:  Options{},
 			},
 			want: want{
 				err: nil,
@@ -456,9 +443,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"CustomKindFlag": {
 			reason: "Should use provided kind instead of deriving from Claim kind",
 			args: args{
-				claim:  testClaim,
-				kind:   "CustomKind",
-				direct: false,
+				claim: testClaim,
+				opts:  Options{Kind: "CustomKind"},
 			},
 			want: want{
 				xr:  generateExpectedXR(testClaim, "CustomKind", false),
@@ -468,9 +454,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"DirectCustomKindFlag": {
 			reason: "Direct XR should use provided kind instead of deriving from Claim kind",
 			args: args{
-				claim:  testClaim,
-				kind:   "CustomKind",
-				direct: true,
+				claim: testClaim,
+				opts:  Options{Kind: "CustomKind", Direct: true},
 			},
 			want: want{
 				xr:  generateExpectedXR(testClaim, "CustomKind", true),
@@ -480,9 +465,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"DirectNoLabels": {
 			reason: "Direct XR should have no Crossplane labels",
 			args: args{
-				claim:  testClaim,
-				kind:   "",
-				direct: true,
+				claim: testClaim,
+				opts:  Options{Direct: true},
 			},
 			want: want{
 				xr: &unstructured.Unstructured{
@@ -502,9 +486,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"DirectWithExistingLabels": {
 			reason: "Direct XR should keep existing labels but not add Crossplane labels",
 			args: args{
-				claim:  testClaimWithLabels,
-				kind:   "",
-				direct: true,
+				claim: testClaimWithLabels,
+				opts:  Options{Direct: true},
 			},
 			want: want{
 				xr: &unstructured.Unstructured{
@@ -527,9 +510,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"LabelsShouldMatchGeneratedName": {
 			reason: "Labels should match the generated name in XR",
 			args: args{
-				claim:  testClaim,
-				kind:   "",
-				direct: false,
+				claim: testClaim,
+				opts:  Options{},
 			},
 			want: want{
 				xr:      generateExpectedXR(testClaim, "", false),
@@ -540,9 +522,8 @@ func TestConvertClaimToXR(t *testing.T) {
 		"CopyAllSpecFields": {
 			reason: "Should copy all spec fields from Claim to XR, preserving types",
 			args: args{
-				claim:  testClaimWithMultiFieldSpec,
-				kind:   "",
-				direct: true,
+				claim: testClaimWithMultiFieldSpec,
+				opts:  Options{Direct: true},
 			},
 			want: want{
 				err: nil,
@@ -569,11 +550,77 @@ func TestConvertClaimToXR(t *testing.T) {
 				},
 			},
 		},
+		"ExplicitNameOverridesDirectDefault": {
+			reason: "Explicit Name should override the Direct-mode claim-name default",
+			args: args{
+				claim: testClaim,
+				opts:  Options{Name: "my-xr", Direct: true},
+			},
+			want: want{
+				err:     nil,
+				nameLen: len("my-xr"),
+				xr: &unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XTestApp",
+						"metadata": map[string]any{
+							"name": "my-xr",
+						},
+						"spec": map[string]any{},
+					},
+				},
+			},
+		},
+		"ExplicitNameOverridesGeneratedSuffix": {
+			reason: "Explicit Name should override the non-Direct random-suffix name; claimRef and labels remain",
+			args: args{
+				claim: testClaim,
+				opts:  Options{Name: "my-xr"},
+			},
+			want: want{
+				err:     nil,
+				nameLen: len("my-xr"),
+				xr: &unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "example.org/v1alpha1",
+						"kind":       "XTestApp",
+						"metadata": map[string]any{
+							"name": "my-xr",
+							"labels": map[string]any{
+								labelClaimName:      "test-app",
+								labelClaimNamespace: "myclaims",
+							},
+						},
+						"spec": map[string]any{
+							"claimRef": map[string]any{
+								"apiVersion": "example.org/v1alpha1",
+								"kind":       "TestApp",
+								"name":       "test-app",
+								"namespace":  "myclaims",
+							},
+						},
+					},
+				},
+			},
+		},
+		"GenerateUID": {
+			reason: "GenerateUID should set a non-empty metadata.uid",
+			args: args{
+				claim: testClaim,
+				opts:  Options{Direct: true, GenerateUID: true},
+			},
+			want: want{
+				err:       nil,
+				nameLen:   len("test-app"),
+				expectUID: true,
+				// xr left nil; UID is randomly generated so we validate via expectUID and ignore the rest.
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := ConvertClaimToXR(tc.args.claim, tc.args.kind, tc.args.direct)
+			got, err := ConvertClaimToXR(tc.args.claim, tc.args.opts)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConvertClaimToXR(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -586,7 +633,7 @@ func TestConvertClaimToXR(t *testing.T) {
 					return false
 				}
 				// Ignore generated name suffixes and composite label values
-				if key == "name" && v.(string) != "test-app" {
+				if key == "name" && v.(string) != "test-app" && v.(string) != "my-xr" {
 					return true
 				}
 
@@ -594,10 +641,18 @@ func TestConvertClaimToXR(t *testing.T) {
 					return true
 				}
 
+				// UID is random; compare separately via expectUID.
+				if key == "uid" {
+					return true
+				}
+
 				return false
 			})
-			if diff := cmp.Diff(tc.want.xr, got, opt); diff != "" {
-				t.Errorf("\n%s\nConvertClaimToXR(...): -want, +got:\n%s", tc.reason, diff)
+			if tc.want.xr != nil {
+				// got is *composite.Unstructured; compare against the want *unstructured.Unstructured by Object map.
+				if diff := cmp.Diff(tc.want.xr.Object, got.UnstructuredContent(), opt); diff != "" {
+					t.Errorf("\n%s\nConvertClaimToXR(...): -want, +got:\n%s", tc.reason, diff)
+				}
 			}
 
 			// Verify name length if specified in test case
@@ -613,6 +668,13 @@ func TestConvertClaimToXR(t *testing.T) {
 
 				if len(gotName) != tc.want.nameLen {
 					t.Errorf("\n%s\nName length mismatch: want %d, got %d", tc.reason, tc.want.nameLen, len(gotName))
+				}
+			}
+
+			// Verify UID was set when expected
+			if tc.want.expectUID {
+				if got == nil || got.GetUID() == "" {
+					t.Errorf("\n%s\nExpected non-empty metadata.uid, got empty", tc.reason)
 				}
 			}
 		})

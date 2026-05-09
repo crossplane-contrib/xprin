@@ -14,8 +14,10 @@ See [Installation](../xprin-helpers.md#installation).
 
 | Option | Description |
 |--------|-------------|
+| `--name=NAME` | Custom name for the XR. Overrides the default behavior (Claim name in direct mode, Claim name + random suffix in non-direct mode) |
 | `--kind=KIND` | Custom kind for the XR (default: "X" + Claim kind) |
 | `--direct` | Create direct XR without Claim references |
+| `--gen-uid` | Set a fresh random `metadata.uid` on the generated XR |
 | `-o, --output-file=PATH` | Output file (default: stdout) |
 | `--version` | Print version information |
 
@@ -35,14 +37,20 @@ The last two show the relation between the Claim and the XR.
 # Convert claim.yaml to XR format and write to stdout (kind will be 'X' + Claim's kind)
 xprin-helpers convert-claim-to-xr claim.yaml
 
-# Convert claim.yaml to XR format with a specific kind
-xprin-helpers convert-claim-to-xr claim.yaml --kind MyCompositeResource
-
 # Convert claim.yaml to XR format and write to xr.yaml
 xprin-helpers convert-claim-to-xr claim.yaml -o xr.yaml
 
+# Convert claim.yaml using an explicit XR name (overrides the default suffix or claim name)
+xprin-helpers convert-claim-to-xr claim.yaml --name my-xr
+
+# Convert claim.yaml to XR format with a specific kind
+xprin-helpers convert-claim-to-xr claim.yaml --kind MyCompositeResource
+
 # Convert claim.yaml to a directly created XR (no Claim references, no name suffix)
 xprin-helpers convert-claim-to-xr claim.yaml --direct
+
+# Convert claim.yaml and assign a fresh random metadata.uid to the XR
+xprin-helpers convert-claim-to-xr claim.yaml --gen-uid
 
 # Convert Claim from stdin to XR format
 cat claim.yaml | xprin-helpers convert-claim-to-xr -
