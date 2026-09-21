@@ -18,9 +18,6 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/alecthomas/kong"
 	configtypes "github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/crossplane-contrib/xprin/internal/utils"
@@ -43,8 +40,9 @@ func (c *Cmd) AfterApply() error {
 
 // Run executes the config subcommand.
 func (c *Cmd) Run(_ *kong.Context) error {
-	// combine all error messages
-	var allErrors []string
+	if c.Check {
+		return configtypes.RunCheck(c.Config, c.ConfigPath, false)
+	}
 
 	if c.ConfigPath == "" {
 		utils.OutputPrintf("No global configuration file provided. Using detected dependencies and default settings...\n")
@@ -52,33 +50,10 @@ func (c *Cmd) Run(_ *kong.Context) error {
 		utils.OutputPrintf("Configuration file: %s\n", c.ConfigPath)
 	}
 
-	if c.Check {
-		if err := c.Config.CheckDependencies(); err != nil {
-			allErrors = append(allErrors, err.Error())
-		}
-
-		if err := c.Config.CheckSubcommands(); err != nil {
-			allErrors = append(allErrors, err.Error())
-		}
-
-		if err := c.Config.CheckRepositories(); err != nil {
-			allErrors = append(allErrors, err.Error())
-		}
-
-		if len(allErrors) > 0 {
-			return fmt.Errorf("error: configuration check failed:\n%s", strings.Join(allErrors, "\n"))
-		}
-	}
-
 	utils.OutputPrintf("\nDependencies:\n")
 
 	for name, value := range c.Config.Dependencies {
-		dependencyValue := value
-		if c.Check {
-			dependencyValue = configtypes.FormatDependencyValue(value, c.ConfigPath != "")
-		}
-
-		utils.OutputPrintf("- %s: %s\n", name, dependencyValue)
+		utils.OutputPrintf("- %s: %s\n", name, value)
 	}
 
 	if c.Config.Subcommands != nil {
@@ -99,10 +74,6 @@ func (c *Cmd) Run(_ *kong.Context) error {
 		for name, path := range c.Config.Repositories {
 			utils.OutputPrintf("- %s: %s\n", name, path)
 		}
-	}
-
-	if c.Check {
-		utils.OutputPrintf("\nOK: dependencies and settings verified\n")
 	}
 
 	return nil
