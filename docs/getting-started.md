@@ -108,7 +108,7 @@ xprin -c /path/to/config.yaml config --check
 xprin -c /path/to/config.yaml test tests/
 ```
 
-**Dependency display:** `xprin config` prints dependency values exactly as in your config file. `xprin check` and `xprin config --check` resolve dependency paths (e.g. command names like `crossplane` are resolved to their absolute path via `PATH`) and append ` (from PATH)` when the binary was found in `PATH`, so you can see which executable is used.
+**Dependency display:** `xprin config` prints dependency values exactly as written in your config file. If no config file is found, it reports "No configuration file provided." and exits. `xprin check` and `xprin config --check` resolve dependency paths (e.g. command names like `crossplane` are resolved to their absolute path via `PATH`) and append ` (from PATH)` when the binary was found in `PATH`, so you can see which executable is used.
 
 ---
 

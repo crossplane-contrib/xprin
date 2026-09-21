@@ -114,7 +114,7 @@ func (c *Config) CheckDependencies() error {
 }
 
 // FormatDependencyValue returns the dependency value formatted for display, including " (from PATH)" when resolved from PATH.
-// When fromConfig is false (Fallback), value is already the resolved path; return value + " (from PATH)".
+// When fromConfig is false (Fallback), value is already the resolved absolute path; return value + " (from PATH)".
 // When fromConfig is true (config file): absolute path → path; command name → resolve via LookPath, path + " (from PATH)" or value on error.
 func FormatDependencyValue(value string, fromConfig bool) string {
 	const fromPATH = " (from PATH)"
@@ -138,6 +138,72 @@ func FormatDependencyValue(value string, fromConfig bool) string {
 	}
 
 	return resolved + fromPATH
+}
+
+// RunCheck validates the config and prints the results. It is the shared implementation
+// used by both xprin check and xprin config --check.
+func RunCheck(cfg *Config, configPath string, quiet bool) error {
+	if !quiet {
+		if configPath == "" {
+			utils.OutputPrintf("No global configuration file provided. Using detected dependencies and default settings...\n")
+		} else {
+			utils.OutputPrintf("Configuration file: %s\n", configPath)
+		}
+	}
+
+	var allErrors []string
+
+	if err := cfg.CheckDependencies(); err != nil {
+		allErrors = append(allErrors, err.Error())
+	}
+
+	if err := cfg.CheckSubcommands(); err != nil {
+		allErrors = append(allErrors, err.Error())
+	}
+
+	if err := cfg.CheckRepositories(); err != nil {
+		allErrors = append(allErrors, err.Error())
+	}
+
+	if len(allErrors) > 0 {
+		return fmt.Errorf("error: configuration check failed:\n%s", strings.Join(allErrors, "\n"))
+	}
+
+	if quiet {
+		return nil
+	}
+
+	fromConfig := configPath != ""
+
+	utils.OutputPrintf("\nDependencies:\n")
+
+	for name, value := range cfg.Dependencies {
+		utils.OutputPrintf("- %s: %s\n", name, FormatDependencyValue(value, fromConfig))
+	}
+
+	if cfg.Subcommands != nil {
+		utils.OutputPrintf("\nSubcommands:\n")
+
+		if cfg.Subcommands.Render != "" {
+			utils.OutputPrintf("- render: %s\n", cfg.Subcommands.Render)
+		}
+
+		if cfg.Subcommands.Validate != "" {
+			utils.OutputPrintf("- validate: %s\n", cfg.Subcommands.Validate)
+		}
+	}
+
+	if len(cfg.Repositories) > 0 {
+		utils.OutputPrintf("\nRepositories:\n")
+
+		for name, path := range cfg.Repositories {
+			utils.OutputPrintf("- %s: %s\n", name, path)
+		}
+	}
+
+	utils.OutputPrintf("\nOK: dependencies and settings verified\n")
+
+	return nil
 }
 
 // CheckSubcommands checks if the subcommands.render and subcommands.validate are valid.
