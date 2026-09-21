@@ -74,7 +74,8 @@ subcommands:
 Check your configuration:
 
 ```bash
-# Display current configuration
+# Display raw configuration file contents (no path resolution)
+# If no config file is found, reports "No configuration file provided."
 xprin config
 
 # Validate configuration and dependencies

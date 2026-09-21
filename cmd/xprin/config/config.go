@@ -45,15 +45,18 @@ func (c *Cmd) Run(_ *kong.Context) error {
 	}
 
 	if c.ConfigPath == "" {
-		utils.OutputPrintf("No global configuration file provided. Using detected dependencies and default settings...\n")
-	} else {
-		utils.OutputPrintf("Configuration file: %s\n", c.ConfigPath)
+		utils.OutputPrintf("No configuration file provided.\n")
+		return nil
 	}
 
-	utils.OutputPrintf("\nDependencies:\n")
+	utils.OutputPrintf("Configuration file: %s\n", c.ConfigPath)
 
-	for name, value := range c.Config.Dependencies {
-		utils.OutputPrintf("- %s: %s\n", name, value)
+	if len(c.Config.Dependencies) > 0 {
+		utils.OutputPrintf("\nDependencies:\n")
+
+		for name, value := range c.Config.Dependencies {
+			utils.OutputPrintf("- %s: %s\n", name, value)
+		}
 	}
 
 	if c.Config.Subcommands != nil {
