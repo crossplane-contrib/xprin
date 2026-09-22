@@ -33,6 +33,7 @@ type Config struct {
 	Dependencies map[string]string `yaml:"dependencies"`
 	Subcommands  *Subcommands      `yaml:"subcommands"`
 	Repositories map[string]string `yaml:"repositories"`
+	IsV1CLI      bool              `yaml:"-"`
 }
 
 // Subcommands holds the subcommand configurations.
@@ -113,6 +114,8 @@ func Load(fs afero.Fs, configPath string) (*Config, error) {
 		cfg.Subcommands.Validate = DefaultValidateCmd
 	}
 
+	setDetectedFlags(&cfg)
+
 	return &cfg, nil
 }
 
@@ -139,12 +142,21 @@ func Fallback() (*Config, error) {
 		return nil, fmt.Errorf("missing required dependencies from PATH (%s)", strings.Join(missingMandatoryDeps, ", "))
 	}
 
-	return &Config{
+	cfg := &Config{
 		Dependencies: foundDeps,
 		Subcommands: &Subcommands{
 			Render:   DefaultRenderCmd,
 			Validate: DefaultValidateCmd,
 		},
 		Repositories: make(map[string]string),
-	}, nil
+	}
+
+	setDetectedFlags(cfg)
+
+	return cfg, nil
+}
+
+func setDetectedFlags(cfg *Config) {
+	crossplaneBin := cfg.Dependencies[CrossplaneCmd]
+	cfg.IsV1CLI = crossplaneBin != "" && DetectV1CLI(crossplaneBin)
 }
