@@ -91,7 +91,7 @@ func (c *Cmd) Run(_ *kong.Context) error {
 		if c.Config.IsLegacyCLI {
 			utils.DebugPrintf("Crossplane CLI detected as legacy (< v2.3.0)\n")
 		} else {
-			utils.DebugPrintf("Crossplane CLI detected as non-legacy (>= v2.3.0)\n")
+			utils.DebugPrintf("Crossplane CLI detected as current (>= v2.3.0)\n")
 		}
 	}
 

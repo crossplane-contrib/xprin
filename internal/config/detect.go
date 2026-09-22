@@ -23,6 +23,20 @@ import (
 	"strings"
 )
 
+// DetectVersion returns the client version string reported by the crossplane binary,
+// or an empty string if the version cannot be determined.
+func DetectVersion(crossplaneBin string) string {
+	probe := exec.Command(crossplaneBin, "version", "--client")
+
+	var out bytes.Buffer
+
+	probe.Stdout = &out
+	probe.Stderr = io.Discard
+	_ = probe.Run()
+
+	return strings.TrimSpace(out.String())
+}
+
 // DetectV1CLI returns true when the given crossplane binary is a v1 CLI
 // by probing whether "crossplane render --help" mentions the --xrd flag.
 // If --xrd is absent, the binary is a v1 CLI that does not support passing an XRD to render.
