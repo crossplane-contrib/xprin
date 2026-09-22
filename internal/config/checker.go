@@ -18,6 +18,7 @@ limitations under the License.
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,6 +28,19 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/go-git/go-git/v5"
 )
+
+// DetectV1CLI returns true when the given crossplane binary is a v1 CLI
+// by probing whether "crossplane render --help" mentions the --xrd flag.
+// If --xrd is absent, the binary is a v1 CLI that does not support passing an XRD to render.
+func DetectV1CLI(crossplaneBin string) bool {
+	probe := exec.Command(crossplaneBin, "render", "--help")
+	var out bytes.Buffer
+	probe.Stdout = &out
+	probe.Stderr = &out
+	_ = probe.Run()
+
+	return !strings.Contains(out.String(), "--xrd")
+}
 
 // CheckDependency checks if a dependency is valid.
 func CheckDependency(dep string) error {

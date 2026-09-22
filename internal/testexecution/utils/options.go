@@ -31,4 +31,5 @@ type Options struct {
 	Quiet          bool // When true, suppress "[no testsuite files]" and "[no test cases found]" messages. Independent of Verbose.
 	Render         []string
 	Validate       []string
+	IsV1CLI        bool
 }
