@@ -526,6 +526,10 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	renderArgs = append(renderArgs, r.Render...)
 	renderArgs = append(renderArgs, inputXR, testCase.Inputs.Composition, testCase.Inputs.Functions)
 
+	if testCase.Patches.XRD != "" && !r.IsV1CLI {
+		renderArgs = append(renderArgs, "--xrd="+testCase.Patches.XRD)
+	}
+
 	// Add context files if specified (map[string]string)
 	for key, contextFile := range testCase.Inputs.ContextFiles {
 		renderArgs = append(renderArgs, "--context-files", fmt.Sprintf("%s=%s", key, contextFile))

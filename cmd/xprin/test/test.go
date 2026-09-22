@@ -81,6 +81,14 @@ func (c *Cmd) Run(_ *kong.Context) error {
 
 	options := c.newOptions(c.Config)
 
+	if c.Debug {
+		if options.IsV1CLI {
+			utils.DebugPrintf("Crossplane CLI detected as v1\n")
+		} else {
+			utils.DebugPrintf("Crossplane CLI detected as v2+\n")
+		}
+	}
+
 	// Process targets and run tests
 	return processor.ProcessTargets(c.fs, c.Targets, options)
 }
@@ -107,5 +115,6 @@ func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionUtils.Options {
 		Color:          bunt.UseColors(),
 		Render:         render,
 		Validate:       validate,
+		IsV1CLI:        internalcfg.DetectV1CLI(cfg.Dependencies[internalcfg.CrossplaneCmd]),
 	}
 }
