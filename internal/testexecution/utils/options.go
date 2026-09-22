@@ -19,17 +19,19 @@ package utils
 
 // Options groups all test runner options for easier passing to ProcessTargets and related functions.
 type Options struct {
-	Dependencies   map[string]string
-	Repositories   map[string]string
-	ShowRender     bool
-	ShowValidate   bool
-	ShowHooks      bool
-	ShowAssertions bool
-	Verbose        bool
-	Debug          bool
-	Color          bool // When true, diff output is colorized (resolved from --color on|off|auto in the CLI).
-	Quiet          bool // When true, suppress "[no testsuite files]" and "[no test cases found]" messages. Independent of Verbose.
-	Render         []string
-	Validate       []string
-	IsV1CLI        bool
+	Dependencies      map[string]string
+	Repositories      map[string]string
+	ShowRender        bool
+	ShowValidate      bool
+	ShowHooks         bool
+	ShowAssertions    bool
+	Verbose           bool
+	Debug             bool
+	Color             bool // When true, diff output is colorized (resolved from --color on|off|auto in the CLI).
+	Quiet             bool // When true, suppress "[no testsuite files]" and "[no test cases found]" messages. Independent of Verbose.
+	Render            []string
+	Validate          []string
+	IsV1CLI           bool
+	IsLegacyCLI       bool
+	CrossplaneVersion string
 }

@@ -126,12 +126,13 @@ func TestNewOptions(t *testing.T) {
 
 	// Create a test command
 	cmd := &Cmd{
-		ShowRender:     true,
-		ShowValidate:   true,
-		ShowHooks:      true,
-		ShowAssertions: true,
-		Verbose:        true,
-		Debug:          false,
+		ShowRender:        true,
+		ShowValidate:      true,
+		ShowHooks:         true,
+		ShowAssertions:    true,
+		Verbose:           true,
+		Debug:             false,
+		CrossplaneVersion: "v2.4.0",
 	}
 
 	// Create options using the newOptions method
@@ -150,6 +151,7 @@ func TestNewOptions(t *testing.T) {
 	assert.Equal(t, cmd.ShowAssertions, options.ShowAssertions)
 	assert.Equal(t, cmd.Verbose, options.Verbose)
 	assert.Equal(t, cmd.Debug, options.Debug)
+	assert.Equal(t, "v2.4.0", options.CrossplaneVersion)
 }
 
 // Test that NewOptions handles nil Subcommands gracefully.

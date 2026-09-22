@@ -31,17 +31,18 @@ import (
 
 // Cmd represents the test subcommand.
 type Cmd struct {
-	Targets        []string            `arg:""                                                                                                                          help:"One or more test targets: individual files (e.g., 'tests/aws_xprin.yaml'), directories (e.g., 'tests/aws/'), or recursive directories (e.g., 'tests/aws/...'). Files must be named 'xprin.yaml' or '*_xprin.yaml'"`
-	ShowRender     bool                `help:"Display a list of the rendered resources in Kind/Name format. Requires --verbose."                                        name:"show-render"`
-	ShowValidate   bool                `help:"Display validation results for each resource. Requires --verbose."                                                        name:"show-validate"`
-	ShowHooks      bool                `help:"Display the execution hooks for each test case. Requires --verbose."                                                      name:"show-hooks"`
-	ShowAssertions bool                `help:"Display assertion results for each test case. Requires --verbose."                                                        name:"show-assertions"`
-	Verbose        bool                `help:"Show verbose test output (RUN, PASS/FAIL, etc.). Independent of -q; can be used together."                                short:"v"`
-	Quiet          bool                `help:"Suppress '[no testsuite files]' and '[no test cases found]' messages. Independent of -v; does not reduce verbose output." name:"quiet"                                                                                                                                                                                                             short:"q"`
-	Debug          bool                `help:"Show detailed debug information about test discovery, path resolution, and execution"`
-	Color          string              `default:"auto"                                                                                                                  enum:"on,off,auto"                                                                                                                                                                                                       help:"Specify color usage: on, off, or auto (default auto)." name:"color"`
-	Config         *internalcfg.Config `kong:"-"`
-	fs             afero.Fs
+	Targets           []string            `arg:""                                                                                                                          help:"One or more test targets: individual files (e.g., 'tests/aws_xprin.yaml'), directories (e.g., 'tests/aws/'), or recursive directories (e.g., 'tests/aws/...'). Files must be named 'xprin.yaml' or '*_xprin.yaml'"`
+	ShowRender        bool                `help:"Display a list of the rendered resources in Kind/Name format. Requires --verbose."                                        name:"show-render"`
+	ShowValidate      bool                `help:"Display validation results for each resource. Requires --verbose."                                                        name:"show-validate"`
+	ShowHooks         bool                `help:"Display the execution hooks for each test case. Requires --verbose."                                                      name:"show-hooks"`
+	ShowAssertions    bool                `help:"Display assertion results for each test case. Requires --verbose."                                                        name:"show-assertions"`
+	Verbose           bool                `help:"Show verbose test output (RUN, PASS/FAIL, etc.). Independent of -q; can be used together."                                short:"v"`
+	Quiet             bool                `help:"Suppress '[no testsuite files]' and '[no test cases found]' messages. Independent of -v; does not reduce verbose output." name:"quiet"                                                                                                                                                                                                             short:"q"`
+	Debug             bool                `help:"Show detailed debug information about test discovery, path resolution, and execution"`
+	Color             string              `default:"auto"                                                                                                                  enum:"on,off,auto"                                                                                                                                                                                                       help:"Specify color usage: on, off, or auto (default auto)." name:"color"`
+	CrossplaneVersion string              `help:"Version of the Crossplane controller image, passed at both render and validate."                                          name:"crossplane-version"`
+	Config            *internalcfg.Config `kong:"-"`
+	fs                afero.Fs
 }
 
 // AfterApply implements kong.AfterApply.
@@ -83,15 +84,10 @@ func (c *Cmd) Run(_ *kong.Context) error {
 
 	if c.Debug {
 		if c.Config.IsV1CLI {
-			utils.DebugPrintf("Crossplane CLI detected as v1\n")
-		} else {
-			utils.DebugPrintf("Crossplane CLI detected as v2+\n")
+			utils.DebugPrintf("v1 Crossplane CLI detected; patches.xrd will not be passed as --xrd to render\n")
 		}
-
-		if c.Config.IsLegacyCLI {
-			utils.DebugPrintf("Crossplane CLI detected as legacy (< v2.3.0)\n")
-		} else {
-			utils.DebugPrintf("Crossplane CLI detected as current (>= v2.3.0)\n")
+		if c.CrossplaneVersion != "" && c.Config.IsLegacyCLI {
+			utils.DebugPrintf("--crossplane-version is not supported by the legacy Crossplane CLI (< v2.3.0); skipping for render, but --crossplane-image will still be passed to validate\n")
 		}
 	}
 
@@ -109,18 +105,20 @@ func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionUtils.Options {
 	}
 
 	return &testexecutionUtils.Options{
-		Dependencies:   cfg.Dependencies,
-		Repositories:   cfg.Repositories,
-		ShowRender:     c.ShowRender,
-		ShowValidate:   c.ShowValidate,
-		ShowHooks:      c.ShowHooks,
-		ShowAssertions: c.ShowAssertions,
-		Verbose:        c.Verbose,
-		Quiet:          c.Quiet,
-		Debug:          c.Debug,
-		Color:          bunt.UseColors(),
-		Render:         render,
-		Validate:       validate,
-		IsV1CLI:        cfg.IsV1CLI,
+		Dependencies:      cfg.Dependencies,
+		Repositories:      cfg.Repositories,
+		ShowRender:        c.ShowRender,
+		ShowValidate:      c.ShowValidate,
+		ShowHooks:         c.ShowHooks,
+		ShowAssertions:    c.ShowAssertions,
+		Verbose:           c.Verbose,
+		Quiet:             c.Quiet,
+		Debug:             c.Debug,
+		Color:             bunt.UseColors(),
+		Render:            render,
+		Validate:          validate,
+		IsV1CLI:           cfg.IsV1CLI,
+		IsLegacyCLI:       cfg.IsLegacyCLI,
+		CrossplaneVersion: c.CrossplaneVersion,
 	}
 }
