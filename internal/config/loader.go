@@ -54,8 +54,10 @@ const (
 	// DefaultRenderCmd is the default command for the crossplane render subcommand.
 	DefaultRenderCmd = RenderSubcommand + " " + RenderFlags
 
-	// ValidateSubcommand is the default name of the crossplane validate subcommand.
-	ValidateSubcommand = "beta validate"
+	// ValidateSubcommand is the default name of the crossplane validate subcommand (CLI >= v2.3.0).
+	ValidateSubcommand = "resource validate"
+	// LegacyValidateSubcommand is the validate subcommand for CLI < v2.3.0.
+	LegacyValidateSubcommand = "beta validate"
 	// ValidateFlags are the default flags for the crossplane validate subcommand.
 	ValidateFlags = "--error-on-missing-schemas"
 	// DefaultValidateCmd is the default command for the crossplane validate subcommand.
@@ -111,11 +113,7 @@ func Load(fs afero.Fs, configPath string) (*Config, error) {
 		cfg.Subcommands.Render = DefaultRenderCmd
 	}
 
-	if cfg.Subcommands.Validate == "" {
-		cfg.Subcommands.Validate = DefaultValidateCmd
-	}
-
-	setDetectedFlags(&cfg)
+	setRuntimeDefaults(&cfg)
 
 	return &cfg, nil
 }
@@ -146,21 +144,28 @@ func Fallback() (*Config, error) {
 	cfg := &Config{
 		Dependencies: foundDeps,
 		Subcommands: &Subcommands{
-			Render:   DefaultRenderCmd,
-			Validate: DefaultValidateCmd,
+			Render: DefaultRenderCmd,
 		},
 		Repositories: make(map[string]string),
 	}
 
-	setDetectedFlags(cfg)
+	setRuntimeDefaults(cfg)
 
 	return cfg, nil
 }
 
-func setDetectedFlags(cfg *Config) {
+func setRuntimeDefaults(cfg *Config) {
 	crossplaneBin := cfg.Dependencies[CrossplaneCmd]
 	if crossplaneBin != "" {
 		cfg.IsV1CLI = DetectV1CLI(crossplaneBin)
 		cfg.IsLegacyCLI = DetectLegacyCLI(crossplaneBin)
+	}
+
+	if cfg.Subcommands.Validate == "" {
+		if cfg.IsLegacyCLI {
+			cfg.Subcommands.Validate = LegacyValidateSubcommand + " " + ValidateFlags
+		} else {
+			cfg.Subcommands.Validate = DefaultValidateCmd
+		}
 	}
 }

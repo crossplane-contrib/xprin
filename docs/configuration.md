@@ -49,7 +49,7 @@ Optional map defining render and validate subcommands:
 ```yaml
 subcommands:
   render: render --include-full-xr
-  validate: beta validate --error-on-missing-schemas
+  validate: resource validate --error-on-missing-schemas
 ```
 
 This allows compatibility with different Crossplane CLI versions.
@@ -66,7 +66,7 @@ repositories:
 
 subcommands:
   render: render --include-full-xr
-  validate: beta validate --error-on-missing-schemas
+  validate: resource validate --error-on-missing-schemas
 ```
 
 ## Validation

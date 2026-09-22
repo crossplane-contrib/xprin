@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Crossplane 1.15+**: Required for the `crossplane beta validate` command
+- **Crossplane CLI v1.5+**: Required for the `crossplane resource validate` command (for >=2.3.0), or `crossplane beta validate` command (for older CLI versions). xprin automatically detects and uses the appropriate command.
 - **Docker daemon**: Required for running Composition Functions (alternatives like Podman are also supported)
 - **Go 1.24+**: Optional, only if building from source
 
@@ -135,7 +135,7 @@ repositories:
 
 subcommands:
   render: render --include-full-xr
-  validate: beta validate --error-on-missing-schemas
+  validate: resource validate --error-on-missing-schemas
 ```
 
 Validate your configuration:

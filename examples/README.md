@@ -89,7 +89,7 @@ DEBUG: Copied functions to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xpr
 DEBUG: Using provided XR file: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956/inputs/xr/xr.yaml
 DEBUG: Running render command: crossplane render --include-full-xr ...
 DEBUG: Wrote rendered output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956/outputs/rendered.yaml
-DEBUG: Skipped validate command "crossplane beta validate --error-on-missing-schemas" because no CRDs were specified
+DEBUG: Skipped validate command "crossplane resource validate --error-on-missing-schemas" because no CRDs were specified
 DEBUG: Test case 'Initial reconciliation loop (using XR)' completed with status: PASS
 ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.736s
 ```
@@ -125,7 +125,7 @@ DEBUG: Copied functions to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xpr
 DEBUG: Using provided XR file: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052/inputs/xr/xr.yaml
 DEBUG: Running render command: crossplane render --include-full-xr ...
 DEBUG: Wrote rendered output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052/outputs/rendered.yaml
-DEBUG: Skipped validate command "crossplane beta validate --error-on-missing-schemas" because no CRDs were specified
+DEBUG: Skipped validate command "crossplane resource validate --error-on-missing-schemas" because no CRDs were specified
 DEBUG: Test case 'Initial reconciliation loop (using XR)' completed with status: PASS
 === RUN   Initial reconciliation loop (using XR)
 --- PASS: Initial reconciliation loop (using XR) (0.90s)
@@ -208,7 +208,7 @@ DEBUG: Converting Claim to XR
 DEBUG: Wrote converted XR to temporary file: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591/inputs/xr.yaml
 DEBUG: Running render command: crossplane render ...
 DEBUG: Wrote rendered output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591/outputs/rendered.yaml
-DEBUG: Skipped validate command "crossplane beta validate --error-on-missing-schemas" because no CRDs were specified
+DEBUG: Skipped validate command "crossplane resource validate --error-on-missing-schemas" because no CRDs were specified
 DEBUG: Test case 'Initial reconciliation loop (using Claim)' completed with status: PASS
 ok      examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml 0.904s
 ```
@@ -280,7 +280,7 @@ DEBUG: Copied crds to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-te
 DEBUG: Using provided XR file: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/xr/xr.yaml
 DEBUG: Running render command: crossplane render --include-full-xr ...
 DEBUG: Wrote rendered output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/outputs/rendered.yaml
-DEBUG: Running validate command: crossplane beta validate --error-on-missing-schemas ...
+DEBUG: Running validate command: crossplane resource validate --error-on-missing-schemas ...
 DEBUG: Wrote validation output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/outputs/validate.txt
 DEBUG: Test case 'Initial reconciliation loop (runs both render and validate)' completed with status: PASS
 ok	examples/mytests/1_simple_tests/example3_validate_xprin.yaml	1.572s

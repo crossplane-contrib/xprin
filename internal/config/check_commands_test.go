@@ -36,8 +36,8 @@ func TestCheckSubcommands(t *testing.T) {
 			cfg:  &Config{Subcommands: &Subcommands{}},
 		},
 		{
-			name: "valid render and validate",
-			cfg:  &Config{Subcommands: &Subcommands{Render: "render --foo", Validate: "validate --bar"}},
+			name: "valid render and resource validate",
+			cfg:  &Config{Subcommands: &Subcommands{Render: "render --foo", Validate: "resource validate --bar"}},
 		},
 		{
 			name: "valid beta render and beta validate",
@@ -45,27 +45,27 @@ func TestCheckSubcommands(t *testing.T) {
 		},
 		{
 			name:    "invalid render prefix",
-			cfg:     &Config{Subcommands: &Subcommands{Render: "foo --bar", Validate: "validate --bar"}},
+			cfg:     &Config{Subcommands: &Subcommands{Render: "foo --bar", Validate: "resource validate --bar"}},
 			wantErr: "subcommands.render must start with 'render' or 'beta render'",
 		},
 		{
 			name:    "invalid validate prefix",
 			cfg:     &Config{Subcommands: &Subcommands{Render: "render --foo", Validate: "foo --bar"}},
-			wantErr: "subcommands.validate must start with 'validate' or 'beta validate'",
+			wantErr: "subcommands.validate must start with 'resource validate' or 'beta validate'",
 		},
 		{
 			name:    "render with non-flag argument",
-			cfg:     &Config{Subcommands: &Subcommands{Render: "render notaflag --foo", Validate: "validate --bar"}},
+			cfg:     &Config{Subcommands: &Subcommands{Render: "render notaflag --foo", Validate: "resource validate --bar"}},
 			wantErr: "subcommands.render: argument 1 ('notaflag') must be a flag",
 		},
 		{
-			name:    "validate with non-flag argument",
-			cfg:     &Config{Subcommands: &Subcommands{Render: "render --foo", Validate: "validate notaflag --bar"}},
-			wantErr: "subcommands.validate: argument 1 ('notaflag') must be a flag",
+			name:    "resource validate with non-flag argument",
+			cfg:     &Config{Subcommands: &Subcommands{Render: "render --foo", Validate: "resource validate notaflag --bar"}},
+			wantErr: "subcommands.validate: argument 2 ('notaflag') must be a flag",
 		},
 		{
 			name:    "beta render with non-flag argument",
-			cfg:     &Config{Subcommands: &Subcommands{Render: "beta render notaflag --foo", Validate: "validate --bar"}},
+			cfg:     &Config{Subcommands: &Subcommands{Render: "beta render notaflag --foo", Validate: "resource validate --bar"}},
 			wantErr: "subcommands.render: argument 2 ('notaflag') must be a flag",
 		},
 		{
@@ -75,15 +75,15 @@ func TestCheckSubcommands(t *testing.T) {
 		},
 		{
 			name: "render with short flag",
-			cfg:  &Config{Subcommands: &Subcommands{Render: "render -x", Validate: "validate --bar"}},
+			cfg:  &Config{Subcommands: &Subcommands{Render: "render -x", Validate: "resource validate --bar"}},
 		},
 		{
 			name: "beta render with short flag",
-			cfg:  &Config{Subcommands: &Subcommands{Render: "beta render -x", Validate: "validate --bar"}},
+			cfg:  &Config{Subcommands: &Subcommands{Render: "beta render -x", Validate: "resource validate --bar"}},
 		},
 		{
-			name: "validate with short flag",
-			cfg:  &Config{Subcommands: &Subcommands{Render: "render --foo", Validate: "validate -y"}},
+			name: "resource validate with short flag",
+			cfg:  &Config{Subcommands: &Subcommands{Render: "render --foo", Validate: "resource validate -y"}},
 		},
 		{
 			name: "beta validate with short flag",
@@ -100,12 +100,12 @@ func TestCheckSubcommands(t *testing.T) {
 		},
 		{
 			name: "only validate set valid",
-			cfg:  &Config{Subcommands: &Subcommands{Validate: "validate --bar"}},
+			cfg:  &Config{Subcommands: &Subcommands{Validate: "resource validate --bar"}},
 		},
 		{
 			name:    "only validate set invalid",
 			cfg:     &Config{Subcommands: &Subcommands{Validate: "foo --bar"}},
-			wantErr: "subcommands.validate must start with 'validate' or 'beta validate'",
+			wantErr: "subcommands.validate must start with 'resource validate' or 'beta validate'",
 		},
 		{
 			name: "render set without flags",
@@ -116,8 +116,8 @@ func TestCheckSubcommands(t *testing.T) {
 			cfg:  &Config{Subcommands: &Subcommands{Render: "beta render"}},
 		},
 		{
-			name: "validate set without flags",
-			cfg:  &Config{Subcommands: &Subcommands{Validate: "validate"}},
+			name: "resource validate set without flags",
+			cfg:  &Config{Subcommands: &Subcommands{Validate: "resource validate"}},
 		},
 		{
 			name: "beta validate set without flags",

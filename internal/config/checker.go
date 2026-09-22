@@ -207,7 +207,7 @@ func RunCheck(cfg *Config, configPath string, quiet bool) error {
 }
 
 // CheckSubcommands checks if the subcommands.render and subcommands.validate are valid.
-// They must start with "render" or "beta render" (for render), and "validate" or "beta validate" (for validate).
+// They must start with "render" or "beta render" (for render), and "resource validate" or "beta validate" (for validate).
 func (c *Config) CheckSubcommands() error {
 	if c.Subcommands == nil {
 		return nil // subcommands section is optional
@@ -226,17 +226,24 @@ func (c *Config) CheckSubcommands() error {
 			errs = append(errs, fmt.Sprintf("subcommands.%s is empty", key))
 			return
 		}
-		// Accept "render" or "beta render" for render, "validate" or "beta validate" for validate
+		// Accept "render" or "beta render" for render, "resource validate", or "beta validate" for validate.
 		expected := key
 
 		var startIdx int
 		//nolint:gocritic // Complex conditions don't translate well to switch statement
 		if parts[0] == "beta" && len(parts) > 1 && parts[1] == expected {
 			startIdx = 2
-		} else if parts[0] == expected {
+		} else if parts[0] == "resource" && key == "validate" && len(parts) > 1 && parts[1] == expected {
+			startIdx = 2
+		} else if parts[0] == expected && key != "validate" {
 			startIdx = 1
 		} else {
-			errs = append(errs, fmt.Sprintf("subcommands.%s must start with '%s' or 'beta %s'", key, expected, expected))
+			if key == "validate" {
+				errs = append(errs, fmt.Sprintf("subcommands.%s must start with 'resource %s' or 'beta %s'", key, expected, expected))
+			} else {
+				errs = append(errs, fmt.Sprintf("subcommands.%s must start with '%s' or 'beta %s'", key, expected, expected))
+			}
+
 			return
 		}
 		// Check that all remaining parts are flags
