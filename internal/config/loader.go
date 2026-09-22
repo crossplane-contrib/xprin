@@ -34,6 +34,7 @@ type Config struct {
 	Subcommands  *Subcommands      `yaml:"subcommands"`
 	Repositories map[string]string `yaml:"repositories"`
 	IsV1CLI      bool              `yaml:"-"`
+	IsLegacyCLI  bool              `yaml:"-"`
 }
 
 // Subcommands holds the subcommand configurations.
@@ -158,5 +159,8 @@ func Fallback() (*Config, error) {
 
 func setDetectedFlags(cfg *Config) {
 	crossplaneBin := cfg.Dependencies[CrossplaneCmd]
-	cfg.IsV1CLI = crossplaneBin != "" && DetectV1CLI(crossplaneBin)
+	if crossplaneBin != "" {
+		cfg.IsV1CLI = DetectV1CLI(crossplaneBin)
+		cfg.IsLegacyCLI = DetectLegacyCLI(crossplaneBin)
+	}
 }

@@ -18,6 +18,7 @@ package config
 
 import (
 	"bytes"
+	"io"
 	"os/exec"
 	"strings"
 )
@@ -35,4 +36,15 @@ func DetectV1CLI(crossplaneBin string) bool {
 	_ = probe.Run()
 
 	return !strings.Contains(out.String(), "--xrd")
+}
+
+// DetectLegacyCLI returns true when the given crossplane binary is a legacy CLI (< v2.3.0)
+// by probing whether "crossplane resource validate --help" succeeds.
+// Success → new CLI (false); failure → legacy CLI (true).
+func DetectLegacyCLI(crossplaneBin string) bool {
+	probe := exec.Command(crossplaneBin, "resource", "validate", "--help")
+	probe.Stdout = io.Discard
+	probe.Stderr = io.Discard
+
+	return probe.Run() != nil
 }
