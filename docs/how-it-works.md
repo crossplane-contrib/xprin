@@ -153,11 +153,13 @@ flowchart TD
 - No subsequent phases (validate, assertions, post-test hooks) are executed
 - This is a hard failure because without rendered output, nothing else can proceed
 
+**CLI version note:** when a test case sets `patches.xrd`, xprin appends `--xrd <path>` to the render command, but only when the detected CLI is v2.0+, which introduced the flag. On CLI v1.x, `patches.xrd` still applies XRD defaults via `xprin-helpers patch-xr --xrd <path>` without the render flag. Passing `--xrd` matters for LegacyCluster XRDs: without it the v2 render engine defaults to Modern schema, placing `resourceRefs` at `spec.crossplane.resourceRefs` instead of `spec.resourceRefs`, which breaks validation against the XRD schema.
+
 ### Phase 4: Validate (Optional)
 
 **What happens:**
 1. **CRD Check**: If `crds` are provided in inputs, validation proceeds
-2. **Command Execution**: Runs `crossplane resource validate` with:
+2. **Command Execution**: Runs `crossplane resource validate` (or `crossplane beta validate` on legacy CLIs) with:
    - Rendered output from Phase 3
    - CRD paths provided in inputs
 3. **Output Capture**: Validation results are written to a file
@@ -170,6 +172,8 @@ flowchart TD
 - If `crossplane resource validate` fails, the test **continues** to assertions and post-test hooks
 - Validation failures are collected and reported at the end
 - This allows assertions to run even if validation fails, enabling better debugging
+
+**CLI version note:** the validate subcommand is auto-detected at startup. `crossplane resource validate` is used for CLI ≥ v2.3.0; `crossplane beta validate` is used for older CLIs. The subcommand can be overridden via `subcommands.validate` in the config file. Run `xprin check` to see which subcommand is active.
 
 **When it runs:**
 - Only if `crds` are provided in inputs
