@@ -34,7 +34,7 @@ flowchart TD
   - Convert Claim to XR (if needed)
   - Apply XRD defaults and connection secrets to XRs
 3. **Render** - Execute `crossplane render` to generate manifests
-4. **Validate** - Execute `crossplane beta validate` (if CRDs provided)
+4. **Validate** - Execute `crossplane resource validate` (if CRDs provided)
 5. **Assert** - Run declarative Assertions on rendered resources
 6. **Final**
   - Execute Post-test Hooks
@@ -56,7 +56,7 @@ flowchart TD
     F -->|No| I["crossplane render"]
     G --> I
     I --> J{"CRDs provided?"}
-    J -->|Yes| K["crossplane beta validate"]
+    J -->|Yes| K["crossplane resource validate"]
     J -->|No| L["Assertions (xprin / diff / dyff)<br/>• Count, existence, fields<br/>• Golden-file diff"]
     K --> L
     L --> M["Post-test Hooks<br/>• Cleanup<br/>• Validate outputs"]
@@ -153,11 +153,13 @@ flowchart TD
 - No subsequent phases (validate, assertions, post-test hooks) are executed
 - This is a hard failure because without rendered output, nothing else can proceed
 
+**CLI version note:** when a test case sets `patches.xrd`, xprin appends `--xrd <path>` to the render command, but only when the detected CLI is v2.0+, which introduced the flag. On CLI v1.x, `patches.xrd` still applies XRD defaults via `xprin-helpers patch-xr --xrd <path>` without the render flag. Passing `--xrd` matters for LegacyCluster XRDs: without it the v2 render engine defaults to Modern schema, placing `resourceRefs` at `spec.crossplane.resourceRefs` instead of `spec.resourceRefs`, which breaks validation against the XRD schema.
+
 ### Phase 4: Validate (Optional)
 
 **What happens:**
 1. **CRD Check**: If `crds` are provided in inputs, validation proceeds
-2. **Command Execution**: Runs `crossplane beta validate` with:
+2. **Command Execution**: Runs `crossplane resource validate` (or `crossplane beta validate` on legacy CLIs) with:
    - Rendered output from Phase 3
    - CRD paths provided in inputs
 3. **Output Capture**: Validation results are written to a file
@@ -167,9 +169,11 @@ flowchart TD
 - `{{ .Outputs.Validate }}` - Raw Validate output file
 
 **Error Handling:**
-- If `crossplane beta validate` fails, the test **continues** to assertions and post-test hooks
+- If `crossplane resource validate` fails, the test **continues** to assertions and post-test hooks
 - Validation failures are collected and reported at the end
 - This allows assertions to run even if validation fails, enabling better debugging
+
+**CLI version note:** the validate subcommand is auto-detected at startup. `crossplane resource validate` is used for CLI ≥ v2.3.0; `crossplane beta validate` is used for older CLIs. The subcommand can be overridden via `subcommands.validate` in the config file. Run `xprin check` to see which subcommand is active.
 
 **When it runs:**
 - Only if `crds` are provided in inputs
@@ -264,7 +268,7 @@ These failures cause the test to fail immediately, skipping all subsequent phase
 These failures are collected and reported, but execution continues:
 
 1. **Validate Phase Failures:**
-   - `crossplane beta validate` command failures
+   - `crossplane resource validate` command failures
    - Schema validation errors
 
 2. **Assert Phase Failures:**
@@ -284,7 +288,7 @@ These failures are collected and reported, but execution continues:
 
 ## Statuses and output symbols
 
-xprin uses a small set of **statuses** and **symbols** in its output, aligned with `crossplane beta validate` so that **[✓]**, **[x]**, and **[!]** mean the same thing across tools.
+xprin uses a small set of **statuses** and **symbols** in its output, aligned with `crossplane resource validate` so that **[✓]**, **[x]**, and **[!]** mean the same thing across tools.
 
 ### Symbols and status values
 
@@ -301,7 +305,7 @@ Output uses the following **symbols**; internally, outcomes use the correspondin
 
 - **Preliminary / test-level errors** (missing mandatory fields, failed to create dirs, etc.): each line of the error block is prefixed with **[!]**.
 - **Render failure**: the first line of the raw render output is prefixed with **[!]**; continuation lines are indented under it.
-- **Validate**: output is passed through from `crossplane beta validate`, which already uses **[✓]**, **[x]**, and **[!]**.
+- **Validate**: output is passed through from `crossplane resource validate`, which already uses **[✓]**, **[x]**, and **[!]**.
 - **Hooks**: **[✓]** for success; **[x]** when the hook process exited with a non-zero code; **[!]** when the hook could not run (e.g. template rendering failure).
 - **Assertions**: **[✓]** when the assertion ran and passed; **[x]** when it ran and the condition was false; **[!]** when it could not be evaluated (e.g. resource not found, invalid assertion config). The totals line reports successful, failed, and error counts.
 

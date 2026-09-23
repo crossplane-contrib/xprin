@@ -6,7 +6,7 @@
   <img src="docs/images/xprin-logo.png" alt="xprin logo" />
 </p>
 
-A Crossplane testing framework that leverages `crossplane render` and `crossplane beta validate` commands to test if Compositions render correctly against Claims or XRs, and if the rendered manifests validate against their schemas.
+A Crossplane testing framework that leverages `crossplane render` and `crossplane resource validate` commands to test if Compositions render correctly against Claims or XRs, and if the rendered manifests validate against their schemas.
 
 ## Features
 
@@ -30,14 +30,14 @@ It was originally developed by Elastic, where it is currently being used for moc
 #### What are typical use cases?
 
 - **Composition testing**: Run `crossplane render` using various combinations of XRs/Claims, Compositions and Functions, and assert on the output.
-- **Schema validation**: Validate various combinations of (mock or production) manifests with CRDs via `crossplane beta validate`.
+- **Schema validation**: Validate various combinations of (mock or production) manifests with CRDs via `crossplane resource validate`.
 - **Reconciliation emulation**: Chain tests with exported artifacts so later tests consume prior outputs (e.g. observed resources, status).
 - **Advanced render inputs**: Drive render with extra resources, observed resources, additional context, environment configs, in multiple tests run one after the other.
 - **Upgrades**: Validate upgrades of Crossplane itself, providers, functions before or after adoption.
 
 #### Can I test using my production XRs/Claims or data?
 
-Yes. xprin runs entirely locally in a mock environment. It does not create or modify real resources; it only runs `crossplane render` and `crossplane beta validate` on the inputs you provide, so you can safely point at production data.
+Yes. xprin runs entirely locally in a mock environment. It does not create or modify real resources; it only runs `crossplane render` and `crossplane resource validate` on the inputs you provide, so you can safely point at production data.
 
 #### What is the purpose of patching?
 
@@ -129,7 +129,7 @@ When xprin runs a test case, it follows this specific sequence:
 3. **Convert Claim to XR** (optional) - If using a Claim input, convert it to XR using `xprin-helpers convert-claim-to-xr`
 4. **Patch XR** (optional) - Apply patches (XRD defaults, connection secrets) using `xprin-helpers patch-xr`
 5. **Crossplane Render** - Run `crossplane render` with the XR, Composition, and Functions
-6. **Crossplane Validate** (optional) - If CRDs are provided, run `crossplane beta validate` on the rendered output
+6. **Crossplane Validate** (optional) - If CRDs are provided, run `crossplane resource validate` on the rendered output
 7. **Assertions** (optional) - Validate rendered resources using declarative assertions (count, existence, field type/value checks)
 8. **Post-test Hooks** - Execute any post-test hooks defined in the test case
 9. **Export Artifacts** (optional) - If test case has an `id`, copy outputs to artifacts directory for cross-test references

@@ -285,8 +285,9 @@ repositories: {}
 					t.Errorf("Expected default render, got %q", cfg.Subcommands.Render)
 				}
 
-				if cfg.Subcommands.Validate != DefaultValidateCmd {
-					t.Errorf("Expected default validate, got %q", cfg.Subcommands.Validate)
+				if cfg.Subcommands.Validate != ValidateSubcommand+" "+ValidateFlags &&
+					cfg.Subcommands.Validate != LegacyValidateSubcommand+" "+ValidateFlags {
+					t.Errorf("Expected a valid default validate subcommand, got %q", cfg.Subcommands.Validate)
 				}
 			},
 		},
@@ -328,8 +329,9 @@ repositories: {}
 					t.Errorf("Expected custom render, got %q", cfg.Subcommands.Render)
 				}
 
-				if cfg.Subcommands.Validate != DefaultValidateCmd {
-					t.Errorf("Expected default validate, got %q", cfg.Subcommands.Validate)
+				if cfg.Subcommands.Validate != ValidateSubcommand+" "+ValidateFlags &&
+					cfg.Subcommands.Validate != LegacyValidateSubcommand+" "+ValidateFlags {
+					t.Errorf("Expected a valid default validate subcommand, got %q", cfg.Subcommands.Validate)
 				}
 			},
 		},

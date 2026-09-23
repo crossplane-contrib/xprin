@@ -85,7 +85,7 @@ func makeOptions(cfg *config.Config, render, validate []string, overrides ...fun
 	}
 
 	if len(validate) == 0 {
-		validate = strings.Fields(config.DefaultValidateCmd)
+		validate = strings.Fields(config.ValidateSubcommand + " " + config.ValidateFlags)
 	}
 
 	opt := &testexecutionUtils.Options{
@@ -159,7 +159,7 @@ func TestNewRunner_DefaultsIfNotSpecified(t *testing.T) {
 	assert.NotEmpty(t, runner.Validate)
 	// Optionally, check for specific defaults if known, e.g.:
 	assert.Equal(t, strings.Fields(config.DefaultRenderCmd), runner.Render)
-	assert.Equal(t, strings.Fields(config.DefaultValidateCmd), runner.Validate)
+	assert.Equal(t, strings.Fields(config.ValidateSubcommand+" "+config.ValidateFlags), runner.Validate)
 }
 
 func TestNewRunner_SetsWorkingDirectory(t *testing.T) {

@@ -44,15 +44,40 @@ Used for resolving template variables in test suite files, for example `{{ .Repo
 
 ### Subcommands
 
-Optional map defining render and validate subcommands:
+xprin probes the configured `crossplane` binary at startup and adapts its behavior automatically. No explicit configuration is needed in most cases. Run `xprin check` to see which capabilities were detected for the configured `crossplane` binary.
+
+#### Validate subcommand
+
+The validate subcommand is auto-detected based on the CLI version:
+
+| CLI versions | Validate subcommand used |
+|-----|--------------------------|
+| ≥ v2.3.0 | `resource validate --error-on-missing-schemas` |
+| v2.0–v2.2 | `beta validate --error-on-missing-schemas` |
+| v1.x | `beta validate --error-on-missing-schemas` |
+
+Detection is behavior-based (probes `crossplane resource validate --help`), so custom and nightly builds are handled correctly.
+
+#### Render and `--xrd`
+
+The `--xrd` flag for `crossplane render` is also auto-detected. When a test case sets `patches.xrd`, xprin passes the XRD path as `--xrd` to `crossplane render` only on CLIs that support it:
+
+| CLI | `patches.xrd` behaviour |
+|-----|-------------------------|
+| `crossplane/cli` v2.0+ | XRD defaults applied via `xprin-helpers patch-xr` **and** `--xrd` passed to `crossplane render` |
+| `crossplane/crossplane` v1.x | XRD defaults applied via `xprin-helpers patch-xr` only (`--xrd` not supported by this CLI) |
+
+Additionally, passing `--xrd` to `crossplane render` matters in v2+ for **LegacyCluster XRDs**. Without it, the v2 render engine defaults to Modern schema, placing `resourceRefs` at `spec.crossplane.resourceRefs` instead of `spec.resourceRefs`. This causes validation to fail against the XRD schema. Providing `--xrd` lets the engine detect the correct scope and produce output that matches the XRD.
+
+#### Overriding auto-detection
+
+If needed, the render and validate subcommands can be set explicitly in the config file. Explicit values always take precedence over auto-detection:
 
 ```yaml
 subcommands:
   render: render --include-full-xr
-  validate: beta validate --error-on-missing-schemas
+  validate: resource validate --error-on-missing-schemas
 ```
-
-This allows compatibility with different Crossplane CLI versions.
 
 ## Example Configuration
 
@@ -66,7 +91,7 @@ repositories:
 
 subcommands:
   render: render --include-full-xr
-  validate: beta validate --error-on-missing-schemas
+  validate: resource validate --error-on-missing-schemas
 ```
 
 ## Validation
