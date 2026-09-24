@@ -1,13 +1,15 @@
-apiVersion: apiextensions.crossplane.io/v2
+apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xbaseinfrastructures.base.example.com
+  name: xawsinfrastructures.aws.example.com
 spec:
-  group: base.example.com
+  group: aws.example.com
   names:
-    kind: XBaseInfrastructure
-    plural: xbaseinfrastructures
-  scope: Cluster
+    kind: XAWSInfrastructure
+    plural: xawsinfrastructures
+  claimNames:
+    kind: AWSInfrastructure
+    plural: awsinfrastructures
   versions:
   - name: v1
     served: true
@@ -41,18 +43,19 @@ spec:
               project:
                 type: string
                 description: Project name
+              optionalNote:
+                type: string
+                nullable: true
+                description: Optional note (nullable)
             required:
             - region
             - team
           status:
             type: object
             properties:
-              configMapName:
+              securityGroupId:
                 type: string
-                description: Name of the created ConfigMap
-              xrName:
+                description: Security group identifier
+              rds:
                 type: string
-                description: Name of the created XAWSInfrastructure XR
-              ready:
-                type: boolean
-                description: Whether the base resources are ready
+                description: RDS instance identifier (when created)

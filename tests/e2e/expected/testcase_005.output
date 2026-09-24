@@ -5,7 +5,7 @@
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
         Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
-        crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
+        crossplane: error: could not validate all resources, schema(s) missing
 --- FAIL: Pre-test hook failure (X.XXXs)
     Pre-test Hooks:
         [x] Fail pre-test hook [exit code: 1]
@@ -52,7 +52,7 @@
         [x] Full render matches golden (using diff)
             --- golden_full_render.yaml
             +++ rendered.yaml
-            @@ -11,7 +11,7 @@
+            @@ -16,7 +16,7 @@
                optionalNote: null
                region: us-west-2
                sshPublicKey: qa_ssh_key
@@ -106,7 +106,7 @@
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
         Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
-        crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
+        crossplane: error: could not validate all resources, schema(s) missing
     Assertions:
         [x] Failed assertion - expected 0 resources, got 2
         Total: 2 assertions, 1 successful, 1 failed, 0 errors
@@ -114,7 +114,7 @@
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
         Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
-        crossplane: error: cannot validate resources: could not validate all resources, schema(s) missing
+        crossplane: error: could not validate all resources, schema(s) missing
     Assertions:
         [x] Failed assertion - expected 0 resources, got 2
         Total: 2 assertions, 1 successful, 1 failed, 0 errors

@@ -1,0 +1,12 @@
+tests:
+- name: "generateName is not added to composed resources (v1 bug, fixed in v2)"
+  inputs:
+    xr: ../../aws/xr_with_generatename.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+  assertions:
+    xprin:
+    - name: "generateName must not appear in rendered composed resource"
+      type: "FieldNotExists"
+      resource: "SecurityGroup/platform-aws-sg"
+      field: "metadata.generateName"

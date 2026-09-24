@@ -1,15 +1,13 @@
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: xawsinfrastructures.aws.example.com
 spec:
+  scope: Cluster
   group: aws.example.com
   names:
     kind: XAWSInfrastructure
     plural: xawsinfrastructures
-  claimNames:
-    kind: AWSInfrastructure
-    plural: awsinfrastructures
   versions:
   - name: v1
     served: true

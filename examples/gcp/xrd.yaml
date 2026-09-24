@@ -1,4 +1,4 @@
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: xgcpinfrastructures.gcp.example.com
@@ -7,9 +7,7 @@ spec:
   names:
     kind: XGCPInfrastructure
     plural: xgcpinfrastructures
-  claimNames:
-    kind: GCPInfrastructure
-    plural: gcpinfrastructures
+  scope: Cluster
   versions:
   - name: v1
     served: true
@@ -55,4 +53,3 @@ spec:
               cloudSql:
                 type: string
                 description: Cloud SQL instance identifier (when created)
-

@@ -4,8 +4,12 @@ VERSION --try --raw-output 0.8
 PROJECT crossplane-contrib/xprin
 
 ARG --global GO_VERSION=1.26.2
+ARG --global E2E_CROSSPLANE_CLI=2.5.0
+ARG --global E2E_CROSSPLANE_V2=2.4.2
+
+# legacy
 ARG --global E2E_CROSSPLANE_V1=1.20.13
-ARG --global E2E_CROSSPLANE_V2=2.2.1
+ARG --global E2E_CROSSPLANE_V2_LEGACY=2.2.6
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
@@ -46,9 +50,10 @@ generate:
 tidy:
   BUILD +go-modules-tidy
 
-# e2e runs the end-to-end tests against both Crossplane v1 and v2.
+# e2e runs the end-to-end tests against all three CLI tiers.
 e2e:
   BUILD +e2e-v1
+  BUILD +e2e-v2legacy
   BUILD +e2e-v2
 
 # go-modules downloads xprin's go modules. It's the base target of most Go
@@ -176,28 +181,50 @@ golangci-lint-setup:
   SAVE ARTIFACT golangci-lint
 
 # crossplane-cli-setup is used by other targets to setup the crossplane CLI.
-# If no CROSSPLANE_VERSION is provided, it will use the latest stable version.
+# If no CROSSPLANE_CLI_VERSION is provided, it will use the latest stable version.
 crossplane-cli-setup:
-  ARG CROSSPLANE_VERSION
+  ARG CROSSPLANE_CLI_VERSION
   ARG NATIVEPLATFORM
   FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.18.0
-  RUN curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | XP_VERSION="${CROSSPLANE_VERSION:+v${CROSSPLANE_VERSION}}" sh
+  RUN curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | XP_VERSION="${CROSSPLANE_CLI_VERSION:+v${CROSSPLANE_CLI_VERSION}}" sh
   SAVE ARTIFACT crossplane
 
-# e2e-run runs e2e tests using a specific Crossplane version.
-# CROSSPLANE_VERSION is optional. If it is not provided, it will use the latest stable version.
-# EXPECTED_XP_MAJOR (1 or 2) is optional. When set by e2e-v1/e2e-v2, run.sh verifies the installed Crossplane matches.
+# e2e-run runs e2e tests using a specific Crossplane CLI and controller version.
+# CROSSPLANE_CLI_VERSION and CROSSPLANE_VERSION are optional.
+# EXPECTED_XP_TIER (v1/v2legacy/v2) is optional. When set by tier targets, run.sh verifies the installed Crossplane matches.
 e2e-run:
   ARG TARGETARCH
   ARG TARGETOS
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
+  ARG CROSSPLANE_CLI_VERSION
   ARG CROSSPLANE_VERSION
-  ARG EXPECTED_XP_MAJOR=""
+  ARG EXPECTED_XP_TIER=""
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
-  ENV EXPECTED_XP_MAJOR=$EXPECTED_XP_MAJOR
+  ENV EXPECTED_XP_TIER=$EXPECTED_XP_TIER
+  ENV CROSSPLANE_VERSION=$CROSSPLANE_VERSION
   RUN apk add --no-cache bash
-  COPY +crossplane-cli-setup/crossplane /usr/local/bin/crossplane
+  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$CROSSPLANE_CLI_VERSION) /usr/local/bin/crossplane
+  COPY +go-build/xprin .
+  COPY --dir examples/ tests/ ./
+  RUN chmod +x tests/e2e/scripts/gen-invalid-tests.sh tests/e2e/scripts/run.sh
+  WITH DOCKER
+    RUN /tests/e2e/scripts/run.sh
+  END
+
+# e2e-legacy-run runs e2e tests using a specific legacy Crossplane CLI version (no separate controller version).
+# Used for v1 and v2-legacy tiers where CLI and controller are the same package.
+e2e-legacy-run:
+  ARG TARGETARCH
+  ARG TARGETOS
+  ARG GOARCH=${TARGETARCH}
+  ARG GOOS=${TARGETOS}
+  ARG CROSSPLANE_CLI_VERSION
+  ARG EXPECTED_XP_TIER=""
+  FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
+  ENV EXPECTED_XP_TIER=$EXPECTED_XP_TIER
+  RUN apk add --no-cache bash
+  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$CROSSPLANE_CLI_VERSION) /usr/local/bin/crossplane
   COPY +go-build/xprin .
   COPY --dir examples/ tests/ ./
   RUN chmod +x tests/e2e/scripts/gen-invalid-tests.sh tests/e2e/scripts/run.sh
@@ -207,28 +234,37 @@ e2e-run:
 
 # e2e-v1 runs e2e tests against Crossplane v1.
 e2e-v1:
-  BUILD --build-arg CROSSPLANE_VERSION=$E2E_CROSSPLANE_V1 --build-arg EXPECTED_XP_MAJOR=1 +e2e-run
+  BUILD --build-arg CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_V1 --build-arg EXPECTED_XP_TIER=v1 +e2e-legacy-run
 
-# e2e-v2 runs e2e tests against Crossplane v2.
+# e2e-v2legacy runs e2e tests against Crossplane v2-legacy CLI (v2.0–v2.2, uses beta validate).
+e2e-v2legacy:
+  BUILD --build-arg CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_V2_LEGACY --build-arg EXPECTED_XP_TIER=v2legacy +e2e-legacy-run
+
+# e2e-v2 runs e2e tests against the current Crossplane v2 CLI (v2.3+, uses resource validate).
 e2e-v2:
-  BUILD --build-arg CROSSPLANE_VERSION=$E2E_CROSSPLANE_V2 --build-arg EXPECTED_XP_MAJOR=2 +e2e-run
+  BUILD --build-arg CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_CLI --build-arg CROSSPLANE_VERSION=$E2E_CROSSPLANE_V2 --build-arg EXPECTED_XP_TIER=v2 +e2e-run
 
-# e2e-regen-expected runs v1 and v2 in parallel, merges artifacts, runs cleanup, then exports.
+# e2e-regen-expected runs all three CLI tiers in parallel, merges artifacts, runs cleanup, then exports.
 e2e-regen-expected:
   BUILD +e2e-regen-expected-v1
+  BUILD +e2e-regen-expected-v2legacy
   BUILD +e2e-regen-expected-v2
   FROM alpine:3.24
   RUN apk add --no-cache bash
   WORKDIR /work
   COPY +e2e-regen-expected-v1/expected v1-expected/
+  COPY +e2e-regen-expected-v2legacy/expected v2legacy-expected/
   COPY +e2e-regen-expected-v2/expected v2-expected/
-  RUN mkdir -p expected && cp -a v1-expected/. expected/ && cp -a v2-expected/. expected/
+  RUN mkdir -p expected \
+    && cp -a v1-expected/. expected/ \
+    && cp -a v2legacy-expected/. expected/ \
+    && cp -a v2-expected/. expected/
   COPY --dir tests/e2e/scripts/ ./
   RUN chmod +x scripts/regen-expected.sh
   RUN CLEANUP=true scripts/regen-expected.sh
   SAVE ARTIFACT expected AS LOCAL tests/e2e/expected
 
-# e2e-regen-expected-v1 runs the regen script for Crossplane v1 only; used in parallel with v2 then merged.
+# e2e-regen-expected-v1 runs the regen script for Crossplane v1 only; used in parallel then merged.
 # Full target (not BUILD-only) so COPY +e2e-regen-expected-v1/expected works in e2e-regen-expected.
 e2e-regen-expected-v1:
   ARG TARGETARCH
@@ -236,7 +272,7 @@ e2e-regen-expected-v1:
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
-  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_VERSION=$E2E_CROSSPLANE_V1) /usr/local/bin/crossplane
+  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_V1) /usr/local/bin/crossplane
   RUN apk add --no-cache bash
   COPY +go-build/xprin .
   COPY --dir examples/ tests/e2e/scripts/ ./
@@ -247,19 +283,38 @@ e2e-regen-expected-v1:
   END
   SAVE ARTIFACT expected
 
-# e2e-regen-expected-v2 runs the regen script for Crossplane v2 only; used in parallel with v1 then merged.
+# e2e-regen-expected-v2legacy runs the regen script for v2-legacy CLI (v2.0-v2.2) only; used in parallel then merged.
+e2e-regen-expected-v2legacy:
+  ARG TARGETARCH
+  ARG TARGETOS
+  ARG GOARCH=${TARGETARCH}
+  ARG GOOS=${TARGETOS}
+  FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
+  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_V2_LEGACY) /usr/local/bin/crossplane
+  RUN apk add --no-cache bash
+  COPY +go-build/xprin .
+  COPY --dir examples/ tests/e2e/scripts/ ./
+  RUN chmod +x scripts/gen-invalid-tests.sh scripts/regen-expected.sh
+  RUN mkdir expected
+  WITH DOCKER
+    RUN GENERATE=true scripts/regen-expected.sh
+  END
+  SAVE ARTIFACT expected
+
+# e2e-regen-expected-v2 runs the regen script for current v2 CLI (v2.3+) only; used in parallel then merged.
 e2e-regen-expected-v2:
   ARG TARGETARCH
   ARG TARGETOS
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
-  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_VERSION=$E2E_CROSSPLANE_V2) /usr/local/bin/crossplane
+  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_CLI) /usr/local/bin/crossplane
   RUN apk add --no-cache bash
   COPY +go-build/xprin .
   COPY --dir examples/ tests/e2e/scripts/ ./
   RUN chmod +x scripts/gen-invalid-tests.sh scripts/regen-expected.sh
   RUN mkdir expected
+  ENV CROSSPLANE_VERSION=$E2E_CROSSPLANE_V2
   WITH DOCKER
     RUN GENERATE=true scripts/regen-expected.sh
   END

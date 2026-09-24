@@ -1,0 +1,86 @@
+DEBUG: Processing testsuite file examples/mytests/0_e2e/validations_xrd_v1_xprin.yaml
+DEBUG: Created testsuite artifacts directory: /tmp/xprin-testsuite-artifacts-XXXX
+DEBUG: Using testsuite file directory for relative path resolution: examples/mytests/0_e2e
+DEBUG: Found common configuration:
+DEBUG:   Inputs:
+DEBUG:   - Composition: ../../aws/composition.yaml
+DEBUG:   - Functions: ../../aws/functions.yaml
+DEBUG:   - CRDs:
+DEBUG:     - ../../aws/xrd_legacy.yaml
+DEBUG:     - ../../aws/crossplane.yaml
+DEBUG: Found 2 test cases
+DEBUG: Starting test case 'validation with incomplete XR, no patches, XRD v1'
+DEBUG: Created temporary directory for test case: /tmp/xprin-testcase-XXXX
+DEBUG: - Inputs: /tmp/xprin-testcase-XXXX/inputs
+DEBUG: - Outputs: /tmp/xprin-testcase-XXXX/outputs
+DEBUG: Test specification:
+DEBUG:   Inputs:
+DEBUG:   - XR: ../../aws/xr_without_team.yaml
+DEBUG:   - Composition: ../../aws/composition.yaml
+DEBUG:   - Functions: ../../aws/functions.yaml
+DEBUG:   - CRDs:
+DEBUG:     - ../../aws/xrd_legacy.yaml
+DEBUG:     - ../../aws/crossplane.yaml
+DEBUG: Test specification with expanded input paths:
+DEBUG:   Inputs:
+DEBUG:   - XR: /examples/aws/xr_without_team.yaml
+DEBUG:   - Composition: /examples/aws/composition.yaml
+DEBUG:   - Functions: /examples/aws/functions.yaml
+DEBUG:   - CRDs:
+DEBUG:     - /examples/aws/xrd_legacy.yaml
+DEBUG:     - /examples/aws/crossplane.yaml
+DEBUG: Copied xr to: /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml
+DEBUG: Copied composition to: /tmp/xprin-testcase-XXXX/inputs/composition/composition.yaml
+DEBUG: Copied functions to: /tmp/xprin-testcase-XXXX/inputs/functions/functions.yaml
+DEBUG: Copied to: /tmp/xprin-testcase-XXXX/inputs/crds/xrd_legacy.yaml
+DEBUG: Copied to: /tmp/xprin-testcase-XXXX/inputs/crds/crossplane.yaml
+DEBUG: Using provided XR file: /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml
+DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-version=vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml /tmp/xprin-testcase-XXXX/inputs/composition/composition.yaml /tmp/xprin-testcase-XXXX/inputs/functions/functions.yaml
+DEBUG: Wrote rendered output to: /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
+DEBUG: Running validate command: /usr/local/bin/crossplane resource validate --error-on-missing-schemas --crossplane-image=xpkg.crossplane.io/crossplane/crossplane:vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/crds /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
+DEBUG: Wrote validation output to: /tmp/xprin-testcase-XXXX/outputs/validate.txt
+--- FAIL: validation with incomplete XR, no patches, XRD v1 (X.XXXs)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws : spec.crossplane: Invalid value: "crossplane": unknown field: "crossplane"
+        Total 2 resources: 0 missing schemas, 1 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+DEBUG: Starting test case 'validation with incomplete XR, with patches, XRD v1'
+DEBUG: Created temporary directory for test case: /tmp/xprin-testcase-XXXX
+DEBUG: - Inputs: /tmp/xprin-testcase-XXXX/inputs
+DEBUG: - Outputs: /tmp/xprin-testcase-XXXX/outputs
+DEBUG: Test specification:
+DEBUG:   Patches:
+DEBUG:   - XRD: ../../aws/xrd_legacy.yaml
+DEBUG:   Inputs:
+DEBUG:   - XR: ../../aws/xr_without_team.yaml
+DEBUG:   - Composition: ../../aws/composition.yaml
+DEBUG:   - Functions: ../../aws/functions.yaml
+DEBUG:   - CRDs:
+DEBUG:     - ../../aws/xrd_legacy.yaml
+DEBUG:     - ../../aws/crossplane.yaml
+DEBUG: Test specification with expanded input paths:
+DEBUG:   Patches:
+DEBUG:   - XRD: /examples/aws/xrd_legacy.yaml
+DEBUG:   Inputs:
+DEBUG:   - XR: /examples/aws/xr_without_team.yaml
+DEBUG:   - Composition: /examples/aws/composition.yaml
+DEBUG:   - Functions: /examples/aws/functions.yaml
+DEBUG:   - CRDs:
+DEBUG:     - /examples/aws/xrd_legacy.yaml
+DEBUG:     - /examples/aws/crossplane.yaml
+DEBUG: Copied xr to: /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml
+DEBUG: Copied composition to: /tmp/xprin-testcase-XXXX/inputs/composition/composition.yaml
+DEBUG: Copied functions to: /tmp/xprin-testcase-XXXX/inputs/functions/functions.yaml
+DEBUG: Copied to: /tmp/xprin-testcase-XXXX/inputs/crds/xrd_legacy.yaml
+DEBUG: Copied to: /tmp/xprin-testcase-XXXX/inputs/crds/crossplane.yaml
+DEBUG: Copied xrd to: /tmp/xprin-testcase-XXXX/inputs/xrd/xrd_legacy.yaml
+DEBUG: Using provided XR file: /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml
+DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-version=vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml /tmp/xprin-testcase-XXXX/inputs/composition/composition.yaml /tmp/xprin-testcase-XXXX/inputs/functions/functions.yaml --xrd=/tmp/xprin-testcase-XXXX/inputs/xrd/xrd_legacy.yaml
+DEBUG: Wrote rendered output to: /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
+DEBUG: Running validate command: /usr/local/bin/crossplane resource validate --error-on-missing-schemas --crossplane-image=xpkg.crossplane.io/crossplane/crossplane:vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/crds /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
+DEBUG: Wrote validation output to: /tmp/xprin-testcase-XXXX/outputs/validate.txt
+DEBUG: Test case 'validation with incomplete XR, with patches, XRD v1' completed with status: PASS
+FAIL
+FAIL	examples/mytests/0_e2e/validations_xrd_v1_xprin.yaml	X.XXXs
+FAIL
+YYYY/MM/DD HH:MM:SS processing completed with errors

@@ -22,9 +22,12 @@ sed_args=(
     -e 's|/var/folders/[^/]+/[^/]+/[^/]+/xprin-[^/]+|/tmp/xprin-XXXXX|g'
     -e 's|/tmp/[^/]+/xprin-[^/]+|/tmp/xprin-XXXXX|g'
     -e 's|/tmp/xprin-testcase-[0-9]+|/tmp/xprin-testcase-XXXX|g'
+    -e 's|/tmp/xprin-testsuite-artifacts-[0-9]+|/tmp/xprin-testsuite-artifacts-XXXX|g'
     -e 's|/Users/[^/]+/repos/[^/]+/[^/]+|/Users/user/repos/xprin|g'
     -e "$root_sed"
     -e 's/[0-9]{4}\/[0-9]{2}\/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/YYYY\/MM\/DD HH:MM:SS/g'
+    -e 's/--crossplane-version=v[0-9]+\.[0-9]+\.[0-9]+/--crossplane-version=vX.Y.Z/g'
+    -e 's|--crossplane-image=xpkg\.crossplane\.io/crossplane/crossplane:v[0-9]+\.[0-9]+\.[0-9]+|--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:vX.Y.Z|g'
     -e 's/\r$//'
     -e 's/[[:space:]]+$//'
 )
