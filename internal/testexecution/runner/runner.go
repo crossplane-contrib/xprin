@@ -522,8 +522,13 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		}
 	}
 
-	renderArgs := make([]string, 0, len(r.Render)+3)
+	renderArgs := make([]string, 0, len(r.Render)+4)
+
 	renderArgs = append(renderArgs, r.Render...)
+	if r.CrossplaneVersion != "" && !r.IsLegacyCLI {
+		renderArgs = append(renderArgs, "--crossplane-version="+r.CrossplaneVersion)
+	}
+
 	renderArgs = append(renderArgs, inputXR, testCase.Inputs.Composition, testCase.Inputs.Functions)
 
 	if testCase.Patches.XRD != "" && !r.IsV1CLI {
@@ -622,8 +627,13 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	var finalError []string
 
 	if len(testCase.Inputs.CRDs) >= 1 {
-		validateArgs := make([]string, 0, len(r.Validate)+3)
+		validateArgs := make([]string, 0, len(r.Validate)+4)
+
 		validateArgs = append(validateArgs, r.Validate...)
+		if r.CrossplaneVersion != "" {
+			validateArgs = append(validateArgs, "--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:"+r.CrossplaneVersion)
+		}
+
 		validateArgs = append(validateArgs, filepath.Join(r.inputsDir, "crds"), result.Outputs.Render)
 		// Run crossplane beta validate command
 		if r.Debug {
