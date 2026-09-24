@@ -129,7 +129,7 @@ for test_var in "${TEST_CASES[@]}"; do
 
     echo "Running testcase_${test_id}..."
     read -ra cmd_args <<< "${test_args}"
-    echo "Command: xprin test ${XPRIN_ARGS[*]} ${cmd_args[*]}"
+    echo "Command: xprin test ${XPRIN_ARGS[@]:+${XPRIN_ARGS[*]} }${cmd_args[*]}"
 
     TMPDIR="$(mktemp -d)"
     TMPDIRS+=("${TMPDIR}")

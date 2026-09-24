@@ -26,11 +26,6 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
-// boolPtr is a helper function to create a pointer to a boolean value.
-func boolPtr(b bool) *bool {
-	return &b
-}
-
 // TestPatchXR tests the patchXR function directly.
 func TestPatchXR(t *testing.T) {
 	fs := afero.NewMemMapFs()
@@ -70,7 +65,7 @@ spec:
 		{
 			name: "valid - ConnectionSecret explicitly true with name",
 			patches: api.Patches{
-				ConnectionSecret:          boolPtr(true),
+				ConnectionSecret:          new(true),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "",
 			},
@@ -109,7 +104,7 @@ spec:
 		{
 			name: "valid - ConnectionSecret false with name (disable)",
 			patches: api.Patches{
-				ConnectionSecret:          boolPtr(false),
+				ConnectionSecret:          new(false),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "",
 			},
@@ -118,7 +113,7 @@ spec:
 		{
 			name: "valid - ConnectionSecret false with namespace (disable)",
 			patches: api.Patches{
-				ConnectionSecret:          boolPtr(false),
+				ConnectionSecret:          new(false),
 				ConnectionSecretName:      "",
 				ConnectionSecretNamespace: "my-namespace",
 			},
@@ -127,7 +122,7 @@ spec:
 		{
 			name: "valid - ConnectionSecret false with both name and namespace (disable)",
 			patches: api.Patches{
-				ConnectionSecret:          boolPtr(false),
+				ConnectionSecret:          new(false),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "my-namespace",
 			},

@@ -916,7 +916,7 @@ func TestRunTestCase(t *testing.T) {
 					CRDs:        []string{localCRDPath},
 				},
 				Patches: api.Patches{
-					ConnectionSecret: boolPtr(true),
+					ConnectionSecret: new(true),
 					XRD:              "my-xrd.yaml",
 				},
 			},
@@ -996,7 +996,7 @@ func TestRunTestCase(t *testing.T) {
 					Functions:   "functions.yaml",
 				},
 				Patches: api.Patches{
-					ConnectionSecret: boolPtr(true),
+					ConnectionSecret: new(true),
 				},
 			},
 			setup: func(r *Runner) {
@@ -1029,7 +1029,7 @@ func TestRunTestCase(t *testing.T) {
 					Functions:   "functions.yaml",
 				},
 				Patches: api.Patches{
-					ConnectionSecret:          boolPtr(true),
+					ConnectionSecret:          new(true),
 					ConnectionSecretName:      "my-secret",
 					ConnectionSecretNamespace: "my-namespace",
 				},
@@ -1211,7 +1211,7 @@ func TestRunTestCase(t *testing.T) {
 				},
 				Patches: api.Patches{
 					XRD:                       "my-xrd.yaml",
-					ConnectionSecret:          boolPtr(true),
+					ConnectionSecret:          new(true),
 					ConnectionSecretName:      "my-secret",
 					ConnectionSecretNamespace: "my-namespace",
 				},
