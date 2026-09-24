@@ -217,7 +217,7 @@ e2e-v2:
 e2e-regen-expected:
   BUILD +e2e-regen-expected-v1
   BUILD +e2e-regen-expected-v2
-  FROM alpine:3.23
+  FROM alpine:3.24
   RUN apk add --no-cache bash
   WORKDIR /work
   COPY +e2e-regen-expected-v1/expected v1-expected/
