@@ -154,6 +154,90 @@ func TestNewOptions(t *testing.T) {
 	assert.Equal(t, "v2.4.0", options.CrossplaneVersion)
 }
 
+// TestRun_DebugV1CLI tests that debug mode prints the v1 CLI detection warning when IsV1CLI is true.
+func TestRun_DebugV1CLI(t *testing.T) {
+	cfg := &internalcfg.Config{
+		Subcommands: &internalcfg.Subcommands{},
+		IsV1CLI:     true,
+	}
+
+	cmd := &Cmd{
+		Debug:  true,
+		Config: cfg,
+	}
+
+	output := unittestsUtils.CaptureStderr(func() {
+		ctx := &kong.Context{}
+		_ = cmd.Run(ctx)
+	})
+
+	assert.Contains(t, output, "Crossplane CLI v1 detected")
+}
+
+// TestRun_DebugV1CLI_NoWarningOnV2 tests that the v1 debug warning is not printed when IsV1CLI is false.
+func TestRun_DebugV1CLI_NoWarningOnV2(t *testing.T) {
+	cfg := &internalcfg.Config{
+		Subcommands: &internalcfg.Subcommands{},
+		IsV1CLI:     false,
+	}
+
+	cmd := &Cmd{
+		Debug:  true,
+		Config: cfg,
+	}
+
+	output := unittestsUtils.CaptureStderr(func() {
+		ctx := &kong.Context{}
+		_ = cmd.Run(ctx)
+	})
+
+	assert.NotContains(t, output, "Crossplane CLI v1 detected")
+}
+
+// TestRun_DebugCrossplaneVersionLegacyWarning tests that the legacy CLI warning is printed
+// when --crossplane-version is set and the CLI is legacy (< v2.3.0).
+func TestRun_DebugCrossplaneVersionLegacyWarning(t *testing.T) {
+	cfg := &internalcfg.Config{
+		Subcommands: &internalcfg.Subcommands{},
+		IsLegacyCLI: true,
+	}
+
+	cmd := &Cmd{
+		Debug:             true,
+		CrossplaneVersion: "v1.2.3",
+		Config:            cfg,
+	}
+
+	output := unittestsUtils.CaptureStderr(func() {
+		ctx := &kong.Context{}
+		_ = cmd.Run(ctx)
+	})
+
+	assert.Contains(t, output, "--crossplane-version is not supported by the legacy Crossplane CLI")
+}
+
+// TestRun_DebugCrossplaneVersionNoWarningOnCurrent tests that the legacy warning is NOT printed
+// when --crossplane-version is set but the CLI is current (>= v2.3.0).
+func TestRun_DebugCrossplaneVersionNoWarningOnCurrent(t *testing.T) {
+	cfg := &internalcfg.Config{
+		Subcommands: &internalcfg.Subcommands{},
+		IsLegacyCLI: false,
+	}
+
+	cmd := &Cmd{
+		Debug:             true,
+		CrossplaneVersion: "v1.2.3",
+		Config:            cfg,
+	}
+
+	output := unittestsUtils.CaptureStderr(func() {
+		ctx := &kong.Context{}
+		_ = cmd.Run(ctx)
+	})
+
+	assert.NotContains(t, output, "--crossplane-version is not supported by the legacy Crossplane CLI")
+}
+
 // Test that NewOptions handles nil Subcommands gracefully.
 func TestNewOptions_WithNilSubcommands(t *testing.T) {
 	// Setup a config with nil Subcommands

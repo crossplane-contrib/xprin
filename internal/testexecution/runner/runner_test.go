@@ -1106,6 +1106,247 @@ func TestRunTestCase(t *testing.T) {
 			wantError: "",
 		},
 		{
+			// On v2/v2legacy (IsV1CLI=false, the mock default), patchXRFunc must NOT be called when patches.xrd
+			//  is the only patch, XRD defaults are handled by render --xrd instead.
+			name: "xr with XRD only - patchXR skipped on v2",
+			testCase: api.TestCase{
+				Name: "test",
+				Inputs: api.Inputs{
+					XR:          "xr.yaml",
+					Composition: "comp.yaml",
+					Functions:   "functions.yaml",
+				},
+				Patches: api.Patches{
+					XRD: "my-xrd.yaml",
+				},
+			},
+			setup: func(r *Runner) {
+				patchXRCalled := false
+				r.patchXRFunc = func(_ *Runner, _, outputPath string, _ api.Patches) (string, error) {
+					patchXRCalled = true
+					return filepath.Join(outputPath, "patched-xr.yaml"), nil
+				}
+				r.runCommand = func(name string, args ...string) ([]byte, error) {
+					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
+						// Verify --xrd is forwarded to render on v2
+						found := false
+
+						for _, a := range args {
+							if strings.HasPrefix(a, "--xrd=") {
+								found = true
+								break
+							}
+						}
+
+						assert.True(t, found, "render should receive --xrd on v2")
+
+						return validRenderYAML, nil
+					}
+
+					return []byte{}, nil
+				}
+
+				t.Cleanup(func() {
+					assert.False(t, patchXRCalled, "patchXRFunc must not be called on v2 when XRD is the only patch")
+				})
+			},
+			wantError: "",
+		},
+		{
+			// On v1 (IsV1CLI=true), patchXRFunc MUST be called when patches.xrd is set because
+			// crossplane v1 render does not support --xrd so defaults are applied in Go.
+			name: "xr with XRD only - patchXR called on v1",
+			testCase: api.TestCase{
+				Name: "test",
+				Inputs: api.Inputs{
+					XR:          "xr.yaml",
+					Composition: "comp.yaml",
+					Functions:   "functions.yaml",
+				},
+				Patches: api.Patches{
+					XRD: "my-xrd.yaml",
+				},
+			},
+			setup: func(r *Runner) {
+				// Assign a local copy so we don't mutate the shared options pointer.
+				localOpts := *r.Options
+				localOpts.IsV1CLI = true
+				r.Options = &localOpts
+				patchXRCalled := false
+				r.patchXRFunc = func(_ *Runner, _, outputPath string, patches api.Patches) (string, error) {
+					patchXRCalled = true
+
+					assert.NotEmpty(t, patches.XRD, "v1 patchXR must receive the XRD path")
+
+					return filepath.Join(outputPath, "patched-xr.yaml"), nil
+				}
+				r.runCommand = func(name string, args ...string) ([]byte, error) {
+					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
+						for _, a := range args {
+							assert.False(t, strings.HasPrefix(a, "--xrd="), "render must not receive --xrd on v1")
+						}
+
+						return validRenderYAML, nil
+					}
+
+					return []byte{}, nil
+				}
+
+				t.Cleanup(func() {
+					assert.True(t, patchXRCalled, "patchXRFunc must be called on v1 when XRD is set")
+				})
+			},
+			wantError: "",
+		},
+		{
+			// Connection-secret fields (even invalid ones) must still reach patchXR on v2 so that
+			// CheckConnectionSecret() can return a proper error — they must not be silently dropped.
+			name: "xr with XRD and connection secret - patchXR called on v2 for connection secret",
+			testCase: api.TestCase{
+				Name: "test",
+				Inputs: api.Inputs{
+					XR:          "xr.yaml",
+					Composition: "comp.yaml",
+					Functions:   "functions.yaml",
+				},
+				Patches: api.Patches{
+					XRD:                       "my-xrd.yaml",
+					ConnectionSecret:          boolPtr(true),
+					ConnectionSecretName:      "my-secret",
+					ConnectionSecretNamespace: "my-namespace",
+				},
+			},
+			setup: func(r *Runner) {
+				patchXRCalled := false
+				r.patchXRFunc = func(_ *Runner, _, outputPath string, patches api.Patches) (string, error) {
+					patchXRCalled = true
+					// On v2, XRD must be cleared; connection secret must still be present
+					assert.Empty(t, patches.XRD, "XRD must be cleared for v2 patchXR call")
+					assert.Equal(t, "my-secret", patches.ConnectionSecretName)
+
+					return filepath.Join(outputPath, "patched-xr.yaml"), nil
+				}
+				r.runCommand = func(name string, args ...string) ([]byte, error) {
+					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
+						return validRenderYAML, nil
+					}
+
+					return []byte{}, nil
+				}
+
+				t.Cleanup(func() {
+					assert.True(t, patchXRCalled, "patchXRFunc must be called on v2 when connection secret is set")
+				})
+			},
+			wantError: "",
+		},
+		{
+			// CrossplaneVersion on v2 (IsLegacyCLI=false): render gets --crossplane-version,
+			// validate gets --crossplane-image.
+			name: "crossplane-version passed to render and validate on v2",
+			testCase: api.TestCase{
+				Name: "test",
+				Inputs: api.Inputs{
+					XR:          "xr.yaml",
+					Composition: "comp.yaml",
+					Functions:   "functions.yaml",
+					CRDs:        []string{"crd.yaml"},
+				},
+			},
+			setup: func(r *Runner) {
+				localOpts := *r.Options
+				localOpts.CrossplaneVersion = "v1.2.3"
+				localOpts.IsLegacyCLI = false
+				r.Options = &localOpts
+
+				renderGotVersion := false
+				validateGotImage := false
+
+				r.runCommand = func(name string, args ...string) ([]byte, error) {
+					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
+						for _, a := range args {
+							if a == "--crossplane-version=v1.2.3" {
+								renderGotVersion = true
+							}
+						}
+
+						return validRenderYAML, nil
+					}
+
+					if name == config.CrossplaneCmd {
+						for _, a := range args {
+							if a == "--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:v1.2.3" {
+								validateGotImage = true
+							}
+						}
+
+						return []byte("validate ok"), nil
+					}
+
+					return []byte{}, nil
+				}
+
+				t.Cleanup(func() {
+					assert.True(t, renderGotVersion, "render must receive --crossplane-version on v2")
+					assert.True(t, validateGotImage, "validate must receive --crossplane-image on v2")
+				})
+			},
+			wantError: "",
+		},
+		{
+			// CrossplaneVersion on legacy CLI (IsLegacyCLI=true): render must NOT get
+			// --crossplane-version, but validate must still get --crossplane-image.
+			name: "crossplane-version skipped for render on legacy CLI, still passed to validate",
+			testCase: api.TestCase{
+				Name: "test",
+				Inputs: api.Inputs{
+					XR:          "xr.yaml",
+					Composition: "comp.yaml",
+					Functions:   "functions.yaml",
+					CRDs:        []string{"crd.yaml"},
+				},
+			},
+			setup: func(r *Runner) {
+				localOpts := *r.Options
+				localOpts.CrossplaneVersion = "v1.2.3"
+				localOpts.IsLegacyCLI = true
+				r.Options = &localOpts
+
+				renderGotVersion := false
+				validateGotImage := false
+
+				r.runCommand = func(name string, args ...string) ([]byte, error) {
+					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
+						for _, a := range args {
+							if strings.HasPrefix(a, "--crossplane-version") {
+								renderGotVersion = true
+							}
+						}
+
+						return validRenderYAML, nil
+					}
+
+					if name == config.CrossplaneCmd {
+						for _, a := range args {
+							if a == "--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:v1.2.3" {
+								validateGotImage = true
+							}
+						}
+
+						return []byte("validate ok"), nil
+					}
+
+					return []byte{}, nil
+				}
+
+				t.Cleanup(func() {
+					assert.False(t, renderGotVersion, "render must NOT receive --crossplane-version on legacy CLI")
+					assert.True(t, validateGotImage, "validate must receive --crossplane-image even on legacy CLI")
+				})
+			},
+			wantError: "",
+		},
+		{
 			name: "xr with pre-test hooks",
 			testCase: api.TestCase{
 				Name: "test",

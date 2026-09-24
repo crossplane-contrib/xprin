@@ -84,8 +84,9 @@ func (c *Cmd) Run(_ *kong.Context) error {
 
 	if c.Debug {
 		if c.Config.IsV1CLI {
-			utils.DebugPrintf("v1 Crossplane CLI detected; patches.xrd will not be passed as --xrd to render\n")
+			utils.DebugPrintf("Crossplane CLI v1 detected; patches.xrd will not be passed as --xrd to render\n")
 		}
+
 		if c.CrossplaneVersion != "" && c.Config.IsLegacyCLI {
 			utils.DebugPrintf("--crossplane-version is not supported by the legacy Crossplane CLI (< v2.3.0); skipping for render, but --crossplane-image will still be passed to validate\n")
 		}
