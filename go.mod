@@ -9,7 +9,7 @@ require (
 	github.com/alecthomas/kong v1.16.1
 	github.com/crossplane/cli/v2 v2.5.0
 	github.com/crossplane/crossplane-runtime/v2 v2.4.2
-	github.com/crossplane/crossplane/apis/v2 v2.4.0
+	github.com/crossplane/crossplane/apis/v2 v2.4.2
 	github.com/gertd/go-pluralize v0.2.1
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/gonvenience/bunt v1.4.3
