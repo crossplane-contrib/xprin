@@ -48,13 +48,6 @@ tests:
     post-test:
     - run: echo "bye"
 
-- name: "Validation failure (v1 only) (missing required team)"
-  inputs:
-    xr: ../../aws/xr_without_team.yaml
-    crds:
-    - ../../aws/xrd.yaml
-    - ../../aws/crossplane.yaml
-
 # Pre-test hook failures
 - name: "Pre-test hook failure"
   inputs:

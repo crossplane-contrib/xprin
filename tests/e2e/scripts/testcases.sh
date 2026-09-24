@@ -5,6 +5,9 @@
 # containing space-separated arguments (test files and flags).
 # The test ID is extracted from the variable name (e.g., testcase_001 -> "001")
 # Use testcase_<ID>_exit to set an expected non-zero exit code.
+# Use testcase_<ID>_exit_<tier> to set a per-tier expected non-zero exit code (v1/v2legacy/v2).
+# Use testcase_<ID>_tiers="v1 v2legacy v2" to run a testcase for specific tiers (space-separated).
+# If testcase_<ID>_tiers is not set, the testcase runs only for DEFAULT_TIERS (defined in run.sh).
 
 # Multiple Successful Files (Non-Verbose)
 testcase_001="examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml examples/mytests/2_multiple_testcases/example2_multiple-reconciliation-loops-using-common_xprin.yaml"
@@ -44,3 +47,9 @@ testcase_010="examples/mytests/5_chained_tests/example2_cross-composition-chaini
 # Invalid testsuite file
 testcase_011="examples/mytests/0_e2e/generated_invalid_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
 testcase_011_exit=1
+
+# Validations with combinations of incomplete / complete XR and with / without patches.xrd (XRD v1)
+testcase_012="examples/mytests/0_e2e/validations_xrd_v1_xprin.yaml --debug"
+testcase_012_tiers="v1 v2legacy v2"
+testcase_012_exit_v1=1
+testcase_012_exit_v2=1

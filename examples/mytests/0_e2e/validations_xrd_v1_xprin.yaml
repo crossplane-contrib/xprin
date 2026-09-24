@@ -1,0 +1,18 @@
+common:
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd_legacy.yaml
+    - ../../aws/crossplane.yaml
+
+tests:
+- name: "validation with incomplete XR, no patches, XRD v1"
+  inputs:
+    xr: ../../aws/xr_without_team.yaml
+
+- name: "validation with incomplete XR, with patches, XRD v1"
+  patches:
+    xrd: ../../aws/xrd_legacy.yaml
+  inputs:
+    xr: ../../aws/xr_without_team.yaml

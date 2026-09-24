@@ -5,27 +5,39 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT%/}"
 EXPECTED_DIR="${SCRIPT_DIR}/../expected"
 TESTCASES_FILE="${SCRIPT_DIR}/testcases.sh"
 NORMALIZE_SCRIPT="${SCRIPT_DIR}/normalize.sh"
 GEN_INVALID_TESTS_SCRIPT="${SCRIPT_DIR}/gen-invalid-tests.sh"
 E2E_TESTS_DIR="${PROJECT_ROOT}/examples/mytests/0_e2e"
 XPRIN_BIN="${XPRIN_BIN:-${PROJECT_ROOT}/xprin}"
+CROSSPLANE_VERSION="${CROSSPLANE_VERSION:-}"
+DEFAULT_TIERS="${DEFAULT_TIERS:-v2}"
 STATUS=0
 
 cd "${PROJECT_ROOT}"
 
-# Detect Crossplane major version (1 or 2) from binary - same logic as regen-expected.sh
-xp_major_from_binary() {
+# Detect Crossplane CLI tier (v1 / v2legacy / v2) from binary - same logic as regen-expected.sh.
+# v1       = crossplane/crossplane v1.x
+# v2legacy = crossplane/cli v2.0–v2.2 (uses beta validate, no resource validate)
+# v2       = crossplane/cli v2.3+ (uses resource validate)
+xp_tier_from_binary() {
     local bin="$1"
     local ver
     ver="$("${bin}" version --client 2>/dev/null | cut -d':' -f2 | xargs || true)"
     if [[ "${ver}" == v1.* ]]; then
-        echo 1
+        echo "v1"
     elif [[ "${ver}" == v2.* ]]; then
-        echo 2
+        local minor
+        minor=$(echo "${ver#v2.}" | cut -d'.' -f1)
+        if [[ "${minor}" -lt 3 ]] 2>/dev/null; then
+            echo "v2legacy"
+        else
+            echo "v2"
+        fi
     else
-        echo 2
+        echo "v2"
     fi
 }
 
@@ -35,7 +47,6 @@ if [ ! -f "${TESTCASES_FILE}" ]; then
 fi
 if [ ! -x "${XPRIN_BIN}" ]; then
     echo "xprin binary not found or not executable: ${XPRIN_BIN}"
-    echo "Run: make xprin-build"
     exit 1
 fi
 if [ ! -f "${NORMALIZE_SCRIPT}" ]; then
@@ -46,18 +57,26 @@ fi
 # shellcheck source=/dev/null
 source "${TESTCASES_FILE}"
 
-XP_MAJOR=$(xp_major_from_binary crossplane)
+XP_TIER=$(xp_tier_from_binary crossplane)
 
-# Guardrail: when EXPECTED_XP_MAJOR is set (optional; e.g. by Earthly e2e-v1/e2e-v2), ensure the Crossplane in PATH matches.
-if [ -n "${EXPECTED_XP_MAJOR:-}" ]; then
-    if [ "${XP_MAJOR}" -ne "${EXPECTED_XP_MAJOR}" ]; then
-        echo "E2E guardrail: expected Crossplane major version ${EXPECTED_XP_MAJOR}, but crossplane binary reports major ${XP_MAJOR}"
+# Guardrail: when EXPECTED_XP_TIER is set (optional; e.g. by Earthly tier targets), ensure the Crossplane in PATH matches.
+if [ -n "${EXPECTED_XP_TIER:-}" ]; then
+    if [ "${XP_TIER}" != "${EXPECTED_XP_TIER}" ]; then
+        echo "E2E guardrail: expected CLI tier ${EXPECTED_XP_TIER}, but crossplane binary reports tier ${XP_TIER}"
         echo "  Crossplane version: $(crossplane version --client 2>/dev/null || true)"
         exit 1
     fi
 fi
 
-TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit$' | LC_ALL=C sort))
+# Build global xprin args. CROSSPLANE_VERSION is set by e2e-run (v2 tier only).
+XPRIN_ARGS=()
+if [[ -n "${CROSSPLANE_VERSION}" ]]; then
+    # Normalize to always carry a leading 'v'
+    [[ "${CROSSPLANE_VERSION}" == v* ]] || CROSSPLANE_VERSION="v${CROSSPLANE_VERSION}"
+    XPRIN_ARGS=("--crossplane-version=${CROSSPLANE_VERSION}")
+fi
+
+TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit' | grep -v '_tiers' | LC_ALL=C sort))
 if [ "${#TEST_CASES[@]}" -eq 0 ]; then
     echo "No test cases defined in ${TESTCASES_FILE}"
     exit 1
@@ -65,6 +84,7 @@ fi
 
 PASSED=0
 FAILED=0
+SKIPPED=0
 FAILED_TESTS=()
 TMPDIRS=()
 
@@ -79,25 +99,48 @@ trap 'for d in "${TMPDIRS[@]}"; do rm -rf "${d}"; done; rm -f "${E2E_TESTS_DIR}"
 for test_var in "${TEST_CASES[@]}"; do
     test_id="${test_var#testcase_}"
     test_args="${!test_var}"
-    exit_var="${test_var}_exit"
-    expected_exit="${!exit_var:-0}"
+    # Per-tier exit code takes precedence over the global _exit fallback.
+    tier_exit_var="${test_var}_exit_${XP_TIER}"
+    if compgen -v | grep -q "^${tier_exit_var}$"; then
+        expected_exit="${!tier_exit_var}"
+    else
+        exit_var="${test_var}_exit"
+        expected_exit="${!exit_var:-0}"
+    fi
 
     if [ -z "${test_id}" ] || [ -z "${test_args}" ]; then
         echo "Invalid test case entry: ${test_var}"
         exit 1
     fi
 
+    # Run testcase only if XP_TIER is in testcase_NNN_tiers (fallback: DEFAULT_TIERS).
+    tiers_var="${test_var}_tiers"
+    if compgen -v | grep -q "^${tiers_var}$"; then
+        allowed_tiers="${!tiers_var}"
+    else
+        allowed_tiers="${DEFAULT_TIERS}"
+    fi
+    if ! echo " ${allowed_tiers} " | grep -q " ${XP_TIER} "; then
+        echo "SKIP: testcase_${test_id} (tier ${XP_TIER} not in: ${allowed_tiers})"
+        echo ""
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
+
     echo "Running testcase_${test_id}..."
     read -ra cmd_args <<< "${test_args}"
-    echo "Command: xprin test ${cmd_args[*]}"
+    echo "Command: xprin test ${XPRIN_ARGS[*]} ${cmd_args[*]}"
 
     TMPDIR="$(mktemp -d)"
     TMPDIRS+=("${TMPDIR}")
 
-    # Prefer version-specific expected file (.v1.output / .v2.output) if present; else default .output
-    EXPECTED_VERSIONED="${EXPECTED_DIR}/testcase_${test_id}.v${XP_MAJOR}.output"
-    if [ -f "${EXPECTED_VERSIONED}" ]; then
-        EXPECTED_OUTPUT="${EXPECTED_VERSIONED}"
+    # Lookup order: tier-specific (.v1 / .v2legacy) → shared (.v1_v2legacy for legacy tiers) → default (.output)
+    EXPECTED_TIER_FILE="${EXPECTED_DIR}/testcase_${test_id}.${XP_TIER}.output"
+    EXPECTED_SHARED_FILE="${EXPECTED_DIR}/testcase_${test_id}.v1_v2legacy.output"
+    if [ -f "${EXPECTED_TIER_FILE}" ]; then
+        EXPECTED_OUTPUT="${EXPECTED_TIER_FILE}"
+    elif [[ "${XP_TIER}" == v1 || "${XP_TIER}" == v2legacy ]] && [ -f "${EXPECTED_SHARED_FILE}" ]; then
+        EXPECTED_OUTPUT="${EXPECTED_SHARED_FILE}"
     else
         EXPECTED_OUTPUT="${EXPECTED_DIR}/testcase_${test_id}.output"
     fi
@@ -105,13 +148,23 @@ for test_var in "${TEST_CASES[@]}"; do
     NORMALIZED_OUTPUT="${TMPDIR}/normalized.output"
 
     set +e
-    "${XPRIN_BIN}" test "${cmd_args[@]}" > "${ACTUAL_OUTPUT}" 2>&1
+    "${XPRIN_BIN}" test "${XPRIN_ARGS[@]}" "${cmd_args[@]}" > "${ACTUAL_OUTPUT}" 2>&1
     EXIT_CODE=$?
     set -e
 
     "${NORMALIZE_SCRIPT}" "${ACTUAL_OUTPUT}" > "${NORMALIZED_OUTPUT}"
 
     TEST_FAILED=0
+
+    # When CROSSPLANE_VERSION is set and the testcase uses --debug, assert that the pinned
+    # controller image appears in the raw debug output (validates --crossplane-image wiring).
+    if [[ -n "${CROSSPLANE_VERSION}" ]] && printf '%s\n' "${cmd_args[@]}" | grep -qx -- '--debug'; then
+        expected_image="xpkg.crossplane.io/crossplane/crossplane:${CROSSPLANE_VERSION}"
+        if ! grep -q "${expected_image}" "${ACTUAL_OUTPUT}"; then
+            echo "  FAIL: crossplane-image assertion: '${expected_image}' not found in --debug output"
+            TEST_FAILED=1
+        fi
+    fi
 
     if [ ! -f "${EXPECTED_OUTPUT}" ]; then
         echo "FAIL: Expected file not found: ${EXPECTED_OUTPUT}"
@@ -157,14 +210,16 @@ done
 # Environment (debug info)
 echo ""
 echo "--- Environment ---"
-echo "xprin binary:  ${XPRIN_BIN}"
-echo "xprin version: $("${XPRIN_BIN}" version)"
-echo "Crossplane:    $(crossplane version --client | cut -d':' -f2 | xargs)"
+echo "xprin binary:                  ${XPRIN_BIN}"
+echo "xprin version:                 $("${XPRIN_BIN}" version)"
+echo "Crossplane CLI version:        $(crossplane version --client | cut -d':' -f2 | xargs)"
+echo "Crossplane CLI tier:           ${XP_TIER}"
+echo "Crossplane Controller version: ${CROSSPLANE_VERSION:-"(not pinned)"}"
 echo ""
 
 # E2E results
 echo "--- E2E results ---"
-echo "Total:  $((PASSED + FAILED))  Passed: ${PASSED}  Failed: ${FAILED}"
+echo "Total:  $((PASSED + FAILED + SKIPPED))  Passed: ${PASSED}  Failed: ${FAILED}  Skipped: ${SKIPPED}"
 
 if [ ${FAILED} -gt 0 ]; then
     echo "Failed tests:"

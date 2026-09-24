@@ -59,6 +59,16 @@ ok	examples/mytests/0_e2e/generate_golden_files_xprin.yaml	X.XXXs
             xrd_2.yaml
         [✓] Verify all 3 XRD files present (not overwritten)
             All 3 CRDs present (not overwritten)
+=== RUN   validation with incomplete XR, no patches, XRD v2
+--- PASS: validation with incomplete XR, no patches, XRD v2 (X.XXXs)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+=== RUN   validation with incomplete XR, with patches, XRD v2
+--- PASS: validation with incomplete XR, with patches, XRD v2 (X.XXXs)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
 PASS
 ok	examples/mytests/0_e2e/success_xprin.yaml	X.XXXs
 === RUN   Second reconciliation loop
