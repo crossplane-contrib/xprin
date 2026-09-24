@@ -514,11 +514,23 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		}
 	}
 
-	// Patch XR if needed (XRD and/or connection secret)
+	// Patch XR if needed (XRD and/or connection secret).
+	// On v2/v2legacy, XRD defaults are applied natively by render's --xrd flag (added to renderArgs
+	// below), so skip the Go-based pre-render patch for XRD on those tiers. v1 always uses the Go
+	// patch because crossplane render does not support --xrd.
 	if testCase.HasPatches() {
-		inputXR, err = r.patchXRFunc(r, inputXR, r.inputsDir, testCase.Patches)
-		if err != nil {
-			return result.Fail(fmt.Errorf("failed to patch XR: %w", err))
+		patchesToApply := testCase.Patches
+		if !r.IsV1CLI {
+			patchesToApply.XRD = ""
+		}
+		// HasPatches() is re-evaluated on the modified copy: if XRD was the only patch and we just
+		// cleared it, we skip patchXR entirely. Connection-secret fields (including invalid combos)
+		// still pass through so CheckConnectionSecret() inside patchXR can return a proper error.
+		if patchesToApply.HasPatches() {
+			inputXR, err = r.patchXRFunc(r, inputXR, r.inputsDir, patchesToApply)
+			if err != nil {
+				return result.Fail(fmt.Errorf("failed to patch XR: %w", err))
+			}
 		}
 	}
 
