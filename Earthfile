@@ -3,7 +3,7 @@ VERSION --try --raw-output 0.8
 
 PROJECT crossplane-contrib/xprin
 
-ARG --global GO_VERSION=1.26.2
+ARG --global GO_VERSION=1.26.8
 ARG --global E2E_CROSSPLANE_CLI=2.5.0
 ARG --global E2E_CROSSPLANE_V2=2.4.2
 

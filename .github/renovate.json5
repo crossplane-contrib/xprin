@@ -80,7 +80,7 @@
     },
     {
       customType: 'regex',
-      description: 'Bump E2E Crossplane v2 version in Earthfile',
+      description: 'Bump E2E Crossplane controller version in Earthfile (tracks crossplane/crossplane)',
       managerFilePatterns: [
         '/^Earthfile$/',
       ],
@@ -90,6 +90,20 @@
       datasourceTemplate: 'github-releases',
       depNameTemplate: 'crossplane/crossplane-e2e-v2',
       packageNameTemplate: 'crossplane/crossplane',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump E2E Crossplane current CLI version in Earthfile (crossplane/cli v2.3+)',
+      managerFilePatterns: [
+        '/^Earthfile$/',
+      ],
+      matchStrings: [
+        'ARG --global E2E_CROSSPLANE_CLI=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'crossplane/crossplane-e2e-cli',
+      packageNameTemplate: 'crossplane/cli',
       extractVersionTemplate: '^v(?<version>.*)$',
     },
     {
@@ -178,7 +192,7 @@
       ],
     },
     {
-      description: 'Only get dependency digest updates every month to reduce noise, except crossplane-runtime',
+      description: 'Only get dependency digest updates every month to reduce noise, except crossplane packages',
       matchDatasources: [
         'go',
       ],
@@ -188,24 +202,41 @@
       extends: [
         'schedule:monthly',
       ],
-      matchPackageNames: [
-        '!github.com/crossplane/crossplane-runtime',
+      excludePackagePatterns: [
+        'github\\.com/crossplane/.*',
       ],
     },
     {
-      description: 'Group crossplane v2 and crossplane-runtime v2 (go.mod)',
+      description: 'Group all crossplane go modules (go.mod): versions are independent',
       matchPackageNames: [
-        'github.com/crossplane/crossplane/v2',
+        'github.com/crossplane/crossplane/apis/v2',
         'github.com/crossplane/crossplane-runtime/v2',
+        'github.com/crossplane/cli/v2',
       ],
-      groupName: 'Crossplane v2',
+      groupName: 'Crossplane',
     },
     {
-      description: 'Group E2E_CROSSPLANE_V2 (Earthfile) with crossplane v2 go.mod updates',
+      description: 'Group E2E Crossplane Earthfile versions with go.mod updates',
       matchDepNames: [
         'crossplane/crossplane-e2e-v2',
+        'crossplane/crossplane-e2e-cli',
       ],
-      groupName: 'Crossplane v2',
+      groupName: 'Crossplane',
+    },
+    {
+      description: 'E2E Crossplane current CLI (Earthfile): only v2.3+',
+      matchDepNames: [
+        'crossplane/crossplane-e2e-cli',
+      ],
+      allowedVersions: '>=2.3',
+      ignoreUnstable: true,
+    },
+    {
+      description: 'Group all GitHub Actions updates',
+      matchManagers: [
+        'github-actions',
+      ],
+      groupName: 'github actions',
     },
     {
       description: 'Group all go version updates',

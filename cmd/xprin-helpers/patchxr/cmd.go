@@ -22,14 +22,13 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
+	commonIO "github.com/crossplane/cli/v2/cmd/crossplane/convert/io"
+	"github.com/crossplane/cli/v2/cmd/crossplane/render"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
-
-	commonIO "github.com/crossplane/crossplane/v2/cmd/crank/beta/convert/io"
-	"github.com/crossplane/crossplane/v2/cmd/crank/render"
 )
 
 // Cmd arguments and flags for patching a Crossplane XR (Composite Resource).

@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/crossplane/cli/v2/cmd/crossplane/render"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
@@ -27,8 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
-
-	"github.com/crossplane/crossplane/v2/cmd/crank/render"
 )
 
 // testXR is a basic test XR for testing patch functionality.

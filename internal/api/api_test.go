@@ -23,11 +23,6 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
-// boolPtr is a helper function to create a pointer to a boolean value.
-func boolPtr(b bool) *bool {
-	return &b
-}
-
 func TestPatches_hasConnectionSecret(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -44,21 +39,21 @@ func TestPatches_hasConnectionSecret(t *testing.T) {
 		{
 			name: "ConnectionSecret explicitly true",
 			patches: Patches{
-				ConnectionSecret: boolPtr(true),
+				ConnectionSecret: new(true),
 			},
 			expected: true,
 		},
 		{
 			name: "ConnectionSecret explicitly false",
 			patches: Patches{
-				ConnectionSecret: boolPtr(false),
+				ConnectionSecret: new(false),
 			},
 			expected: false,
 		},
 		{
 			name: "ConnectionSecret true with name",
 			patches: Patches{
-				ConnectionSecret:     boolPtr(true),
+				ConnectionSecret:     new(true),
 				ConnectionSecretName: "my-secret",
 			},
 			expected: true,
@@ -66,7 +61,7 @@ func TestPatches_hasConnectionSecret(t *testing.T) {
 		{
 			name: "ConnectionSecret false with name",
 			patches: Patches{
-				ConnectionSecret:     boolPtr(false),
+				ConnectionSecret:     new(false),
 				ConnectionSecretName: "my-secret",
 			},
 			expected: false,
@@ -101,14 +96,14 @@ func TestPatches_hasPatches(t *testing.T) {
 		{
 			name: "ConnectionSecret explicitly true",
 			patches: Patches{
-				ConnectionSecret: boolPtr(true),
+				ConnectionSecret: new(true),
 			},
 			expected: true,
 		},
 		{
 			name: "ConnectionSecret explicitly false",
 			patches: Patches{
-				ConnectionSecret: boolPtr(false),
+				ConnectionSecret: new(false),
 			},
 			expected: false,
 		},
@@ -137,7 +132,7 @@ func TestPatches_hasPatches(t *testing.T) {
 			name: "multiple patches set",
 			patches: Patches{
 				XRD:                       "my-xrd.yaml",
-				ConnectionSecret:          boolPtr(true),
+				ConnectionSecret:          new(true),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "my-namespace",
 			},
@@ -295,7 +290,7 @@ func TestTestSuiteSpec_hasCommonPatches(t *testing.T) {
 				Common: Common{
 					Inputs: Inputs{},
 					Patches: Patches{
-						ConnectionSecret: boolPtr(true),
+						ConnectionSecret: new(true),
 					},
 				},
 			},
@@ -332,7 +327,7 @@ func TestTestSuiteSpec_hasCommonPatches(t *testing.T) {
 					Inputs: Inputs{},
 					Patches: Patches{
 						XRD:                       "common-xrd.yaml",
-						ConnectionSecret:          boolPtr(true),
+						ConnectionSecret:          new(true),
 						ConnectionSecretName:      "common-secret",
 						ConnectionSecretNamespace: "common-namespace",
 					},
@@ -476,7 +471,7 @@ func TestTestCase_hasPatches(t *testing.T) {
 				Functions:   "functions.yaml",
 			},
 			patches: Patches{
-				ConnectionSecret: boolPtr(true),
+				ConnectionSecret: new(true),
 			},
 			expected: true,
 		},
@@ -488,7 +483,7 @@ func TestTestCase_hasPatches(t *testing.T) {
 				Functions:   "functions.yaml",
 			},
 			patches: Patches{
-				ConnectionSecret: boolPtr(false),
+				ConnectionSecret: new(false),
 			},
 			expected: false,
 		},
@@ -525,7 +520,7 @@ func TestTestCase_hasPatches(t *testing.T) {
 			},
 			patches: Patches{
 				XRD:                       "my-xrd.yaml",
-				ConnectionSecret:          boolPtr(true),
+				ConnectionSecret:          new(true),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "my-namespace",
 			},
@@ -552,7 +547,7 @@ func TestTestCase_hasPatches(t *testing.T) {
 				Functions:   "functions.yaml",
 			},
 			patches: Patches{
-				ConnectionSecret:          boolPtr(false),
+				ConnectionSecret:          new(false),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "my-namespace",
 			},
@@ -904,7 +899,7 @@ func TestTestCase_mergeCommon(t *testing.T) {
 			},
 			common: Common{
 				Patches: Patches{
-					ConnectionSecret:          boolPtr(true),
+					ConnectionSecret:          new(true),
 					ConnectionSecretName:      "common-secret",
 					ConnectionSecretNamespace: "common-namespace",
 				},
@@ -915,7 +910,7 @@ func TestTestCase_mergeCommon(t *testing.T) {
 					Claim: "claim.yaml",
 				},
 				Patches: Patches{
-					ConnectionSecret:          boolPtr(true),
+					ConnectionSecret:          new(true),
 					ConnectionSecretName:      "common-secret",
 					ConnectionSecretNamespace: "common-namespace",
 				},
@@ -1409,7 +1404,7 @@ func TestPatches_checkConnectionSecret(t *testing.T) {
 		{
 			name: "valid - ConnectionSecret explicitly true with name",
 			patches: Patches{
-				ConnectionSecret:          boolPtr(true),
+				ConnectionSecret:          new(true),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "",
 			},
@@ -1418,7 +1413,7 @@ func TestPatches_checkConnectionSecret(t *testing.T) {
 		{
 			name: "valid - ConnectionSecret explicitly true with namespace",
 			patches: Patches{
-				ConnectionSecret:          boolPtr(true),
+				ConnectionSecret:          new(true),
 				ConnectionSecretName:      "",
 				ConnectionSecretNamespace: "my-namespace",
 			},
@@ -1427,7 +1422,7 @@ func TestPatches_checkConnectionSecret(t *testing.T) {
 		{
 			name: "valid - ConnectionSecret explicitly true with both name and namespace",
 			patches: Patches{
-				ConnectionSecret:          boolPtr(true),
+				ConnectionSecret:          new(true),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "my-namespace",
 			},
@@ -1466,7 +1461,7 @@ func TestPatches_checkConnectionSecret(t *testing.T) {
 		{
 			name: "valid - ConnectionSecret explicitly false with name (disable)",
 			patches: Patches{
-				ConnectionSecret:          boolPtr(false),
+				ConnectionSecret:          new(false),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "",
 			},
@@ -1475,7 +1470,7 @@ func TestPatches_checkConnectionSecret(t *testing.T) {
 		{
 			name: "valid - ConnectionSecret explicitly false with namespace (disable)",
 			patches: Patches{
-				ConnectionSecret:          boolPtr(false),
+				ConnectionSecret:          new(false),
 				ConnectionSecretName:      "",
 				ConnectionSecretNamespace: "my-namespace",
 			},
@@ -1484,7 +1479,7 @@ func TestPatches_checkConnectionSecret(t *testing.T) {
 		{
 			name: "valid - ConnectionSecret explicitly false with both name and namespace (disable)",
 			patches: Patches{
-				ConnectionSecret:          boolPtr(false),
+				ConnectionSecret:          new(false),
 				ConnectionSecretName:      "my-secret",
 				ConnectionSecretNamespace: "my-namespace",
 			},
