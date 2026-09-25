@@ -201,23 +201,11 @@ func RunCheck(cfg *Config, configPath string, quiet bool) error {
 		}
 	}
 
-	if crossplaneBin := cfg.Dependencies[CrossplaneCmd]; crossplaneBin != "" {
-		utils.OutputPrintf("\nINFO: Crossplane CLI detected as ")
+	if _, ok := cfg.Dependencies[CrossplaneCmd]; ok {
+		utils.OutputPrintf("\nINFO: Crossplane CLI detected as %s\n", cfg.XPCLI.Tier.Description)
 
-		if cfg.IsV1CLI {
-			utils.OutputPrintf("v1")
-		} else {
-			utils.OutputPrintf("v2+")
-		}
-
-		if cfg.IsLegacyCLI {
-			utils.OutputPrintf(" and legacy (< v2.3.0)\n")
-		} else {
-			utils.OutputPrintf(" and current (>= v2.3.0)\n")
-		}
-
-		if version := DetectVersion(crossplaneBin); version != "" {
-			utils.OutputPrintf("INFO: crossplane version --client: %s\n", version)
+		if cfg.XPCLI.Version != "" {
+			utils.OutputPrintf("INFO: crossplane version --client: %s\n", cfg.XPCLI.Version)
 		}
 	}
 

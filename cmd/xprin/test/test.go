@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/testexecution/processor"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/utils"
+	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	"github.com/gonvenience/bunt"
 	"github.com/spf13/afero"
 )
@@ -95,11 +96,11 @@ func (c *Cmd) Run(_ *kong.Context) error {
 	options := c.newOptions(c.Config)
 
 	if c.Debug {
-		if c.Config.IsV1CLI {
+		if c.Config.XPCLI.Tier == xpcli.TierV1 {
 			utils.DebugPrintf("Crossplane CLI v1 detected; patches.xrd will not be passed as --xrd to render\n")
 		}
 
-		if c.CrossplaneVersion != "" && c.Config.IsLegacyCLI {
+		if c.CrossplaneVersion != "" && !c.Config.XPCLI.SupportsRenderVersion() {
 			utils.DebugPrintf("--crossplane-version is not supported by the legacy Crossplane CLI (< v2.3.0); skipping for render, but --crossplane-image will still be passed to validate\n")
 		}
 	}
@@ -130,8 +131,7 @@ func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionUtils.Options {
 		Color:             bunt.UseColors(),
 		Render:            render,
 		Validate:          validate,
-		IsV1CLI:           cfg.IsV1CLI,
-		IsLegacyCLI:       cfg.IsLegacyCLI,
+		XPCLI:             cfg.XPCLI,
 		CrossplaneVersion: c.CrossplaneVersion,
 		WorkingDir:        c.cwd,
 		ArtifactsBaseDir:  c.ArtifactsBaseDir,

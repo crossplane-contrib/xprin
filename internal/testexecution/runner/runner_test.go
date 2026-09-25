@@ -31,6 +31,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	cp "github.com/otiai10/copy"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
@@ -92,6 +93,7 @@ func makeOptions(cfg *config.Config, render, validate []string, overrides ...fun
 		Dependencies: cfg.Dependencies,
 		Render:       render,
 		Validate:     validate,
+		XPCLI:        xpcli.InitXPCLI(xpcli.TierV2),
 		ShowRender:   true,
 		ShowValidate: true,
 		ShowHooks:    true,
@@ -601,6 +603,7 @@ func TestRunTestCase(t *testing.T) {
 		Dependencies: cfg.Dependencies,
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		Validate:     []string{config.ValidateSubcommand},
+		XPCLI:        xpcli.InitXPCLI(xpcli.TierV2),
 		ShowRender:   true,
 		ShowValidate: true,
 		Verbose:      false,
@@ -1106,7 +1109,7 @@ func TestRunTestCase(t *testing.T) {
 			wantError: "",
 		},
 		{
-			// On v2/v2legacy (IsV1CLI=false, the mock default), patchXRFunc must NOT be called when patches.xrd
+			// On v2/v2legacy (TierV2, the mock default), patchXRFunc must NOT be called when patches.xrd
 			//  is the only patch, XRD defaults are handled by render --xrd instead.
 			name: "xr with XRD only - patchXR skipped on v2",
 			testCase: api.TestCase{
@@ -1153,7 +1156,7 @@ func TestRunTestCase(t *testing.T) {
 			wantError: "",
 		},
 		{
-			// On v1 (IsV1CLI=true), patchXRFunc MUST be called when patches.xrd is set because
+			// On v1 (TierV1), patchXRFunc MUST be called when patches.xrd is set because
 			// crossplane v1 render does not support --xrd so defaults are applied in Go.
 			name: "xr with XRD only - patchXR called on v1",
 			testCase: api.TestCase{
@@ -1170,7 +1173,7 @@ func TestRunTestCase(t *testing.T) {
 			setup: func(r *Runner) {
 				// Assign a local copy so we don't mutate the shared options pointer.
 				localOpts := *r.Options
-				localOpts.IsV1CLI = true
+				localOpts.XPCLI = xpcli.InitXPCLI(xpcli.TierV1)
 				r.Options = &localOpts
 				patchXRCalled := false
 				r.patchXRFunc = func(_ *Runner, _, outputPath string, patches api.Patches) (string, error) {
@@ -1241,7 +1244,7 @@ func TestRunTestCase(t *testing.T) {
 			wantError: "",
 		},
 		{
-			// CrossplaneVersion on v2 (IsLegacyCLI=false): render gets --crossplane-version,
+			// CrossplaneVersion on v2 (TierV2): render gets --crossplane-version,
 			// validate gets --crossplane-image.
 			name: "crossplane-version passed to render and validate on v2",
 			testCase: api.TestCase{
@@ -1256,7 +1259,7 @@ func TestRunTestCase(t *testing.T) {
 			setup: func(r *Runner) {
 				localOpts := *r.Options
 				localOpts.CrossplaneVersion = "v1.2.3"
-				localOpts.IsLegacyCLI = false
+				localOpts.XPCLI = xpcli.InitXPCLI(xpcli.TierV2)
 				r.Options = &localOpts
 
 				renderGotVersion := false
@@ -1294,7 +1297,7 @@ func TestRunTestCase(t *testing.T) {
 			wantError: "",
 		},
 		{
-			// CrossplaneVersion on legacy CLI (IsLegacyCLI=true): render must NOT get
+			// CrossplaneVersion on legacy CLI (TierV2Legacy): render must NOT get
 			// --crossplane-version, but validate must still get --crossplane-image.
 			name: "crossplane-version skipped for render on legacy CLI, still passed to validate",
 			testCase: api.TestCase{
@@ -1309,7 +1312,7 @@ func TestRunTestCase(t *testing.T) {
 			setup: func(r *Runner) {
 				localOpts := *r.Options
 				localOpts.CrossplaneVersion = "v1.2.3"
-				localOpts.IsLegacyCLI = true
+				localOpts.XPCLI = xpcli.InitXPCLI(xpcli.TierV2Legacy)
 				r.Options = &localOpts
 
 				renderGotVersion := false
@@ -2097,6 +2100,7 @@ func TestRunTestCase_LocalPathExpansionAndVerification(t *testing.T) {
 		Dependencies: cfg.Dependencies,
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		Validate:     []string{config.ValidateSubcommand},
+		XPCLI:        xpcli.InitXPCLI(xpcli.TierV2),
 		ShowRender:   true,
 		ShowValidate: true,
 		Verbose:      false,

@@ -541,7 +541,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	// patch because crossplane render does not support --xrd.
 	if testCase.HasPatches() {
 		patchesToApply := testCase.Patches
-		if !r.IsV1CLI {
+		if r.XPCLI.SupportsRenderXRD() {
 			patchesToApply.XRD = ""
 		}
 		// HasPatches() is re-evaluated on the modified copy: if XRD was the only patch and we just
@@ -558,13 +558,13 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	renderArgs := make([]string, 0, len(r.Render)+4)
 
 	renderArgs = append(renderArgs, r.Render...)
-	if r.CrossplaneVersion != "" && !r.IsLegacyCLI {
+	if r.CrossplaneVersion != "" && r.XPCLI.SupportsRenderVersion() {
 		renderArgs = append(renderArgs, "--crossplane-version="+r.CrossplaneVersion)
 	}
 
 	renderArgs = append(renderArgs, inputXR, testCase.Inputs.Composition, testCase.Inputs.Functions)
 
-	if testCase.Patches.XRD != "" && !r.IsV1CLI {
+	if testCase.Patches.XRD != "" && r.XPCLI.SupportsRenderXRD() {
 		renderArgs = append(renderArgs, "--xrd="+testCase.Patches.XRD)
 	}
 
