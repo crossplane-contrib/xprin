@@ -86,6 +86,12 @@ xprin test tests/advanced_xprin.yaml -v --show-assertions
 
 # Debug mode (shows detailed execution information)
 xprin test tests/basic_xprin.yaml --debug
+
+# Export artifacts (inputs and outputs of every test case) to a timestamped directory.
+# Each run creates <dir>/xprin-artifacts-<YYYYMMDDHHMMSS>/ containing inputs/ and outputs/ per test case.
+# After each suite, the path is printed to stderr:  artifacts: /path/to/xprin-artifacts-.../suite
+xprin test tests/... --artifacts-dir /tmp/xprin-debug
+xprin test tests/... -a /tmp/xprin-debug
 ```
 
 ### Configuration Management
