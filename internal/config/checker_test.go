@@ -20,47 +20,33 @@ import (
 	"testing"
 
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
+	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
 // TestRunCheck_CLIDetectionOutput verifies that RunCheck prints the correct
-// IsV1CLI and IsLegacyCLI detection strings for all four tier combinations.
+// tier detection string for each CLI tier.
 func TestRunCheck_CLIDetectionOutput(t *testing.T) {
 	tests := []struct {
-		name         string
-		isV1CLI      bool
-		isLegacyCLI  bool
-		wantV1Label  string
-		wantLegLabel string
+		name    string
+		cli     xpcli.XPCLI
+		wantStr string
 	}{
 		{
-			name:         "v2+ and current CLI",
-			isV1CLI:      false,
-			isLegacyCLI:  false,
-			wantV1Label:  "v2+",
-			wantLegLabel: "current (>= v2.3.0)",
+			name:    "v2",
+			cli:     xpcli.InitXPCLI(xpcli.TierV2),
+			wantStr: "v2+, current (>= v2.3.0)",
 		},
 		{
-			name:         "v1 and current CLI",
-			isV1CLI:      true,
-			isLegacyCLI:  false,
-			wantV1Label:  "v1",
-			wantLegLabel: "current (>= v2.3.0)",
+			name:    "v2legacy",
+			cli:     xpcli.InitXPCLI(xpcli.TierV2Legacy),
+			wantStr: "v2+, legacy (< v2.3.0)",
 		},
 		{
-			name:         "v2+ and legacy CLI",
-			isV1CLI:      false,
-			isLegacyCLI:  true,
-			wantV1Label:  "v2+",
-			wantLegLabel: "legacy (< v2.3.0)",
-		},
-		{
-			name:         "v1 and legacy CLI",
-			isV1CLI:      true,
-			isLegacyCLI:  true,
-			wantV1Label:  "v1",
-			wantLegLabel: "legacy (< v2.3.0)",
+			name:    "v1",
+			cli:     xpcli.InitXPCLI(xpcli.TierV1),
+			wantStr: "v1",
 		},
 	}
 
@@ -76,8 +62,7 @@ func TestRunCheck_CLIDetectionOutput(t *testing.T) {
 					Validate: DefaultValidateCmd,
 				},
 				Repositories: map[string]string{},
-				IsV1CLI:      tt.isV1CLI,
-				IsLegacyCLI:  tt.isLegacyCLI,
+				XPCLI:        tt.cli,
 			}
 
 			output := unittestsUtils.CaptureStdout(func() {
@@ -85,8 +70,7 @@ func TestRunCheck_CLIDetectionOutput(t *testing.T) {
 				require.NoError(t, err)
 			})
 
-			assert.Contains(t, output, "Crossplane CLI detected as "+tt.wantV1Label)
-			assert.Contains(t, output, tt.wantLegLabel)
+			assert.Contains(t, output, "Crossplane CLI detected as "+tt.wantStr)
 		})
 	}
 }

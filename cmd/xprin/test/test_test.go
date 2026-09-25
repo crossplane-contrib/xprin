@@ -23,6 +23,7 @@ import (
 	"github.com/alecthomas/kong"
 	internalcfg "github.com/crossplane-contrib/xprin/internal/config"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
+	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	"github.com/stretchr/testify/assert" //nolint:depguard // testify is widely used for testing
 )
 
@@ -154,11 +155,11 @@ func TestNewOptions(t *testing.T) {
 	assert.Equal(t, "v2.4.0", options.CrossplaneVersion)
 }
 
-// TestRun_DebugV1CLI tests that debug mode prints the v1 CLI detection warning when IsV1CLI is true.
+// TestRun_DebugV1CLI tests that debug mode prints the v1 CLI detection warning when Tier is TierV1.
 func TestRun_DebugV1CLI(t *testing.T) {
 	cfg := &internalcfg.Config{
 		Subcommands: &internalcfg.Subcommands{},
-		IsV1CLI:     true,
+		XPCLI:       xpcli.InitXPCLI(xpcli.TierV1),
 	}
 
 	cmd := &Cmd{
@@ -174,11 +175,11 @@ func TestRun_DebugV1CLI(t *testing.T) {
 	assert.Contains(t, output, "Crossplane CLI v1 detected")
 }
 
-// TestRun_DebugV1CLI_NoWarningOnV2 tests that the v1 debug warning is not printed when IsV1CLI is false.
+// TestRun_DebugV1CLI_NoWarningOnV2 tests that the v1 debug warning is not printed when Tier is TierV2.
 func TestRun_DebugV1CLI_NoWarningOnV2(t *testing.T) {
 	cfg := &internalcfg.Config{
 		Subcommands: &internalcfg.Subcommands{},
-		IsV1CLI:     false,
+		XPCLI:       xpcli.InitXPCLI(xpcli.TierV2),
 	}
 
 	cmd := &Cmd{
@@ -199,7 +200,7 @@ func TestRun_DebugV1CLI_NoWarningOnV2(t *testing.T) {
 func TestRun_DebugCrossplaneVersionLegacyWarning(t *testing.T) {
 	cfg := &internalcfg.Config{
 		Subcommands: &internalcfg.Subcommands{},
-		IsLegacyCLI: true,
+		XPCLI:       xpcli.InitXPCLI(xpcli.TierV2Legacy),
 	}
 
 	cmd := &Cmd{
@@ -221,7 +222,7 @@ func TestRun_DebugCrossplaneVersionLegacyWarning(t *testing.T) {
 func TestRun_DebugCrossplaneVersionNoWarningOnCurrent(t *testing.T) {
 	cfg := &internalcfg.Config{
 		Subcommands: &internalcfg.Subcommands{},
-		IsLegacyCLI: false,
+		XPCLI:       xpcli.InitXPCLI(xpcli.TierV2),
 	}
 
 	cmd := &Cmd{

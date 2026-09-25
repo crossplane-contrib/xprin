@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/utils"
+	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/yaml"
 )
@@ -33,8 +34,7 @@ type Config struct {
 	Dependencies map[string]string `yaml:"dependencies"`
 	Subcommands  *Subcommands      `yaml:"subcommands"`
 	Repositories map[string]string `yaml:"repositories"`
-	IsV1CLI      bool              `yaml:"-"`
-	IsLegacyCLI  bool              `yaml:"-"`
+	XPCLI        xpcli.XPCLI       `yaml:"-"`
 }
 
 // Subcommands holds the subcommand configurations.
@@ -157,15 +157,10 @@ func Fallback() (*Config, error) {
 func setRuntimeDefaults(cfg *Config) {
 	crossplaneBin := cfg.Dependencies[CrossplaneCmd]
 	if crossplaneBin != "" {
-		cfg.IsV1CLI = DetectV1CLI(crossplaneBin)
-		cfg.IsLegacyCLI = DetectLegacyCLI(crossplaneBin)
+		cfg.XPCLI = xpcli.Detect(crossplaneBin)
 	}
 
 	if cfg.Subcommands.Validate == "" {
-		if cfg.IsLegacyCLI {
-			cfg.Subcommands.Validate = LegacyValidateSubcommand + " " + ValidateFlags
-		} else {
-			cfg.Subcommands.Validate = DefaultValidateCmd
-		}
+		cfg.Subcommands.Validate = cfg.XPCLI.DefaultValidateSubcommand() + " " + ValidateFlags
 	}
 }

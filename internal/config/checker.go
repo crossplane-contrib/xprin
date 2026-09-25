@@ -140,6 +140,19 @@ func FormatDependencyValue(value string, fromConfig bool) string {
 	return resolved + fromPATH
 }
 
+// PrintXPCLIInfo prints the detected crossplane CLI tier and version to stdout.
+// Intended for use by xprin's own e2e tests via xprin check --xpcli-info.
+func PrintXPCLIInfo(cfg *Config) error {
+	utils.OutputPrintf("tier: %s\n", cfg.XPCLI.Tier.Name)
+	utils.OutputPrintf("description: %s\n", cfg.XPCLI.Tier.Description)
+
+	if cfg.XPCLI.Version != "" {
+		utils.OutputPrintf("version: %s\n", cfg.XPCLI.Version)
+	}
+
+	return nil
+}
+
 // RunCheck validates the config and prints the results. It is the shared implementation
 // used by both xprin check and xprin config --check.
 func RunCheck(cfg *Config, configPath string, quiet bool) error {
@@ -201,23 +214,11 @@ func RunCheck(cfg *Config, configPath string, quiet bool) error {
 		}
 	}
 
-	if crossplaneBin := cfg.Dependencies[CrossplaneCmd]; crossplaneBin != "" {
-		utils.OutputPrintf("\nINFO: Crossplane CLI detected as ")
+	if _, ok := cfg.Dependencies[CrossplaneCmd]; ok {
+		utils.OutputPrintf("\nINFO: Crossplane CLI detected as %s\n", cfg.XPCLI.Tier.Description)
 
-		if cfg.IsV1CLI {
-			utils.OutputPrintf("v1")
-		} else {
-			utils.OutputPrintf("v2+")
-		}
-
-		if cfg.IsLegacyCLI {
-			utils.OutputPrintf(" and legacy (< v2.3.0)\n")
-		} else {
-			utils.OutputPrintf(" and current (>= v2.3.0)\n")
-		}
-
-		if version := DetectVersion(crossplaneBin); version != "" {
-			utils.OutputPrintf("INFO: crossplane version --client: %s\n", version)
+		if cfg.XPCLI.Version != "" {
+			utils.OutputPrintf("INFO: crossplane version --client: %s\n", cfg.XPCLI.Version)
 		}
 	}
 

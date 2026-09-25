@@ -17,6 +17,8 @@ limitations under the License.
 // Package utils provides shared utilities for test execution including options, path expansion, and template processing.
 package utils
 
+import "github.com/crossplane-contrib/xprin/internal/xpcli"
+
 // Options groups all test runner options for easier passing to ProcessTargets and related functions.
 type Options struct {
 	Dependencies      map[string]string
@@ -31,8 +33,7 @@ type Options struct {
 	Quiet             bool // When true, suppress "[no testsuite files]" and "[no test cases found]" messages. Independent of Verbose.
 	Render            []string
 	Validate          []string
-	IsV1CLI           bool
-	IsLegacyCLI       bool
+	XPCLI             xpcli.XPCLI
 	CrossplaneVersion string
 	// WorkingDir is the process working directory captured once at xprin test start.
 	// Used for display paths in test output and for computing testsuite relpaths in artifact export.

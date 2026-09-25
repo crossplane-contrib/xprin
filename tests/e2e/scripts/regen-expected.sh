@@ -38,26 +38,6 @@ cd "${PROJECT_ROOT}"
 # Clean up generated_*.yaml on exit (created by gen-invalid-tests.sh)
 trap 'rm -f "${E2E_TESTS_DIR}"/generated_*.yaml' EXIT
 
-# Detect Crossplane CLI tier (v1 / v2legacy / v2) from binary - same logic as run.sh.
-xp_tier_from_binary() {
-    local bin="$1"
-    local ver
-    ver="$("${bin}" version --client 2>/dev/null | cut -d':' -f2 | xargs || true)"
-    if [[ "${ver}" == v1.* ]]; then
-        echo "v1"
-    elif [[ "${ver}" == v2.* ]]; then
-        local minor
-        minor=$(echo "${ver#v2.}" | cut -d'.' -f1)
-        if [[ "${minor}" -lt 3 ]] 2>/dev/null; then
-            echo "v2legacy"
-        else
-            echo "v2"
-        fi
-    else
-        echo "v2"
-    fi
-}
-
 # Map CLI tier to expected output suffix.
 # v1 → .v1.output, v2legacy → .v2legacy.output, v2 → .output (default)
 expected_suffix_for_tier() {
@@ -187,13 +167,11 @@ if [ "${GENERATE:-}" = "true" ] || [ -n "${CROSSPLANE_V1:-}" ] || [ -n "${CROSSP
         fi
         export PATH="$(dirname "${CROSSPLANE_V1}"):${PATH}"
         which "${CROSSPLANE_V1}"
-        ${CROSSPLANE_V1} version --client
-        V1_TIER="$(xp_tier_from_binary "${CROSSPLANE_V1}")"
+        V1_TIER="$("${XPRIN_BIN}" check --xpcli-info | grep '^tier: ' | cut -d' ' -f2)"
         run_pass "$(expected_suffix_for_tier "${V1_TIER}")" "${V1_TIER}"
         export PATH="$(dirname "${CROSSPLANE_V2}"):${PATH}"
         which "${CROSSPLANE_V2}"
-        ${CROSSPLANE_V2} version --client
-        V2_TIER="$(xp_tier_from_binary "${CROSSPLANE_V2}")"
+        V2_TIER="$("${XPRIN_BIN}" check --xpcli-info | grep '^tier: ' | cut -d' ' -f2)"
         run_pass "$(expected_suffix_for_tier "${V2_TIER}")" "${V2_TIER}"
         echo "Done. Wrote expected file(s) to ${EXPECTED_DIR}."
     fi
@@ -205,11 +183,10 @@ if [ "${GENERATE:-}" = "true" ] || [ -n "${CROSSPLANE_V1:-}" ] || [ -n "${CROSSP
             echo "crossplane not found or not executable on PATH"
             exit 1
         fi
-        CUR_TIER="$(xp_tier_from_binary "${CROSSPLANE_BIN}")"
-        SUFFIX="$(expected_suffix_for_tier "${CUR_TIER}")"
         export PATH="$(dirname "${CROSSPLANE_BIN}"):${PATH}"
         which crossplane
-        crossplane version --client
+        CUR_TIER="$("${XPRIN_BIN}" check --xpcli-info | grep '^tier: ' | cut -d' ' -f2)"
+        SUFFIX="$(expected_suffix_for_tier "${CUR_TIER}")"
         run_pass "${SUFFIX}" "${CUR_TIER}"
         echo "Done. Wrote expected file(s) to ${EXPECTED_DIR}."
     fi
