@@ -2,7 +2,7 @@ module github.com/crossplane-contrib/xprin
 
 go 1.26.7
 
-toolchain go1.26.8
+toolchain go1.27.1
 
 require (
 	github.com/alecthomas/assert/v2 v2.11.0
