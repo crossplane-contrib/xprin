@@ -140,6 +140,19 @@ func FormatDependencyValue(value string, fromConfig bool) string {
 	return resolved + fromPATH
 }
 
+// PrintXPCLIInfo prints the detected crossplane CLI tier and version to stdout.
+// Intended for use by xprin's own e2e tests via xprin check --xpcli-info.
+func PrintXPCLIInfo(cfg *Config) error {
+	utils.OutputPrintf("tier: %s\n", cfg.XPCLI.Tier.Name)
+	utils.OutputPrintf("description: %s\n", cfg.XPCLI.Tier.Description)
+
+	if cfg.XPCLI.Version != "" {
+		utils.OutputPrintf("version: %s\n", cfg.XPCLI.Version)
+	}
+
+	return nil
+}
+
 // RunCheck validates the config and prints the results. It is the shared implementation
 // used by both xprin check and xprin config --check.
 func RunCheck(cfg *Config, configPath string, quiet bool) error {

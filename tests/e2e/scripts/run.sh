@@ -18,29 +18,6 @@ STATUS=0
 
 cd "${PROJECT_ROOT}"
 
-# Detect Crossplane CLI tier (v1 / v2legacy / v2) from binary - same logic as regen-expected.sh.
-# v1       = crossplane/crossplane v1.x
-# v2legacy = crossplane/cli v2.0–v2.2 (uses beta validate, no resource validate)
-# v2       = crossplane/cli v2.3+ (uses resource validate)
-xp_tier_from_binary() {
-    local bin="$1"
-    local ver
-    ver="$("${bin}" version --client 2>/dev/null | cut -d':' -f2 | xargs || true)"
-    if [[ "${ver}" == v1.* ]]; then
-        echo "v1"
-    elif [[ "${ver}" == v2.* ]]; then
-        local minor
-        minor=$(echo "${ver#v2.}" | cut -d'.' -f1)
-        if [[ "${minor}" -lt 3 ]] 2>/dev/null; then
-            echo "v2legacy"
-        else
-            echo "v2"
-        fi
-    else
-        echo "v2"
-    fi
-}
-
 if [ ! -f "${TESTCASES_FILE}" ]; then
     echo "Test case list not found: ${TESTCASES_FILE}"
     exit 1
@@ -57,13 +34,15 @@ fi
 # shellcheck source=/dev/null
 source "${TESTCASES_FILE}"
 
-XP_TIER=$(xp_tier_from_binary crossplane)
+XPCLI_INFO="$("${XPRIN_BIN}" check --xpcli-info)"
+XP_TIER="$(echo "${XPCLI_INFO}" | grep '^tier: ' | cut -d' ' -f2)"
+XP_CLI_VERSION="$(echo "${XPCLI_INFO}" | grep '^version: ' | cut -d' ' -f2)"
 
 # Guardrail: when EXPECTED_XP_TIER is set (optional; e.g. by Earthly tier targets), ensure the Crossplane in PATH matches.
 if [ -n "${EXPECTED_XP_TIER:-}" ]; then
     if [ "${XP_TIER}" != "${EXPECTED_XP_TIER}" ]; then
         echo "E2E guardrail: expected CLI tier ${EXPECTED_XP_TIER}, but crossplane binary reports tier ${XP_TIER}"
-        echo "  Crossplane version: $(crossplane version --client 2>/dev/null || true)"
+        echo "  Crossplane version: ${XP_CLI_VERSION}"
         exit 1
     fi
 fi
@@ -212,7 +191,7 @@ echo ""
 echo "--- Environment ---"
 echo "xprin binary:                  ${XPRIN_BIN}"
 echo "xprin version:                 $("${XPRIN_BIN}" version)"
-echo "Crossplane CLI version:        $(crossplane version --client | cut -d':' -f2 | xargs)"
+echo "Crossplane CLI version:        ${XP_CLI_VERSION}"
 echo "Crossplane CLI tier:           ${XP_TIER}"
 echo "Crossplane Controller version: ${CROSSPLANE_VERSION:-"(not pinned)"}"
 echo ""

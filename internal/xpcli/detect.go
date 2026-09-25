@@ -52,7 +52,13 @@ func detectVersion(crossplaneBin string) string {
 	probe.Stderr = io.Discard
 	_ = probe.Run()
 
-	return strings.TrimSpace(out.String())
+	// Output is e.g. "Client Version: v2.5.0"; take the last whitespace-separated token.
+	fields := strings.Fields(out.String())
+	if len(fields) == 0 {
+		return ""
+	}
+
+	return fields[len(fields)-1]
 }
 
 func detectV1CLI(crossplaneBin string) bool {

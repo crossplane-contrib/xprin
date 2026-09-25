@@ -27,7 +27,8 @@ import (
 type Cmd struct {
 	Config     *configtypes.Config `kong:"-"`
 	ConfigPath string              `kong:"-"`
-	Quiet      bool                `help:"Suppress all output on success; exit code only." name:"quiet" short:"q"`
+	Quiet      bool                `help:"Suppress all output on success; exit code only."                                                name:"quiet"      short:"q"`
+	XPCLIInfo  bool                `help:"Print detected crossplane CLI tier and version, then exit. Intended for xprin's own e2e tests." name:"xpcli-info"`
 	fs         afero.Fs
 }
 
@@ -39,5 +40,9 @@ func (c *Cmd) AfterApply() error {
 
 // Run executes the check subcommand.
 func (c *Cmd) Run(_ *kong.Context) error {
+	if c.XPCLIInfo {
+		return configtypes.PrintXPCLIInfo(c.Config)
+	}
+
 	return configtypes.RunCheck(c.Config, c.ConfigPath, c.Quiet)
 }
