@@ -27,12 +27,13 @@ import (
 
 // TestSuiteResult represents the result of running a test suite file.
 type TestSuiteResult struct {
-	FilePath  string
-	Results   []TestCaseResult
-	Duration  time.Duration
-	Status    Status // StatusPass() or StatusFail() - overall status
-	StartTime time.Time
-	Verbose   bool // Formatting flag for output
+	FilePath   string
+	WorkingDir string // Set by the runner from Options.WorkingDir; used to relativise FilePath for display.
+	Results    []TestCaseResult
+	Duration   time.Duration
+	Status     Status // StatusPass() or StatusFail() - overall status
+	StartTime  time.Time
+	Verbose    bool // Formatting flag for output
 }
 
 // NewTestSuiteResult creates a new test suite result.
@@ -63,9 +64,16 @@ func (tsr *TestSuiteResult) Complete() *TestSuiteResult {
 
 // Print the file summary in Go test format.
 func (tsr *TestSuiteResult) Print(w io.Writer) {
-	// Convert absolute paths to relative paths when possible (matches Go's testing package behavior)
+	// Convert absolute paths to relative paths when possible (matches Go's testing package behavior).
+	// Prefer the stored WorkingDir; fall back to os.Getwd() when not set (e.g. in tests).
 	displayPath := tsr.FilePath
-	if pwd, err := os.Getwd(); err == nil {
+
+	pwd := tsr.WorkingDir
+	if pwd == "" {
+		pwd, _ = os.Getwd()
+	}
+
+	if pwd != "" {
 		if rel, err := filepath.Rel(pwd, tsr.FilePath); err == nil && !strings.HasPrefix(rel, "..") {
 			displayPath = rel
 		}

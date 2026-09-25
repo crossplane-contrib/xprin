@@ -50,6 +50,9 @@ type Runner struct {
 	outputsDir            string
 	testCaseTmpDir        string
 	testSuiteArtifactsDir string
+	// Artifact state
+	currentTestCaseIndex int
+	totalTestCases       int
 	// Mockable function fields
 	runTestsFunc                      func() error
 	runTestCaseFunc                   func(api.TestCase) *engine.TestCaseResult
@@ -166,9 +169,18 @@ func (r *Runner) RunTests() error {
 
 	// Create test suite result
 	testSuiteResult := engine.NewTestSuiteResult(r.testSuiteFile, r.Verbose)
+	testSuiteResult.WorkingDir = r.WorkingDir
+
+	r.totalTestCases = len(r.testSuiteSpec.Tests)
+	if r.ArtifactsBaseDir != "" && r.totalTestCases > 0 {
+		if err := r.initArtifactsRunDir(); err != nil {
+			return err
+		}
+	}
 
 	// Loop through all test cases and run them directly
-	for _, testCase := range r.testSuiteSpec.Tests {
+	for idx, testCase := range r.testSuiteSpec.Tests {
+		r.currentTestCaseIndex = idx + 1
 		// Run the test and let the engine handle everything
 		testCaseResult := r.runTestCase(testCase, testSuiteResult)
 		testCaseResult.Print(r.output) // Print immediately as test completes
@@ -180,6 +192,11 @@ func (r *Runner) RunTests() error {
 
 	// Print only the file summary (not individual test results)
 	testSuiteResult.Print(r.output)
+
+	if r.ArtifactsRunDir != "" {
+		suiteArtifactsPath := filepath.Join(r.ArtifactsRunDir, artifactsRelPath(r.testSuiteFile, r.WorkingDir))
+		fmt.Fprintf(os.Stderr, "artifacts: %s\n", suiteArtifactsPath)
+	}
 
 	// Return error if any tests failed
 	if testSuiteResult.HasFailures() {
@@ -213,6 +230,10 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	defer func() {
 		_ = r.fs.RemoveAll(r.testCaseTmpDir)
 	}()
+
+	if r.ArtifactsRunDir != "" {
+		defer r.copyTestCaseArtifacts(testCase.Name)
+	}
 
 	// Create subdirectories for inputs and outputs
 	r.inputsDir = filepath.Join(r.testCaseTmpDir, "inputs")
