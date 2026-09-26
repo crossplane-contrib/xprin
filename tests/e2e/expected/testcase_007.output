@@ -1,4 +1,42 @@
 === RUN   Render failure (claim used as XR)
+--- SKIP: Render failure (claim used as XR) (X.XXXs)
+=== RUN   Validation failure (missing CRD)
+--- SKIP: Validation failure (missing CRD) (X.XXXs)
+=== RUN   Pre-test hook failure
+--- SKIP: Pre-test hook failure (X.XXXs)
+=== RUN   Pre-test hook failure (unnamed)
+--- SKIP: Pre-test hook failure (unnamed) (X.XXXs)
+=== RUN   Pre-test hook failure (multiline stderr)
+--- SKIP: Pre-test hook failure (multiline stderr) (X.XXXs)
+=== RUN   Pre-test hook failure (multiline stdout)
+--- SKIP: Pre-test hook failure (multiline stdout) (X.XXXs)
+=== RUN   Pre-test hook failure (multiline stdout and stderr)
+--- SKIP: Pre-test hook failure (multiline stdout and stderr) (X.XXXs)
+=== RUN   Successful test case
+--- SKIP: Successful test case (X.XXXs)
+=== RUN   Post-test hook failure
+--- SKIP: Post-test hook failure (X.XXXs)
+=== RUN   Invalid Post-test hook, template rendering error
+--- SKIP: Invalid Post-test hook, template rendering error (X.XXXs)
+=== RUN   Assertion failure
+--- FAIL: Assertion failure (X.XXXs)
+    written: examples/mytests/0_e2e/golden_full_render.yaml
+    written: examples/mytests/0_e2e/golden_single_resource.yaml
+    written: examples/mytests/0_e2e/doesnotexist.yaml
+    [!] update-goldens: resource "SecurityGroup/doesnotexist" not found in render output
+=== RUN   Failed validation and assertion
+--- SKIP: Failed validation and assertion (X.XXXs)
+=== RUN   Failed validation, assertion, and post-test hook
+--- SKIP: Failed validation, assertion, and post-test hook (X.XXXs)
+FAIL
+FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
+=== RUN   Missing required inputs (multiline error)
+--- SKIP: Missing required inputs (multiline error) (X.XXXs)
+PASS
+ok	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
+FAIL
+YYYY/MM/DD HH:MM:SS processing completed with errors
+=== RUN   Render failure (claim used as XR)
 --- FAIL: Render failure (claim used as XR) (X.XXXs)
     Pre-test Hooks:
         [✓] Successful pre-test hook without output
@@ -84,19 +122,10 @@
     Post-test Hooks:
         [!] Invalid post-test hook (template rendering error)
             error: failed to render hook template: failed to execute template: template: hook:1:16: executing "hook" at <.Outputs.UnknownField>: can't evaluate field UnknownField in type *engine.Outputs
-=== RUN   Generate broken golden files
---- PASS: Generate broken golden files (X.XXXs)
-    Render:
-        ├── XAWSInfrastructure/platform-aws
-        └── SecurityGroup/platform-aws-sg
-    Post-test Hooks:
-        [✓] Generate broken golden file for full render
-        [✓] Generate broken golden file for single resource
 === RUN   Assertion failure
 --- FAIL: Assertion failure (X.XXXs)
     Pre-test Hooks:
-        [✓] echo "hello"
-            hello
+        [✓] Break golden files for diff/dyff failure tests
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg

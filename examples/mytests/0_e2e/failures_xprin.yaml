@@ -158,16 +158,6 @@ tests:
     - name: "Failed post-test hook, it should never be shown"
       run: exit 2
 
-- name: "Generate broken golden files"
-  inputs:
-    xr: ../../aws/xr.yaml
-  hooks:
-    post-test:
-    - name: "Generate broken golden file for full render"
-      run: "cp {{ .Outputs.Render }} golden_full_render.yaml && sed -i -e \"s/team: devops/team: doesnotexist/\" golden_full_render.yaml"
-    - name: "Generate broken golden file for single resource"
-      run: "cp {{ index .Outputs.Rendered \"SecurityGroup/platform-aws-sg\" }} golden_single_resource.yaml && sed -i -e \"s/region: us-west-2/region: eu-central-1/\" golden_single_resource.yaml"
-
 # Assertion failures
 - name: "Assertion failure"
   inputs:
@@ -244,7 +234,11 @@ tests:
       resource: "SecurityGroup/doesnotexist"
   hooks:
     pre-test:
-    - run: echo "hello"
+    - name: "Break golden files for diff/dyff failure tests"
+      run: |
+        [ -f golden_full_render.yaml ] && sed -i -e "s/team: devops/team: doesnotexist/" golden_full_render.yaml
+        [ -f golden_single_resource.yaml ] && sed -i -e "s/region: us-west-2/region: eu-central-1/" golden_single_resource.yaml
+        rm -f doesnotexist.yaml
     post-test:
     - run: echo "bye"
 

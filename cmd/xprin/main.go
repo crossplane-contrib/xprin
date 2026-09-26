@@ -27,6 +27,7 @@ import (
 	checkCmd "github.com/crossplane-contrib/xprin/cmd/xprin/check"
 	configCmd "github.com/crossplane-contrib/xprin/cmd/xprin/config"
 	"github.com/crossplane-contrib/xprin/cmd/xprin/test"
+	"github.com/crossplane-contrib/xprin/cmd/xprin/updategoldens"
 	"github.com/crossplane-contrib/xprin/cmd/xprin/version"
 	internalConfig "github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/spf13/afero"
@@ -34,11 +35,12 @@ import (
 
 // CLI represents the command-line interface.
 type CLI struct {
-	ConfigFile string        `default:"~/.config/xprin.yaml" help:"Path to xprin config file"            short:"c" type:"path"`
-	Check      checkCmd.Cmd  `cmd:""                         help:"Check dependencies and configuration"`
-	Config     configCmd.Cmd `cmd:""                         help:"Manage xprin configuration"`
-	Test       test.Cmd      `cmd:""                         help:"Run Crossplane tests"`
-	Version    version.Cmd   `cmd:""                         help:"Print the version of xprin"`
+	ConfigFile    string            `default:"~/.config/xprin.yaml" help:"Path to xprin config file"                                       short:"c"             type:"path"`
+	Check         checkCmd.Cmd      `cmd:""                         help:"Check dependencies and configuration"`
+	Config        configCmd.Cmd     `cmd:""                         help:"Manage xprin configuration"`
+	Test          test.Cmd          `cmd:""                         help:"Run Crossplane tests"`
+	UpdateGoldens updategoldens.Cmd `cmd:""                         help:"Regenerate golden files for assertions.diff and assertions.dyff" name:"update-goldens"`
+	Version       version.Cmd       `cmd:""                         help:"Print the version of xprin"`
 }
 
 // commandsNotRequiringConfig returns subcommand names that do not need config (e.g. version).
@@ -68,6 +70,7 @@ func loadConfigAndInject(cli *CLI, fs afero.Fs) error {
 	cli.Config.Config = cfg
 	cli.Config.ConfigPath = configPath
 	cli.Test.Config = cfg
+	cli.UpdateGoldens.Config = cfg
 
 	return nil
 }

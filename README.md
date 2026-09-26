@@ -80,13 +80,15 @@ tests:
     - name: "Full render matches golden (using diff)"
       expected: golden_full_render.yaml
 ```
+
+Generate the golden file by running `xprin update-goldens examples/mytests/0_e2e/used_in_readme_xprin.yaml` once before your first test run. After that, `xprin test` compares against it on every run.
 </details>
 
 <details>
 <summary> The output is similar to `go test` </summary>
 
 ```
-➜ xprin test simple_test_xprin.yaml -v --show-render --show-validate --show-assertions --show-hooks
+➜ xprin test examples/mytests/0_e2e/used_in_readme_xprin.yaml -v --show-render --show-validate --show-assertions --show-hooks
 === RUN   Successful test with hooks, validation, and assertions
 --- PASS: Successful test with hooks, validation, and assertions (1.31s)
     Pre-test Hooks:
@@ -181,14 +183,17 @@ The flow ensures that:
 ## Commands
 
 ```bash
-# Test Compositions
-xprin test <targets>
+# Show version
+xprin version
 
 # Check dependencies and configuration
 xprin check
 
-# Show version
-xprin version
+# Test Compositions
+xprin test <targets>
+
+# Regenerate golden files for assertions.diff and assertions.dyff
+xprin update-goldens <targets>
 ```
 
 ## Related Tools

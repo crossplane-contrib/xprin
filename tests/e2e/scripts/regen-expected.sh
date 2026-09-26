@@ -77,9 +77,22 @@ run_pass() {
         echo "  testcase_${test_id}..."
         read -ra cmd_args <<< "${test_args}"
 
+        update_goldens_var="${test_var}_update_goldens"
         ACTUAL_OUTPUT="$(mktemp)"
         set +e
-        "${XPRIN_BIN}" test "${XPRIN_ARGS[@]}" "${cmd_args[@]}" > "${ACTUAL_OUTPUT}" 2>&1
+        if compgen -v | grep -q "^${update_goldens_var}$" && [ "${!update_goldens_var}" = "true" ]; then
+            # Keep test targets and flags supported by update-goldens; drop test-only flags
+            ug_file_args=()
+            for arg in "${cmd_args[@]}"; do
+                if [[ "${arg}" == -* ]]; then
+                    [[ "${arg}" == -v || "${arg}" == --verbose ]] && ug_file_args+=("${arg}")
+                else
+                    ug_file_args+=("${arg}")
+                fi
+            done
+            "${XPRIN_BIN}" update-goldens "${XPRIN_ARGS[@]}" "${ug_file_args[@]}" > "${ACTUAL_OUTPUT}" 2>&1
+        fi
+        "${XPRIN_BIN}" test "${XPRIN_ARGS[@]}" "${cmd_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
         set -e
 
         "${NORMALIZE_SCRIPT}" "${ACTUAL_OUTPUT}" > "${EXPECTED_DIR}/testcase_${test_id}${suffix}"
@@ -139,7 +152,7 @@ if [ "${GENERATE:-}" = "true" ] || [ -n "${CROSSPLANE_V1:-}" ] || [ -n "${CROSSP
     # shellcheck source=/dev/null
     source "${TESTCASES_FILE}"
 
-    TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit' | grep -v '_tiers' | LC_ALL=C sort))
+    TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit' | grep -v '_tiers' | grep -v '_update_goldens' | LC_ALL=C sort))
     if [ "${#TEST_CASES[@]}" -eq 0 ]; then
         echo "No test cases defined in ${TESTCASES_FILE}"
         exit 1

@@ -42,4 +42,7 @@ type Options struct {
 	// ArtifactsRunDir is set lazily to <parent>/xprin-artifacts-<YYYYMMDDHHMMSS>/ on first test run.
 	ArtifactsBaseDir string
 	ArtifactsRunDir  string
+	// UpdateGoldens writes render output to the expected: paths of assertions.diff/dyff instead of comparing.
+	// Skips validate, assertions, and post-test hooks.
+	UpdateGoldens bool
 }

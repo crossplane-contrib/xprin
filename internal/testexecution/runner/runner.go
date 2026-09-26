@@ -219,6 +219,13 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	}
 
 	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, r.Verbose, r.ShowRender, r.ShowValidate, r.ShowHooks, r.ShowAssertions)
+
+	// In update-goldens mode, skip immediately if there are no golden-file assertions to write.
+	if r.UpdateGoldens && !testCase.HasAssertionsDiff() && !testCase.HasAssertionsDyff() {
+		result.Skip()
+		return result.Complete()
+	}
+
 	// Create a temporary directory for the test case (with inputs and outputs subdirectories)
 	var err error
 
@@ -655,6 +662,10 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 
 		// Add to Rendered map with string key containing slash
 		result.Outputs.Rendered[fmt.Sprintf("%s/%s", kind, name)] = filepath
+	}
+
+	if r.UpdateGoldens {
+		return r.runUpdateGoldens(testCase, result)
 	}
 
 	var finalError []string
