@@ -203,6 +203,41 @@ for test_var in "${TEST_CASES[@]}"; do
         fi
     fi
 
+    # If --artifacts-dir (or -a) was passed, assert the artifact directory structure.
+    artifacts_base=""
+    prev_arg=""
+    for arg in "${cmd_args[@]}"; do
+        if [[ "${prev_arg}" == "--artifacts-dir" || "${prev_arg}" == "-a" ]]; then
+            artifacts_base="${arg}"
+            break
+        elif [[ "${arg}" == --artifacts-dir=* ]]; then
+            artifacts_base="${arg#--artifacts-dir=}"
+            break
+        fi
+        prev_arg="${arg}"
+    done
+
+    if [ -n "${artifacts_base}" ]; then
+        suite_artifacts=$(grep "^artifacts: " "${ACTUAL_OUTPUT}" | sed 's/^artifacts: //' || true)
+        if [ -z "${suite_artifacts}" ]; then
+            echo "  FAIL: 'artifacts:' line not found in output"
+            TEST_FAILED=1
+        elif [ ! -d "${suite_artifacts}" ]; then
+            echo "  FAIL: suite artifacts dir not found: ${suite_artifacts}"
+            TEST_FAILED=1
+        else
+            for tc_dir in "${suite_artifacts}"/*/; do
+                [ -d "${tc_dir}" ] || continue
+                for item in inputs outputs/rendered.yaml outputs/xr.yaml outputs/validate.txt outputs/assertions.txt; do
+                    if [ ! -e "${tc_dir%/}/${item}" ]; then
+                        echo "  FAIL: missing artifact: ${tc_dir%/}/${item}"
+                        TEST_FAILED=1
+                    fi
+                done
+            done
+        fi
+    fi
+
     if [ ${TEST_FAILED} -eq 1 ]; then
         FAILED=$((FAILED + 1))
         FAILED_TESTS+=("testcase_${test_id}")

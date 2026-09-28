@@ -1,0 +1,5 @@
+--- PASS: Successful test with hooks, validation, and assertions (X.XXXs)
+    written: examples/mytests/0_e2e/golden_full_render.yaml
+ok	examples/mytests/0_e2e/used_in_readme_xprin.yaml	X.XXXs
+ok	examples/mytests/0_e2e/used_in_readme_xprin.yaml	X.XXXs
+artifacts: /tmp/xprin-XXXXX/examples/mytests/0_e2e/used_in_readme_xprin

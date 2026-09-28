@@ -25,6 +25,7 @@ sed_args=(
     -e 's|/tmp/[^/]+/xprin-[^/]+|/tmp/xprin-XXXXX|g'
     -e 's|/tmp/xprin-testcase-[0-9]+|/tmp/xprin-testcase-XXXX|g'
     -e 's|/tmp/xprin-testsuite-artifacts-[0-9]+|/tmp/xprin-testsuite-artifacts-XXXX|g'
+    -e 's|xprin-artifacts-[0-9]{14}|xprin-artifacts-YYYYMMDDHHMMSS|g'
     -e 's|/Users/[^/]+/repos/[^/]+/[^/]+|/Users/user/repos/xprin|g'
     -e "$root_sed"
     -e 's/[0-9]{4}\/[0-9]{2}\/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/YYYY\/MM\/DD HH:MM:SS/g'

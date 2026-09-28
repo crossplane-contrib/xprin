@@ -58,3 +58,7 @@ testcase_012="examples/mytests/0_e2e/validations_xrd_v1_xprin.yaml --debug"
 testcase_012_tiers="v1 v2legacy v2"
 testcase_012_exit_v1=1
 testcase_012_exit_v2=1
+
+# --artifacts-dir: complete test (hooks/render/validate/assertions) + silent shell checks on artifact structure
+testcase_013="examples/mytests/0_e2e/used_in_readme_xprin.yaml --artifacts-dir=/tmp/xprin-e2e-artifacts-test"
+testcase_013_update_goldens=true
