@@ -10,9 +10,11 @@ root="$(pwd)"
 # When root is "/", must only strip one leading slash; otherwise "s|/|...|g" would replace every "/".
 if [ "$root" = "/" ]; then
     root_sed='s|^/||'
+    written_sed='s|    written: /|    written: |'
 else
     root_escaped="${root//\//\\/}"
     root_sed="s|^${root_escaped}/||"
+    written_sed="s|    written: ${root_escaped}/|    written: |"
 fi
 
 sed_args=(
@@ -28,6 +30,7 @@ sed_args=(
     -e 's/[0-9]{4}\/[0-9]{2}\/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/YYYY\/MM\/DD HH:MM:SS/g'
     -e 's/--crossplane-version=v[0-9]+\.[0-9]+\.[0-9]+/--crossplane-version=vX.Y.Z/g'
     -e 's|--crossplane-image=xpkg\.crossplane\.io/crossplane/crossplane:v[0-9]+\.[0-9]+\.[0-9]+|--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:vX.Y.Z|g'
+    -e "${written_sed}"
     -e 's/\r$//'
     -e 's/[[:space:]]+$//'
 )

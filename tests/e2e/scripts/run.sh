@@ -55,7 +55,7 @@ if [[ -n "${CROSSPLANE_VERSION}" ]]; then
     XPRIN_ARGS=("--crossplane-version=${CROSSPLANE_VERSION}")
 fi
 
-TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit' | grep -v '_tiers' | LC_ALL=C sort))
+TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit' | grep -v '_tiers' | grep -v '_update_goldens' | LC_ALL=C sort))
 if [ "${#TEST_CASES[@]}" -eq 0 ]; then
     echo "No test cases defined in ${TESTCASES_FILE}"
     exit 1
@@ -108,7 +108,28 @@ for test_var in "${TEST_CASES[@]}"; do
 
     echo "Running testcase_${test_id}..."
     read -ra cmd_args <<< "${test_args}"
-    echo "Command: xprin test ${XPRIN_ARGS[@]:+${XPRIN_ARGS[*]} }${cmd_args[*]}"
+
+    # Check if this is an update-goldens testcase.
+    update_goldens_var="${test_var}_update_goldens"
+    is_update_goldens=false
+    if compgen -v | grep -q "^${update_goldens_var}$" && [ "${!update_goldens_var}" = "true" ]; then
+        is_update_goldens=true
+    fi
+
+    if [ "${is_update_goldens}" = "true" ]; then
+        # Keep test targets and flags supported by update-goldens; drop test-only flags
+        ug_file_args=()
+        for arg in "${cmd_args[@]}"; do
+            if [[ "${arg}" == -* ]]; then
+                [[ "${arg}" == -v || "${arg}" == --verbose ]] && ug_file_args+=("${arg}")
+            else
+                ug_file_args+=("${arg}")
+            fi
+        done
+        echo "Command: xprin update-goldens ${XPRIN_ARGS[*]:+${XPRIN_ARGS[*]} }${ug_file_args[*]}"
+    fi
+
+    echo "Command: xprin test ${XPRIN_ARGS[*]:+${XPRIN_ARGS[*]} }${cmd_args[*]}"
 
     TMPDIR="$(mktemp -d)"
     TMPDIRS+=("${TMPDIR}")
@@ -127,7 +148,15 @@ for test_var in "${TEST_CASES[@]}"; do
     NORMALIZED_OUTPUT="${TMPDIR}/normalized.output"
 
     set +e
-    "${XPRIN_BIN}" test "${XPRIN_ARGS[@]}" "${cmd_args[@]}" > "${ACTUAL_OUTPUT}" 2>&1
+    if [ "${is_update_goldens}" = "true" ]; then
+        # Run update-goldens (file targets only) before xprin test.
+        # update-goldens exit code is intentionally ignored: some test suites contain
+        # intentionally invalid golden-file references (e.g. wrong resource names) that
+        # cause update-goldens to fail, yet we still want xprin test to run and validate
+        # the full failure-mode output.
+        "${XPRIN_BIN}" update-goldens "${XPRIN_ARGS[@]}" "${ug_file_args[@]}" > "${ACTUAL_OUTPUT}" 2>&1
+    fi
+    "${XPRIN_BIN}" test "${XPRIN_ARGS[@]}" "${cmd_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
     EXIT_CODE=$?
     set -e
 

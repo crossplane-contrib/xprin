@@ -9,13 +9,6 @@ common:
 
 tests:
 
-# Uncomment the following test to generate the golden files
-# - name: "Generate golden files"
-#   hooks:
-#     post-test:
-#     - run: cp "{{ .Outputs.Render }}" golden_full_render.yaml
-#     - run: cp "{{ index .Outputs.Rendered "Cluster/platform-aws-rds" }}" golden_single_resource.yaml
-
 - name: "Successful assertions against golden files"
   assertions:
     diff:
@@ -30,8 +23,3 @@ tests:
     - name: "Cluster resource matches golden (using dyff)"
       expected: golden_single_resource.yaml
       resource: "Cluster/platform-aws-rds"
-  # Uncomment the following hook to remove the golden files after the test
-  # hooks:
-  #   post-test:
-  #   - name: "Remove golden files"
-  #     run: rm -f golden_full_render.yaml golden_single_resource.yaml

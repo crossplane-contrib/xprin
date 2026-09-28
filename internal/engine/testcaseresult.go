@@ -91,6 +91,9 @@ type TestCaseResult struct {
 	ShowValidate   bool
 	ShowHooks      bool
 	ShowAssertions bool
+
+	// WrittenGoldenFiles holds the paths written by the update-goldens command (populated by runner, printed always when non-empty).
+	WrittenGoldenFiles []string
 }
 
 // NewTestCaseResult creates a new test case result.
@@ -174,8 +177,8 @@ func (tcr *TestCaseResult) MarkAssertionsFailed() error {
 
 // Print prints the test case result to the given writer.
 func (tcr *TestCaseResult) Print(w io.Writer) {
-	// In non-verbose mode, only print failures
-	if tcr.Status == StatusPass() && !tcr.Verbose {
+	// In non-verbose mode, only print failures and update-goldens results.
+	if (tcr.Status == StatusPass() || tcr.Status == StatusSkip()) && !tcr.Verbose && len(tcr.WrittenGoldenFiles) == 0 {
 		return
 	}
 
@@ -192,6 +195,10 @@ func (tcr *TestCaseResult) Print(w io.Writer) {
 	fmt.Fprint(w, tcr.FormattedValidateOutput)      //nolint:errcheck // output function, error handling not practical
 	fmt.Fprint(w, tcr.FormattedAssertionsOutput)    //nolint:errcheck // output function, error handling not practical
 	fmt.Fprint(w, tcr.FormattedPostTestHooksOutput) //nolint:errcheck // output function, error handling not practical
+
+	for _, p := range tcr.WrittenGoldenFiles {
+		fmt.Fprintf(w, "%swritten: %s\n", spaces, p) //nolint:errcheck // output function, error handling not practical
+	}
 
 	// Print error when set (only set for failures not represented in a section).
 	if tcr.Status == StatusFail() && tcr.Error != nil {

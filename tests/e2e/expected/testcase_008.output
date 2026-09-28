@@ -1,14 +1,29 @@
-=== RUN   Generate golden files
---- PASS: Generate golden files (X.XXXs)
-    Render:
-        ├── XAWSInfrastructure/platform-aws
-        ├── Cluster/platform-aws-rds
-        └── SecurityGroup/platform-aws-sg
-    Post-test Hooks:
-        [✓] cp "{{.Outputs.Render}}" ../6_assertions/golden_full_render.yaml
-        [✓] cp "{{index .Outputs.Rendered "Cluster/platform-aws-rds"}}" ../6_assertions/golden_single_resource.yaml
+=== RUN   Successful test with hooks, validation, and assertions
+--- SKIP: Successful test with hooks, validation, and assertions (X.XXXs)
+=== RUN   CRDs with same base name are not overwritten
+--- SKIP: CRDs with same base name are not overwritten (X.XXXs)
+=== RUN   validation with incomplete XR, no patches, XRD v2
+--- SKIP: validation with incomplete XR, no patches, XRD v2 (X.XXXs)
+=== RUN   validation with incomplete XR, with patches, XRD v2
+--- SKIP: validation with incomplete XR, with patches, XRD v2 (X.XXXs)
 PASS
-ok	examples/mytests/0_e2e/generate_golden_files_xprin.yaml	X.XXXs
+ok	examples/mytests/0_e2e/success_xprin.yaml	X.XXXs
+=== RUN   Second reconciliation loop
+--- SKIP: Second reconciliation loop (X.XXXs)
+PASS
+ok	examples/mytests/6_assertions/example1_assertions_xprin.yaml	X.XXXs
+=== RUN   Second reconciliation loop (with patterns)
+--- SKIP: Second reconciliation loop (with patterns) (X.XXXs)
+PASS
+ok	examples/mytests/6_assertions/example2_assertions_pattern_xprin.yaml	X.XXXs
+=== RUN   Successful assertions against golden files
+--- PASS: Successful assertions against golden files (X.XXXs)
+    written: examples/mytests/6_assertions/golden_full_render.yaml
+    written: examples/mytests/6_assertions/golden_single_resource.yaml
+    written: examples/mytests/6_assertions/golden_full_render.yaml
+    written: examples/mytests/6_assertions/golden_single_resource.yaml
+PASS
+ok	examples/mytests/6_assertions/example3_golden_file_xprin.yaml	X.XXXs
 === RUN   Successful test with hooks, validation, and assertions
 --- PASS: Successful test with hooks, validation, and assertions (X.XXXs)
     Pre-test Hooks:

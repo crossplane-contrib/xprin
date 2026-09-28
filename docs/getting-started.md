@@ -8,6 +8,7 @@
 - [Command Examples](#command-examples)
   - [How to Run Tests](#how-to-run-tests)
   - [Common Command Options](#common-command-options)
+  - [Updating Golden Files](#updating-golden-files)
   - [Configuration Management](#configuration-management)
 - [Testsuite examples](#testsuite-examples)
   - [Simple Test Suite](#simple-test-suite)
@@ -93,6 +94,31 @@ xprin test tests/basic_xprin.yaml --debug
 xprin test tests/... --artifacts-dir /tmp/xprin-debug
 xprin test tests/... -a /tmp/xprin-debug
 ```
+
+### Updating Golden Files
+
+`xprin update-goldens` runs `crossplane render` on each test case that has `assertions.diff` or `assertions.dyff` entries, and writes the render output to the `expected:` paths. Use it to bootstrap or regenerate golden files after your Composition changes.
+
+Test cases without `assertions.diff`/`assertions.dyff` are reported as SKIP immediately. For test cases that do have golden assertions, pre-test hooks run normally (they may affect render output), but validate, `assertions.xprin`, and post-test hooks are skipped.
+
+```bash
+# Regenerate golden files for all tests in a directory
+xprin update-goldens tests/
+
+# Regenerate for a specific file
+xprin update-goldens tests/my_test_xprin.yaml
+```
+
+Example output:
+
+```
+--- PASS: My test case (1.23s)
+    written: tests/golden_full_render.yaml
+    written: tests/golden_single_resource.yaml
+ok      tests/my_test_xprin.yaml        1.234s
+```
+
+After running, commit the generated files so they become the baseline for `xprin test`.
 
 ### Configuration Management
 
@@ -307,6 +333,8 @@ tests:
 ```
 
 For complete documentation on all assertion types, examples, and usage, see [Assertions](assertions.md).
+
+> **Golden files** (`diff`/`dyff` `expected:` paths) can be bootstrapped or regenerated automatically with [`xprin update-goldens`](#updating-golden-files).
 
 **When to use assertions vs hooks:**
 - **Use assertions** for declarative validation: xprin (count, existence, field checks), diff/dyff (golden-file comparison).

@@ -299,7 +299,13 @@ Output uses the following **symbols**; internally, outcomes use the correspondin
 | **[✓]** | Pass | `PASS` | Check ran and passed. |
 | **[x]** | Fail | `FAIL` | Check ran and the condition was false (e.g. assertion failed, hook exited non-zero). |
 | **[!]** | Error | `ERROR` | Check could not run (e.g. missing resource, invalid config, render failure, hook template error). |
-| **[s]** | Skip | `SKIP` | Skipped: reserved for future use (intentionally skipped assertions). |
+| **[s]** | Skip | `SKIP` | Skipped: test case has no `assertions.diff`/`assertions.dyff` entries in `update-goldens` mode. |
+
+### Verbose vs non-verbose output
+
+By default (non-verbose), only **FAIL** results are printed. Adding `-v`/`--verbose` we see all results including PASS and SKIP.
+
+In `update-goldens` mode, test cases that write golden files are always shown (even without `-v`), so we can confirm which files were written.
 
 ### Where they appear
 
@@ -582,6 +588,40 @@ Assertions use a simplified type system:
 - `null` - Null/empty values
 
 Type checking is done at runtime based on actual YAML/JSON values.
+
+## update-goldens Execution Flow
+
+`xprin update-goldens` shares the same pipeline as `xprin test` through Render, then diverges: instead of validating or asserting, it writes the render output to the `expected:` paths of `assertions.diff` and `assertions.dyff` entries.
+
+```mermaid
+flowchart TD
+    A{"assertions.diff or<br/>assertions.dyff?"}
+    A -->|No| B["SKIP"]
+    A -->|Yes| C["Setup<br/>Pre-test Hooks"]
+    C --> D[Convert Claim to XR]
+    C --> E[Patch XR]
+    D --> F[Render]
+    E --> F
+    F --> G["Write render output<br/>to expected: paths"]
+
+    style A fill:#f3f4f6,stroke:#9ca3af,stroke-width:2px,color:#000
+    style B fill:#6b7280,stroke:#374151,stroke-width:2px,color:#fff
+    style C fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style D fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style E fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style F fill:#a855f7,stroke:#7e22ce,stroke-width:2px,color:#fff
+    style G fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
+```
+
+**Test cases without `assertions.diff`/`assertions.dyff`** are reported as **SKIP** immediately. This avoids unnecessary work for test cases that have nothing to write.
+
+**Phases that run** for test cases with golden assertions (identical to `xprin test`): Setup, Pre-test Hooks, Convert Claim to XR, Patch XR, Render.
+
+**Phases that are skipped**: Validate, Assert, Post-test Hooks, Artifact Export.
+
+**After Render**, for each `assertions.diff` and `assertions.dyff` entry, the render output (full render, or filtered to a single resource when `resource:` is set) is written to the `expected:` path. One `written: <path>` line appears in the output per file written.
+
+**Pre-test hooks run** for test cases that have golden assertions, for the same reason they run in test mode: they may modify the XR or other inputs before render, so skipping them would produce different render output than `xprin test` would see.
 
 ## Internal Architecture
 

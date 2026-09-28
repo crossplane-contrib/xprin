@@ -1,3 +1,13 @@
+--- FAIL: Assertion failure (X.XXXs)
+    written: examples/mytests/0_e2e/golden_full_render.yaml
+    written: examples/mytests/0_e2e/golden_single_resource.yaml
+    written: examples/mytests/0_e2e/doesnotexist.yaml
+    [!] update-goldens: resource "SecurityGroup/doesnotexist" not found in render output
+FAIL
+FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
+ok	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
+FAIL
+YYYY/MM/DD HH:MM:SS processing completed with errors
 --- FAIL: Render failure (claim used as XR) (X.XXXs)
     Render:
         [!] crossplane: error: composition's compositeTypeRef.kind (XAWSInfrastructure) does not match XR's kind (AWSInfrastructure)
