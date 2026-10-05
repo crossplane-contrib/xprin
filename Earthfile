@@ -176,7 +176,7 @@ go-lint:
 golangci-lint-setup:
   ARG GOLANGCI_LINT_VERSION=v2.11.4
   ARG NATIVEPLATFORM
-  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.18.0
+  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.22.0
   RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b . ${GOLANGCI_LINT_VERSION}
   SAVE ARTIFACT golangci-lint
 
@@ -185,7 +185,7 @@ golangci-lint-setup:
 crossplane-cli-setup:
   ARG CROSSPLANE_CLI_VERSION
   ARG NATIVEPLATFORM
-  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.18.0
+  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.22.0
   RUN curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | XP_VERSION="${CROSSPLANE_CLI_VERSION:+v${CROSSPLANE_CLI_VERSION}}" sh
   SAVE ARTIFACT crossplane
 
