@@ -24,6 +24,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 )
 
 // TestPatchXR tests the patchXR function directly.
@@ -141,6 +143,87 @@ spec:
 				require.NoError(t, err)
 				assert.NotEmpty(t, result)
 			}
+		})
+	}
+}
+
+// xrdWithClaim is a minimal XRD YAML where the XR kind doesn't follow the "X" + Claim kind
+// convention.
+const xrdWithClaim = `
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: widgets.example.org
+spec:
+  group: example.org
+  names:
+    kind: Widget
+    plural: widgets
+  claimNames:
+    kind: WidgetClaim
+    plural: widgetclaims
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+`
+
+// TestConvertClaimToXR tests the convertClaimToXR function directly, in particular its XRD-based
+// kind resolution.
+func TestConvertClaimToXR(t *testing.T) {
+	claimContent := `apiVersion: example.org/v1alpha1
+kind: WidgetClaim
+metadata:
+  name: test-claim
+  namespace: default
+spec:
+  field: value`
+
+	tests := []struct {
+		name     string
+		xrdPath  string
+		wantKind string
+	}{
+		{
+			name:     "no XRD falls back to X-prefixed guess",
+			xrdPath:  "",
+			wantKind: "XWidgetClaim",
+		},
+		{
+			name:     "XRD resolves the real XR kind",
+			xrdPath:  "/xrd.yaml",
+			wantKind: "Widget",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := afero.NewMemMapFs()
+
+			claimFile := "/claim.yaml"
+			require.NoError(t, afero.WriteFile(fs, claimFile, []byte(claimContent), 0o644))
+
+			if tt.xrdPath != "" {
+				require.NoError(t, afero.WriteFile(fs, tt.xrdPath, []byte(xrdWithClaim), 0o644))
+			}
+
+			outputDir := "/output"
+			require.NoError(t, fs.MkdirAll(outputDir, 0o755))
+
+			options := &testexecutionUtils.Options{Debug: false}
+			runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+			runner.fs = fs
+
+			xrPath, err := runner.convertClaimToXR(claimFile, tt.xrdPath, outputDir)
+			require.NoError(t, err)
+
+			xrData, err := afero.ReadFile(fs, xrPath)
+			require.NoError(t, err)
+
+			xr := &unstructured.Unstructured{}
+			require.NoError(t, yaml.Unmarshal(xrData, xr))
+
+			assert.Equal(t, tt.wantKind, xr.GetKind())
 		})
 	}
 }

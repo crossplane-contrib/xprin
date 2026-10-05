@@ -88,3 +88,17 @@ tests:
 ```bash
 xprin test tests/claim_to_xr_example_xprin.yaml --debug
 ```
+
+If the test case also sets `patches.xrd`, xprin passes it through to the conversion step automatically, so the generated XR's kind is resolved from the XRD instead of the "X" + Claim kind guess:
+
+```yaml
+# tests/claim_to_xr_with_xrd_xprin.yaml
+tests:
+- name: "Claim to XR with XRD-resolved kind"
+  patches:
+    xrd: xrd.yaml
+  inputs:
+    claim: claim.yaml
+    composition: composition.yaml
+    functions: functions.yaml
+```

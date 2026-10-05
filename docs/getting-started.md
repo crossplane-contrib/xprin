@@ -167,7 +167,7 @@ tests:
     functions: /path/to/functions
 ```
 
-It supports both XR and Claim as inputs. The Claim will be converted to XR using the `xprin-helpers convert-claim-to-xr` tool.
+It supports both XR and Claim as inputs. The Claim will be converted to XR using the `xprin-helpers convert-claim-to-xr` tool. If the test case also sets `patches.xrd` (see [Patching](#patching) below), the converted XR's kind is resolved from the XRD instead of guessed as "X" prefixed to the Claim's kind.
 
 In this example:
 - the "Database Setup" test will run both `render` and `validate`

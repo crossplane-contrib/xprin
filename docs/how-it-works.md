@@ -92,7 +92,7 @@ flowchart TD
 4. **Temp Directory Creation**: A temporary directory is created for the test case execution
 5. **File Copying**: All input files are copied to the temp directory (inputs are never modified in place)
 6. **Pre-test Hooks**: All pre-test hooks are executed sequentially in the temp directory (can modify copied files)
-7. **Claim to XR Conversion** (if using Claim input): If a Claim is provided instead of an XR, it is converted to an XR using `xprin-helpers convert-claim-to-xr`. The converted XR is written to the temp directory and used for subsequent phases.
+7. **Claim to XR Conversion** (if using Claim input): If a Claim is provided instead of an XR, it is converted to an XR using `xprin-helpers convert-claim-to-xr`. The converted XR is written to the temp directory and used for subsequent phases. If the test case also sets `patches.xrd`, it's passed through to this step: the XR's kind is resolved from the XRD's `spec.names.kind` instead of guessed as "X" prefixed to the Claim's kind, since that's only a naming convention, not a guarantee (see [convert-claim-to-xr.md](xprin-helpers/convert-claim-to-xr.md)).
 
 **Template Variables Available:**
 - `{{ .Inputs.XR }}` - Path to XR file (only available if XR is provided directly; **not available in pre-test hooks when using Claim input**, as conversion happens after hooks)
