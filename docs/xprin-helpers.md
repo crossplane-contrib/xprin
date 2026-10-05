@@ -28,7 +28,7 @@ xprin-helpers patch-xr xr.yaml --xrd=xrd.yaml --add-connection-secret
 Converts Crossplane Claims to XRs so they can be used with `crossplane render`. This is necessary because the `crossplane render` command doesn't support Claims directly.
 
 **Key features:**
-- Automatic kind conversion (Claim → XClaim)
+- Automatic kind conversion, resolved from an XRD when given (`--xrd`), otherwise guessed as "X" + Claim kind
 - Optional direct XR creation (no Claim references)
 - Custom kind, name, and `metadata.uid` support
 - Integration with `crossplane render`

@@ -23,11 +23,14 @@ import (
 
 	"github.com/alecthomas/kong"
 	commonIO "github.com/crossplane/cli/v2/cmd/crossplane/convert/io"
+	"github.com/crossplane/cli/v2/cmd/crossplane/render"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 )
 
 // Cmd arguments and flags for converting a Crossplane Claim to an XR (Composite Resource).
@@ -36,11 +39,12 @@ type Cmd struct {
 	InputFile string `arg:"" default:"-" help:"The Claim YAML file to be converted. If not specified or '-', stdin will be used." optional:"" predictor:"file" type:"path"`
 
 	// Flags.
-	OutputFile string `help:"The file to write the generated XR YAML to. If not specified, stdout will be used."                                                      placeholder:"PATH" predictor:"file" short:"o" type:"path"`
-	Name       string `help:"The name to use for the XR. If empty, defaults to the Claim's name (direct mode) or the Claim's name with a random suffix (non-direct)." placeholder:"NAME" type:"string"`
-	Kind       string `help:"The kind to use for the XR. If not specified, 'X' will be prepended to the Claim's kind (e.g. Infra -> XInfra)."                         placeholder:"KIND" type:"string"`
-	Direct     bool   `help:"Create a direct XR without Claim references and suffix."                                                                                 name:"direct"      negatable:""`
-	GenUID     bool   `help:"Set a fresh random metadata.uid on the generated XR."                                                                                    name:"gen-uid"`
+	OutputFile string `help:"The file to write the generated XR YAML to. If not specified, stdout will be used."                                                                               placeholder:"PATH" predictor:"file"   short:"o"        type:"path"`
+	Name       string `help:"The name to use for the XR. If empty, defaults to the Claim's name (direct mode) or the Claim's name with a random suffix (non-direct)."                          placeholder:"NAME" type:"string"`
+	Kind       string `help:"The kind to use for the XR. If not specified, defaults to the XRD's XR kind if --xrd is set, otherwise 'X' prepended to the Claim's kind (e.g. Infra -> XInfra)." placeholder:"KIND" type:"string"`
+	XRD        string `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim. Used to resolve the XR's kind unless --kind is set."                            name:"xrd"         placeholder:"PATH" predictor:"file" type:"path"`
+	Direct     bool   `help:"Create a direct XR without Claim references and suffix."                                                                                                          name:"direct"      negatable:""`
+	GenUID     bool   `help:"Set a fresh random metadata.uid on the generated XR."                                                                                                             name:"gen-uid"`
 
 	fs afero.Fs
 }
@@ -71,6 +75,10 @@ Examples:
   # Convert claim.yaml to XR format with a specific kind
   xprin-helpers convert-claim-to-xr claim.yaml --kind MyCompositeResource
 
+  # Convert claim.yaml with the kind resolved from its XRD (use this instead
+  # of --kind when the XR's kind isn't 'X' + the Claim's kind)
+  xprin-helpers convert-claim-to-xr claim.yaml --xrd xrd.yaml
+
   # Convert claim.yaml to a directly created XR (no Claim references, no name suffix)
   xprin-helpers convert-claim-to-xr claim.yaml --direct
 
@@ -100,10 +108,20 @@ func (c *Cmd) Run(k *kong.Context) error {
 		return errors.Wrap(err, "Unmarshalling Error")
 	}
 
+	var xrd *apiextensionsv1.CompositeResourceDefinition
+
+	if c.XRD != "" {
+		xrd, err = render.LoadXRD(c.fs, c.XRD)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load XRD from %q", c.XRD)
+		}
+	}
+
 	// Convert to XR
 	xr, err := ConvertClaimToXR(claim, Options{
 		Name:        c.Name,
 		Kind:        c.Kind,
+		XRD:         xrd,
 		Direct:      c.Direct,
 		GenerateUID: c.GenUID,
 	})

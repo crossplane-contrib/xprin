@@ -22,10 +22,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
+
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 )
 
 // Helper functions for common Claim modifications
@@ -459,6 +462,39 @@ func TestConvertClaimToXR(t *testing.T) {
 			},
 			want: want{
 				xr:  generateExpectedXR(testClaim, "CustomKind", true),
+				err: nil,
+			},
+		},
+		"KindResolvedFromXRD": {
+			reason: "Should resolve the XR kind from the XRD instead of guessing 'X' + Claim kind",
+			args: args{
+				claim: testClaim,
+				opts: Options{XRD: &apiextensionsv1.CompositeResourceDefinition{
+					Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{Kind: "CustomKind"},
+					},
+				}},
+			},
+			want: want{
+				xr:  generateExpectedXR(testClaim, "CustomKind", false),
+				err: nil,
+			},
+		},
+		"ExplicitKindOverridesXRD": {
+			reason: "An explicit Kind should win over the XRD's kind",
+			args: args{
+				claim: testClaim,
+				opts: Options{
+					Kind: "ExplicitKind",
+					XRD: &apiextensionsv1.CompositeResourceDefinition{
+						Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
+							Names: extv1.CustomResourceDefinitionNames{Kind: "FromXRD"},
+						},
+					},
+				},
+			},
+			want: want{
+				xr:  generateExpectedXR(testClaim, "ExplicitKind", false),
 				err: nil,
 			},
 		},

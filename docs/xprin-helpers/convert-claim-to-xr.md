@@ -15,7 +15,8 @@ See [Installation](../xprin-helpers.md#installation).
 | Option | Description |
 |--------|-------------|
 | `--name=NAME` | Custom name for the XR. Overrides the default behavior (Claim name in direct mode, Claim name + random suffix in non-direct mode) |
-| `--kind=KIND` | Custom kind for the XR (default: "X" + Claim kind) |
+| `--kind=KIND` | Custom kind for the XR. Takes precedence over `--xrd` (default: XRD's XR kind if `--xrd` is set, otherwise "X" + Claim kind) |
+| `--xrd=PATH` | YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim. Used to resolve the XR's real kind unless `--kind` is set |
 | `--direct` | Create direct XR without Claim references |
 | `--gen-uid` | Set a fresh random `metadata.uid` on the generated XR |
 | `-o, --output-file=PATH` | Output file (default: stdout) |
@@ -25,7 +26,7 @@ See [Installation](../xprin-helpers.md#installation).
 
 The converter by default assumes that the produced XR derives from a Claim, thus it will:
 - Set a random suffix in `.metadata.name`
-- Set the `kind`'s value to the same as the Claim's prefixed by an "X"
+- Set the `kind`'s value to the XRD's XR kind if `--xrd` is given, otherwise the same as the Claim's prefixed by an "X" — which is only a naming convention, not a guarantee, so prefer `--xrd` whenever you have one (see `--kind`/`--xrd` above)
 - Set [the appropriate labels](https://docs.crossplane.io/v1.20/concepts/composite-resources/#composite-resource-labels)
 - Set `.spec.claimRef`
 
@@ -45,6 +46,10 @@ xprin-helpers convert-claim-to-xr claim.yaml --name my-xr
 
 # Convert claim.yaml to XR format with a specific kind
 xprin-helpers convert-claim-to-xr claim.yaml --kind MyCompositeResource
+
+# Convert claim.yaml with the kind resolved from its XRD (use this instead of
+# --kind when the XR's kind isn't 'X' + the Claim's kind)
+xprin-helpers convert-claim-to-xr claim.yaml --xrd xrd.yaml
 
 # Convert claim.yaml to a directly created XR (no Claim references, no name suffix)
 xprin-helpers convert-claim-to-xr claim.yaml --direct
