@@ -1,0 +1,60 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xgcpinfrastructures.gcp.example.com
+spec:
+  group: gcp.example.com
+  names:
+    kind: XGCPInfrastructure
+    plural: xgcpinfrastructures
+  # claimNames.kind is deliberately NOT "X" + this, so that resolving the XR's kind from this XRD
+  # (spec.names.kind above) is the only way to get XGCPInfrastructure right - guessing "X" + claim
+  # kind would produce "XGCPPlatformClaim" instead, which doesn't match any Composition.
+  claimNames:
+    kind: GCPPlatformClaim
+    plural: gcpplatformclaims
+  versions:
+  - name: v1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              region:
+                type: string
+                description: GCP region
+              team:
+                type: string
+                description: Team name for tagging
+                default: devops
+                minLength: 1
+              projectId:
+                type: string
+                description: GCP project ID
+              dbUsername:
+                type: string
+                description: Database username
+              sshPublicKey:
+                type: string
+                description: SSH public key for Compute instances
+                enum:
+                - qa_ssh_key
+              project:
+                type: string
+                description: Project name
+            required:
+            - region
+            - team
+          status:
+            type: object
+            properties:
+              firewallRuleId:
+                type: string
+                description: Firewall rule identifier
+              cloudSql:
+                type: string
+                description: Cloud SQL instance identifier (when created)

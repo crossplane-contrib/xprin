@@ -15,7 +15,8 @@ See [Installation](../xprin-helpers.md#installation).
 | Option | Description |
 |--------|-------------|
 | `--name=NAME` | Custom name for the XR. Overrides the default behavior (Claim name in direct mode, Claim name + random suffix in non-direct mode) |
-| `--kind=KIND` | Custom kind for the XR (default: "X" + Claim kind) |
+| `--kind=KIND` | Custom kind for the XR. Mutually exclusive with `--xrd` (default if neither is set: "X" + Claim kind) |
+| `--xrd=PATH` | YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim, used to resolve the XR's real kind. Mutually exclusive with `--kind` |
 | `--direct` | Create direct XR without Claim references |
 | `--gen-uid` | Set a fresh random `metadata.uid` on the generated XR |
 | `-o, --output-file=PATH` | Output file (default: stdout) |
@@ -25,7 +26,7 @@ See [Installation](../xprin-helpers.md#installation).
 
 The converter by default assumes that the produced XR derives from a Claim, thus it will:
 - Set a random suffix in `.metadata.name`
-- Set the `kind`'s value to the same as the Claim's prefixed by an "X"
+- Set the `kind`'s value to the XRD's XR kind if `--xrd` is given, otherwise the same as the Claim's prefixed by an "X" — which is only a naming convention, not a guarantee, so prefer `--xrd` whenever you have one (`--kind` and `--xrd` are mutually exclusive, see above)
 - Set [the appropriate labels](https://docs.crossplane.io/v1.20/concepts/composite-resources/#composite-resource-labels)
 - Set `.spec.claimRef`
 
@@ -45,6 +46,10 @@ xprin-helpers convert-claim-to-xr claim.yaml --name my-xr
 
 # Convert claim.yaml to XR format with a specific kind
 xprin-helpers convert-claim-to-xr claim.yaml --kind MyCompositeResource
+
+# Convert claim.yaml with the kind resolved from its XRD (use this instead of
+# --kind when the XR's kind isn't 'X' + the Claim's kind)
+xprin-helpers convert-claim-to-xr claim.yaml --xrd xrd.yaml
 
 # Convert claim.yaml to a directly created XR (no Claim references, no name suffix)
 xprin-helpers convert-claim-to-xr claim.yaml --direct
@@ -82,4 +87,18 @@ tests:
 
 ```bash
 xprin test tests/claim_to_xr_example_xprin.yaml --debug
+```
+
+If the test case also sets `patches.xrd`, xprin passes it through to the conversion step automatically, so the generated XR's kind is resolved from the XRD instead of the "X" + Claim kind guess:
+
+```yaml
+# tests/claim_to_xr_with_xrd_xprin.yaml
+tests:
+- name: "Claim to XR with XRD-resolved kind"
+  patches:
+    xrd: xrd.yaml
+  inputs:
+    claim: claim.yaml
+    composition: composition.yaml
+    functions: functions.yaml
 ```

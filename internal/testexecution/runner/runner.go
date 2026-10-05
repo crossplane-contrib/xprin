@@ -60,7 +60,7 @@ type Runner struct {
 	verifyPathExists                  func(path string) error
 	runCommand                        func(name string, args ...string) ([]byte, error)
 	copy                              func(src, dest string, opts ...cp.Options) error
-	convertClaimToXRFunc              func(r *Runner, claimPath, outputPath string) (string, error)
+	convertClaimToXRFunc              func(r *Runner, claimPath, xrdPath, outputPath string) (string, error)
 	patchXRFunc                       func(r *Runner, xrPath, outputPath string, patches api.Patches) (string, error)
 }
 
@@ -536,7 +536,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		}
 	} else {
 		// Convert Claim to XR
-		inputXR, err = r.convertClaimToXRFunc(r, testCase.Inputs.Claim, r.inputsDir)
+		inputXR, err = r.convertClaimToXRFunc(r, testCase.Inputs.Claim, testCase.Patches.XRD, r.inputsDir)
 		if err != nil {
 			return result.Fail(fmt.Errorf("failed to convert Claim: %w", err))
 		}

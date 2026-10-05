@@ -25,11 +25,10 @@ import (
 	"github.com/crossplane-contrib/xprin/cmd/xprin-helpers/patchxr"
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/utils"
+	"github.com/crossplane/cli/v2/cmd/crossplane/render"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
-
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 )
 
 // copyInput copies a file or directory to the inputs directory organized by type and returns the destination path.
@@ -99,8 +98,10 @@ func uniqueBaseNamesForPaths(paths []string) []string {
 	return names
 }
 
-// convertClaimToXR converts a Claim to XR using the convert-claim-to-xr library.
-func (r *Runner) convertClaimToXR(claimPath, outputPath string) (string, error) {
+// convertClaimToXR converts a Claim to XR using the convert-claim-to-xr library. When xrdPath is
+// set, it's passed through as claimtoxr.Options.XRD so the library resolves the XR's kind from the
+// XRD instead of guessing "X" prefixed to the Claim's kind.
+func (r *Runner) convertClaimToXR(claimPath, xrdPath, outputPath string) (string, error) {
 	claimData, err := afero.ReadFile(r.fs, claimPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read claim file: %w", err)
@@ -115,7 +116,16 @@ func (r *Runner) convertClaimToXR(claimPath, outputPath string) (string, error) 
 		utils.DebugPrintf("Converting Claim to XR\n")
 	}
 
-	xr, err := claimtoxr.ConvertClaimToXR(claim, claimtoxr.Options{})
+	opts := claimtoxr.Options{}
+
+	if xrdPath != "" {
+		opts.XRD, err = render.LoadXRD(r.fs, xrdPath)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	xr, err := claimtoxr.ConvertClaimToXR(claim, opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to convert claim to XR: %w", err)
 	}
@@ -162,15 +172,9 @@ func (r *Runner) patchXR(xrPath, outputPath string, patches api.Patches) (string
 			utils.DebugPrintf("Patching XR: Applying XRD defaults\n")
 		}
 
-		// Read XRD file
-		xrdData, err := afero.ReadFile(r.fs, patches.XRD)
+		xrd, err := render.LoadXRD(r.fs, patches.XRD)
 		if err != nil {
-			return "", fmt.Errorf("failed to read XRD file: %w", err)
-		}
-
-		xrd := &apiextensionsv1.CompositeResourceDefinition{}
-		if err := yaml.Unmarshal(xrdData, xrd); err != nil {
-			return "", fmt.Errorf("failed to parse XRD YAML: %w", err)
+			return "", err
 		}
 
 		// Apply defaults using the library function

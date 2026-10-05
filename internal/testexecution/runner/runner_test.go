@@ -890,7 +890,7 @@ func TestRunTestCase(t *testing.T) {
 			},
 			setup: func(r *Runner) {
 				// Mock convertClaimToXRFunc to return a fake XR file path
-				r.convertClaimToXRFunc = func(_ *Runner, _, outputPath string) (string, error) {
+				r.convertClaimToXRFunc = func(_ *Runner, _, _, outputPath string) (string, error) {
 					return filepath.Join(outputPath, "xr.yaml"), nil
 				}
 				// Mock the runCommand function to return success for all operations
@@ -925,7 +925,7 @@ func TestRunTestCase(t *testing.T) {
 			},
 			setup: func(r *Runner) {
 				// Mock convertClaimToXRFunc to return a fake XR file path
-				r.convertClaimToXRFunc = func(_ *Runner, _, outputPath string) (string, error) {
+				r.convertClaimToXRFunc = func(_ *Runner, _, _, outputPath string) (string, error) {
 					return filepath.Join(outputPath, "xr.yaml"), nil
 				}
 				// Mock patchXRFunc to return a fake patched XR file path

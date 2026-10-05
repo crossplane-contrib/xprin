@@ -25,6 +25,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
+
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 )
 
 const (
@@ -50,8 +52,14 @@ type Options struct {
 	// A non-empty Name overrides both fallbacks.
 	Name string
 
-	// Kind is the XR kind. Empty defaults to "X" + claim.Kind.
+	// Kind is the XR kind. Empty falls back to XRD.Spec.Names.Kind when XRD is set, or
+	// "X" + claim.Kind otherwise.
 	Kind string
+
+	// XRD is the CompositeResourceDefinition that owns the Claim. When Kind is empty, its
+	// Spec.Names.Kind is used instead of guessing "X" + claim.Kind, which isn't guaranteed to
+	// match.
+	XRD *apiextensionsv1.CompositeResourceDefinition
 
 	// Direct controls XR linkage to the claim:
 	//   - true:  no spec.claimRef; no claim-name/claim-namespace labels
@@ -113,8 +121,12 @@ func ConvertClaimToXR(claim *unstructured.Unstructured, opts Options) (*composit
 		return nil, errors.Wrap(err, "failed to set apiVersion")
 	}
 
-	// Set XR kind - either from opts or by prepending X to Claim's kind
+	// Set XR kind: explicit opts.Kind, then opts.XRD's real kind, then the "X" + Claim's kind guess.
 	kind := opts.Kind
+	if kind == "" && opts.XRD != nil {
+		kind = opts.XRD.Spec.Names.Kind
+	}
+
 	if kind == "" {
 		kind = "X" + claimKind
 	}

@@ -1,0 +1,12 @@
+apiVersion: gcp.example.com/v1
+kind: GCPPlatformClaim
+metadata:
+  name: platform-gcp
+  namespace: default
+spec:
+  region: us-central1
+  project: myplatform
+  projectId: my-gcp-project
+  dbUsername: admin
+  sshPublicKey: qa_ssh_key
+  team: devops
