@@ -15,8 +15,8 @@ See [Installation](../xprin-helpers.md#installation).
 | Option | Description |
 |--------|-------------|
 | `--name=NAME` | Custom name for the XR. Overrides the default behavior (Claim name in direct mode, Claim name + random suffix in non-direct mode) |
-| `--kind=KIND` | Custom kind for the XR. Takes precedence over `--xrd` (default: XRD's XR kind if `--xrd` is set, otherwise "X" + Claim kind) |
-| `--xrd=PATH` | YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim. Used to resolve the XR's real kind unless `--kind` is set |
+| `--kind=KIND` | Custom kind for the XR. Mutually exclusive with `--xrd` (default if neither is set: "X" + Claim kind) |
+| `--xrd=PATH` | YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim, used to resolve the XR's real kind. Mutually exclusive with `--kind` |
 | `--direct` | Create direct XR without Claim references |
 | `--gen-uid` | Set a fresh random `metadata.uid` on the generated XR |
 | `-o, --output-file=PATH` | Output file (default: stdout) |
@@ -26,7 +26,7 @@ See [Installation](../xprin-helpers.md#installation).
 
 The converter by default assumes that the produced XR derives from a Claim, thus it will:
 - Set a random suffix in `.metadata.name`
-- Set the `kind`'s value to the XRD's XR kind if `--xrd` is given, otherwise the same as the Claim's prefixed by an "X" — which is only a naming convention, not a guarantee, so prefer `--xrd` whenever you have one (see `--kind`/`--xrd` above)
+- Set the `kind`'s value to the XRD's XR kind if `--xrd` is given, otherwise the same as the Claim's prefixed by an "X" — which is only a naming convention, not a guarantee, so prefer `--xrd` whenever you have one (`--kind` and `--xrd` are mutually exclusive, see above)
 - Set [the appropriate labels](https://docs.crossplane.io/v1.20/concepts/composite-resources/#composite-resource-labels)
 - Set `.spec.claimRef`
 

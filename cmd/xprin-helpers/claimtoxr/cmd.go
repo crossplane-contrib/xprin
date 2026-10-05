@@ -39,12 +39,12 @@ type Cmd struct {
 	InputFile string `arg:"" default:"-" help:"The Claim YAML file to be converted. If not specified or '-', stdin will be used." optional:"" predictor:"file" type:"path"`
 
 	// Flags.
-	OutputFile string `help:"The file to write the generated XR YAML to. If not specified, stdout will be used."                                                                               placeholder:"PATH" predictor:"file"   short:"o"        type:"path"`
-	Name       string `help:"The name to use for the XR. If empty, defaults to the Claim's name (direct mode) or the Claim's name with a random suffix (non-direct)."                          placeholder:"NAME" type:"string"`
-	Kind       string `help:"The kind to use for the XR. If not specified, defaults to the XRD's XR kind if --xrd is set, otherwise 'X' prepended to the Claim's kind (e.g. Infra -> XInfra)." placeholder:"KIND" type:"string"`
-	XRD        string `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim. Used to resolve the XR's kind unless --kind is set."                            name:"xrd"         placeholder:"PATH" predictor:"file" type:"path"`
-	Direct     bool   `help:"Create a direct XR without Claim references and suffix."                                                                                                          name:"direct"      negatable:""`
-	GenUID     bool   `help:"Set a fresh random metadata.uid on the generated XR."                                                                                                             name:"gen-uid"`
+	OutputFile string `help:"The file to write the generated XR YAML to. If not specified, stdout will be used."                                                                  placeholder:"PATH" predictor:"file"   short:"o"        type:"path"`
+	Name       string `help:"The name to use for the XR. If empty, defaults to the Claim's name (direct mode) or the Claim's name with a random suffix (non-direct)."             placeholder:"NAME" type:"string"`
+	Kind       string `help:"The kind to use for the XR. Mutually exclusive with --xrd. If neither is set, defaults to 'X' prepended to the Claim's kind (e.g. Infra -> XInfra)." placeholder:"KIND" type:"string"      xor:"kind-xrd"`
+	XRD        string `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim, used to resolve the XR's kind. Mutually exclusive with --kind."    name:"xrd"         placeholder:"PATH" predictor:"file" type:"path" xor:"kind-xrd"`
+	Direct     bool   `help:"Create a direct XR without Claim references and suffix."                                                                                             name:"direct"      negatable:""`
+	GenUID     bool   `help:"Set a fresh random metadata.uid on the generated XR."                                                                                                name:"gen-uid"`
 
 	fs afero.Fs
 }
