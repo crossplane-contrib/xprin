@@ -14,19 +14,19 @@ See [Installation](../xprin-helpers.md#installation).
 
 | Option | Description |
 |--------|-------------|
-| `--name=NAME` | Custom name for the XR. Overrides the default behavior (Claim name in direct mode, Claim name + random suffix in non-direct mode) |
+| `--name=NAME` | Custom name for the XR. Overrides the default behavior (Claim name in direct mode, Claim name + random suffix in non-direct mode). Mutually exclusive with `--golden` |
 | `--kind=KIND` | Custom kind for the XR. Mutually exclusive with `--xrd` (default if neither is set: "X" + Claim kind) |
 | `--xrd=PATH` | YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim, used to resolve the XR's real kind. Mutually exclusive with `--kind` |
+| `--golden=PATH` | A previous render/golden YAML file. If it has a document of the resolved XR kind, its name is reused instead of a fresh random suffix, making the output reproducible across runs. Mutually exclusive with `--name` |
 | `--direct` | Create direct XR without Claim references |
 | `--gen-uid` | Set a fresh random `metadata.uid` on the generated XR |
 | `-o, --output-file=PATH` | Output file (default: stdout) |
-| `--version` | Print version information |
 
 ## Default Conversion Behavior
 
 The converter by default assumes that the produced XR derives from a Claim, thus it will:
-- Set a random suffix in `.metadata.name`
-- Set the `kind`'s value to the XRD's XR kind if `--xrd` is given, otherwise the same as the Claim's prefixed by an "X" — which is only a naming convention, not a guarantee, so prefer `--xrd` whenever you have one (`--kind` and `--xrd` are mutually exclusive, see above)
+- Set a random suffix in `.metadata.name` (unless `--name` or `--golden` are given)
+- Set the `kind`'s value to the same as the Claim's prefixed by an "X" (unless `--kind` or `--xrd` are set)
 - Set [the appropriate labels](https://docs.crossplane.io/v1.20/concepts/composite-resources/#composite-resource-labels)
 - Set `.spec.claimRef`
 
@@ -44,11 +44,13 @@ xprin-helpers convert-claim-to-xr claim.yaml -o xr.yaml
 # Convert claim.yaml using an explicit XR name (overrides the default suffix or claim name)
 xprin-helpers convert-claim-to-xr claim.yaml --name my-xr
 
+# Convert claim.yaml and create a reproducible XR by setting the XR's name based on a previous golden file of a render output, or just an XR output
+xprin-helpers convert-claim-to-xr claim.yaml --golden render_output.yaml
+
 # Convert claim.yaml to XR format with a specific kind
 xprin-helpers convert-claim-to-xr claim.yaml --kind MyCompositeResource
 
-# Convert claim.yaml with the kind resolved from its XRD (use this instead of
-# --kind when the XR's kind isn't 'X' + the Claim's kind)
+# Convert claim.yaml with the kind resolved from its XRD
 xprin-helpers convert-claim-to-xr claim.yaml --xrd xrd.yaml
 
 # Convert claim.yaml to a directly created XR (no Claim references, no name suffix)
@@ -59,6 +61,10 @@ xprin-helpers convert-claim-to-xr claim.yaml --gen-uid
 
 # Convert Claim from stdin to XR format
 cat claim.yaml | xprin-helpers convert-claim-to-xr -
+
+# Convert claim.yaml, reusing the XR name from a previous render if one matches
+# (falls back to a random suffix if golden_render.yaml doesn't exist yet, or has no matching document)
+xprin-helpers convert-claim-to-xr claim.yaml --golden golden_render.yaml
 
 # Show detailed help
 xprin-helpers convert-claim-to-xr --help

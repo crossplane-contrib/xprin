@@ -70,6 +70,22 @@ type Options struct {
 	GenerateUID bool
 }
 
+// ResolveKind returns the XR kind ConvertClaimToXR would use for a Claim of the given kind,
+// following the precedence: explicit kind, then xrd's real kind, then "X" + claimKind. Exported so
+// callers (e.g. golden-file name matching) can learn the target kind before conversion runs, not
+// just as a side effect of it.
+func ResolveKind(claimKind, kind string, xrd *apiextensionsv1.CompositeResourceDefinition) string {
+	if kind != "" {
+		return kind
+	}
+
+	if xrd != nil {
+		return xrd.Spec.Names.Kind
+	}
+
+	return "X" + claimKind
+}
+
 // ConvertClaimToXR converts a Crossplane Claim to a Composite Resource (XR).
 func ConvertClaimToXR(claim *unstructured.Unstructured, opts Options) (*composite.Unstructured, error) {
 	if claim == nil {
@@ -121,15 +137,7 @@ func ConvertClaimToXR(claim *unstructured.Unstructured, opts Options) (*composit
 		return nil, errors.Wrap(err, "failed to set apiVersion")
 	}
 
-	// Set XR kind: explicit opts.Kind, then opts.XRD's real kind, then the "X" + Claim's kind guess.
-	kind := opts.Kind
-	if kind == "" && opts.XRD != nil {
-		kind = opts.XRD.Spec.Names.Kind
-	}
-
-	if kind == "" {
-		kind = "X" + claimKind
-	}
+	kind := ResolveKind(claimKind, opts.Kind, opts.XRD)
 
 	if err := xrPaved.SetString("kind", kind); err != nil {
 		return nil, errors.Wrap(err, "failed to set kind")
