@@ -108,3 +108,23 @@ tests:
     composition: composition.yaml
     functions: functions.yaml
 ```
+
+If the test case also has a full-render `assertions.diff`/`assertions.dyff` entry (an `expected:` golden file with no `resource:` set), xprin passes that golden file through as `--golden` automatically, so the Claim's generated XR name - and anything derived from it - stays stable across runs instead of getting a new random suffix every time:
+
+```yaml
+# tests/claim_to_xr_with_golden_xprin.yaml
+tests:
+- name: "Claim to XR with reproducible name"
+  patches:
+    xrd: xrd.yaml
+  inputs:
+    claim: claim.yaml
+    composition: composition.yaml
+    functions: functions.yaml
+  assertions:
+    dyff:
+    - name: "Full render matches golden"
+      expected: golden_render.yaml
+```
+
+Run `xprin update-goldens` once to capture the first render into `golden_render.yaml`; from then on, `xprin test` reuses that same XR name on every run, so the golden-file comparison is stable.

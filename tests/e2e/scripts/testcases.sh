@@ -39,19 +39,21 @@ testcase_007="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/
 testcase_007_exit=1
 testcase_007_update_goldens=true
 
-# Successful with hooks/validate/assertions (Verbose, show flags) + update-goldens verification
-testcase_008="examples/mytests/0_e2e/success_xprin.yaml examples/mytests/6_assertions/ -v --show-render --show-validate --show-hooks --show-assertions"
-testcase_008_update_goldens=true
-
-# Test with Chained Outputs
-testcase_009="examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml -v --show-render --show-validate"
-
-# Cross-Composition Chaining
-testcase_010="examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml -v --show-render --show-validate"
-
 # Invalid testsuite file
-testcase_011="examples/mytests/0_e2e/generated_invalid_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
-testcase_011_exit=1
+testcase_008="examples/mytests/0_e2e/generated_invalid_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_008_exit=1
+
+# Successful with hooks/validate/assertions (Verbose, show flags) + update-goldens verification
+testcase_009="examples/mytests/0_e2e/success_xprin.yaml examples/mytests/6_assertions/ -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_009_update_goldens=true
+
+# Chained Outputs and Cross-Composition Chaining
+testcase_010="examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml -v --show-render --show-validate"
+
+# Claim input with kind resolved from XRD (not 'X' + Claim kind) and reproducible name via --golden
+testcase_011="examples/mytests/0_e2e/claim_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_011_tiers="v1 v2"
+testcase_011_update_goldens=true
 
 # Validations with combinations of incomplete / complete XR and with / without patches.xrd (XRD v1)
 testcase_012="examples/mytests/0_e2e/validations_xrd_v1_xprin.yaml --debug"

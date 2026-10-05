@@ -101,6 +101,8 @@ xprin test tests/... -a /tmp/xprin-debug
 
 Test cases without `assertions.diff`/`assertions.dyff` are reported as SKIP immediately. For test cases that do have golden assertions, pre-test hooks run normally (they may affect render output), but validate, `assertions.xprin`, and post-test hooks are skipped.
 
+For Claim-input test cases, a full-render golden file (an `expected:` path with no `resource:` set) is also reused to keep the Claim-derived XR's name stable across runs, instead of a new random suffix every time - see [convert-claim-to-xr.md](xprin-helpers/convert-claim-to-xr.md#reproducible-output-with---golden).
+
 ```bash
 # Regenerate golden files for all tests in a directory
 xprin update-goldens tests/
@@ -167,7 +169,9 @@ tests:
     functions: /path/to/functions
 ```
 
-It supports both XR and Claim as inputs. The Claim will be converted to XR using the `xprin-helpers convert-claim-to-xr` tool. If the test case also sets `patches.xrd` (see [Patching](#patching) below), the converted XR's kind is resolved from the XRD instead of guessed as "X" prefixed to the Claim's kind.
+It supports both XR and Claim as inputs. The Claim will be converted to XR using the `xprin-helpers convert-claim-to-xr` tool:
+- If the test case also sets `patches.xrd` (see [Patching](#patching) below), the converted XR's kind is resolved from the XRD instead of guessed as "X" prefixed to the Claim's kind.
+- The converted XR normally gets a new random name suffix on every run. If the test case also has a full-render `assertions.diff`/`assertions.dyff` entry, that golden file's XR name is reused instead, keeping it (and anything derived from it) stable across runs — see [Updating Golden Files](#updating-golden-files).
 
 In this example:
 - the "Database Setup" test will run both `render` and `validate`
