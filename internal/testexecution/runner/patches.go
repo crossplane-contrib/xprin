@@ -29,6 +29,8 @@ import (
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
+
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 )
 
 // copyInput copies a file or directory to the inputs directory organized by type and returns the destination path.
@@ -98,10 +100,33 @@ func uniqueBaseNamesForPaths(paths []string) []string {
 	return names
 }
 
+// firstFullRenderGolden returns the Expected path (still relative to the testsuite file) of the
+// first assertions.diff/assertions.dyff entry with no Resource set - i.e. one that targets the full
+// render, not a single resource - or "" if none exists. Checked in Diff then Dyff order. A
+// resource:-scoped golden commonly doesn't contain the XR document at all, so only a full-render
+// golden is useful as a source of a previously-generated XR name.
+func firstFullRenderGolden(assertions api.Assertions) string {
+	for _, a := range assertions.Diff {
+		if a.Resource == "" {
+			return a.Expected
+		}
+	}
+
+	for _, a := range assertions.Dyff {
+		if a.Resource == "" {
+			return a.Expected
+		}
+	}
+
+	return ""
+}
+
 // convertClaimToXR converts a Claim to XR using the convert-claim-to-xr library. When xrdPath is
 // set, it's passed through as claimtoxr.Options.XRD so the library resolves the XR's kind from the
-// XRD instead of guessing "X" prefixed to the Claim's kind.
-func (r *Runner) convertClaimToXR(claimPath, xrdPath, outputPath string) (string, error) {
+// XRD instead of guessing "X" prefixed to the Claim's kind. When goldenPath is set and has a
+// document of the resolved kind, its name is reused instead of a fresh random suffix, so the
+// converted XR - and everything a Composition derives from its name - reproduces a previous render.
+func (r *Runner) convertClaimToXR(claimPath, xrdPath, goldenPath, outputPath string) (string, error) {
 	claimData, err := afero.ReadFile(r.fs, claimPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read claim file: %w", err)
@@ -116,12 +141,31 @@ func (r *Runner) convertClaimToXR(claimPath, xrdPath, outputPath string) (string
 		utils.DebugPrintf("Converting Claim to XR\n")
 	}
 
-	opts := claimtoxr.Options{}
+	var xrd *apiextensionsv1.CompositeResourceDefinition
 
 	if xrdPath != "" {
-		opts.XRD, err = render.LoadXRD(r.fs, xrdPath)
+		xrd, err = render.LoadXRD(r.fs, xrdPath)
 		if err != nil {
 			return "", err
+		}
+	}
+
+	kind := claimtoxr.ResolveKind(claim.GetKind(), "", xrd)
+
+	opts := claimtoxr.Options{Kind: kind}
+
+	if goldenPath != "" {
+		name, found, err := claimtoxr.FindNameInGolden(r.fs, goldenPath, kind)
+		if err != nil {
+			return "", err
+		}
+
+		if found {
+			opts.Name = name
+
+			if r.Debug {
+				utils.DebugPrintf("Reusing XR name %q from golden file %s\n", name, goldenPath)
+			}
 		}
 	}
 

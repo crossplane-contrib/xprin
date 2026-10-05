@@ -1,0 +1,71 @@
+---
+apiVersion: gcp.example.com/v1
+kind: XGCPInfrastructure
+metadata:
+  labels:
+    crossplane.io/claim-name: platform-gcp
+    crossplane.io/claim-namespace: default
+  name: platform-gcp-jz48b
+spec:
+  claimRef:
+    apiVersion: gcp.example.com/v1
+    kind: GCPPlatformClaim
+    name: platform-gcp
+    namespace: default
+  dbUsername: admin
+  project: myplatform
+  projectId: my-gcp-project
+  region: us-central1
+  resourceRefs:
+  - apiVersion: compute.gcp.upbound.io/v1beta1
+    kind: Firewall
+    name: platform-gcp-jz48b-firewall
+  sshPublicKey: qa_ssh_key
+  team: devops
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: firewall'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: compute.gcp.upbound.io/v1beta1
+kind: Firewall
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: firewall
+  labels:
+    crossplane.io/claim-name: platform-gcp
+    crossplane.io/claim-namespace: default
+    crossplane.io/composite: platform-gcp-jz48b
+  name: platform-gcp-jz48b-firewall
+  ownerReferences:
+  - apiVersion: gcp.example.com/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XGCPInfrastructure
+    name: platform-gcp-jz48b
+    uid: 621582b8-83fc-5e6d-9985-598aa9120036
+spec:
+  forProvider:
+    allow:
+    - ports:
+      - "22"
+      - "80"
+      - "443"
+      protocol: tcp
+    description: Firewall rule for platform-gcp-jz48b
+    project: my-gcp-project
+    sourceRanges:
+    - 0.0.0.0/0
+    targetTags:
+    - platform-gcp-jz48b-compute

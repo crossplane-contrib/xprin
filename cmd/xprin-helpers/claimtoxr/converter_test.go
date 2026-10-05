@@ -213,6 +213,52 @@ func generateExpectedXR(claim *unstructured.Unstructured, kind string, direct bo
 	return xr
 }
 
+func TestResolveKind(t *testing.T) {
+	cases := map[string]struct {
+		reason    string
+		claimKind string
+		kind      string
+		xrd       *apiextensionsv1.CompositeResourceDefinition
+		want      string
+	}{
+		"GuessFromClaimKind": {
+			reason:    "With neither kind nor xrd set, should guess 'X' + claimKind",
+			claimKind: "Widget",
+			want:      "XWidget",
+		},
+		"XRDWins": {
+			reason:    "With xrd set and no explicit kind, should use the XRD's real kind",
+			claimKind: "WidgetClaim",
+			xrd: &apiextensionsv1.CompositeResourceDefinition{
+				Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
+					Names: extv1.CustomResourceDefinitionNames{Kind: "Widget"},
+				},
+			},
+			want: "Widget",
+		},
+		"ExplicitKindWinsOverXRD": {
+			reason:    "An explicit kind should win even when an xrd is also given",
+			claimKind: "WidgetClaim",
+			kind:      "ExplicitKind",
+			xrd: &apiextensionsv1.CompositeResourceDefinition{
+				Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
+					Names: extv1.CustomResourceDefinitionNames{Kind: "FromXRD"},
+				},
+			},
+			want: "ExplicitKind",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ResolveKind(tc.claimKind, tc.kind, tc.xrd)
+			if got != tc.want {
+				t.Errorf("\n%s\nResolveKind(...) = %q, want %q", tc.reason, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestConvertClaimToXR(t *testing.T) {
 	type args struct {
 		claim *unstructured.Unstructured

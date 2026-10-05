@@ -1,3 +1,25 @@
+=== RUN   Initial reconciliation loop
+--- PASS: Initial reconciliation loop (X.XXXs)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
+=== RUN   Second reconciliation loop
+--- PASS: Second reconciliation loop (X.XXXs)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        ├── Cluster/platform-aws-rds
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] rds.aws.upbound.io/v1beta1, Kind=Cluster, platform-aws-rds validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
+PASS
+ok	examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml	X.XXXs
 === RUN   Base layer final loop
 --- PASS: Base layer final loop (X.XXXs)
     Render:

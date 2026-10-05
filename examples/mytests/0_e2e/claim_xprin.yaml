@@ -1,0 +1,12 @@
+tests:
+- name: "Claim input with kind resolved from XRD (not 'X' + Claim kind)"
+  patches:
+    xrd: ../../gcp/xrd_legacy.yaml
+  inputs:
+    claim: ../../gcp/claim.yaml
+    composition: ../../gcp/composition.yaml
+    functions: ../../gcp/functions.yaml
+  assertions:
+    dyff:
+    - name: "Full render matches golden, reproduced via --golden"
+      expected: ../../gcp/golden/golden_render.yaml

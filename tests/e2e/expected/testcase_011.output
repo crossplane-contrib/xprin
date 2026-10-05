@@ -1,5 +1,15 @@
-# examples/mytests/0_e2e/generated_invalid_xprin.yaml
-failed to parse testsuite file examples/mytests/0_e2e/generated_invalid_xprin.yaml: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal array into Go value of type api.TestSuiteSpec
-FAIL	examples/mytests/0_e2e/generated_invalid_xprin.yaml	[invalid testsuite file]
-FAIL
-YYYY/MM/DD HH:MM:SS processing completed with errors
+=== RUN   Claim input with kind resolved from XRD (not 'X' + Claim kind)
+--- PASS: Claim input with kind resolved from XRD (not 'X' + Claim kind) (X.XXXs)
+    written: examples/gcp/golden/golden_render.yaml
+PASS
+ok	examples/mytests/0_e2e/claim_xprin.yaml	X.XXXs
+=== RUN   Claim input with kind resolved from XRD (not 'X' + Claim kind)
+--- PASS: Claim input with kind resolved from XRD (not 'X' + Claim kind) (X.XXXs)
+    Render:
+        ├── XGCPInfrastructure/platform-gcp-jz48b
+        └── Firewall/platform-gcp-jz48b-firewall
+    Assertions:
+        [✓] Full render matches golden, reproduced via --golden - files match
+        Total: 1 assertions, 1 successful, 0 failed, 0 errors
+PASS
+ok	examples/mytests/0_e2e/claim_xprin.yaml	X.XXXs

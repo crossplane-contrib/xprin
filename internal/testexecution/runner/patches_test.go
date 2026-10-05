@@ -17,6 +17,7 @@ limitations under the License.
 package runner
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
@@ -180,9 +181,12 @@ spec:
   field: value`
 
 	tests := []struct {
-		name     string
-		xrdPath  string
-		wantKind string
+		name          string
+		xrdPath       string
+		goldenPath    string
+		goldenContent string
+		wantKind      string
+		wantName      string // exact match if set; otherwise just assert a random suffix was generated
 	}{
 		{
 			name:     "no XRD falls back to X-prefixed guess",
@@ -192,6 +196,27 @@ spec:
 		{
 			name:     "XRD resolves the real XR kind",
 			xrdPath:  "/xrd.yaml",
+			wantKind: "Widget",
+		},
+		{
+			name:       "golden file provides a reusable name",
+			xrdPath:    "/xrd.yaml",
+			goldenPath: "/golden.yaml",
+			goldenContent: `apiVersion: example.org/v1alpha1
+kind: Widget
+metadata:
+  name: test-claim-abcde`,
+			wantKind: "Widget",
+			wantName: "test-claim-abcde",
+		},
+		{
+			name:       "golden file without a matching document falls back to a random suffix",
+			xrdPath:    "/xrd.yaml",
+			goldenPath: "/golden-nomatch.yaml",
+			goldenContent: `apiVersion: example.org/v1alpha1
+kind: SomethingElse
+metadata:
+  name: unrelated`,
 			wantKind: "Widget",
 		},
 	}
@@ -207,6 +232,10 @@ spec:
 				require.NoError(t, afero.WriteFile(fs, tt.xrdPath, []byte(xrdWithClaim), 0o644))
 			}
 
+			if tt.goldenPath != "" {
+				require.NoError(t, afero.WriteFile(fs, tt.goldenPath, []byte(tt.goldenContent), 0o644))
+			}
+
 			outputDir := "/output"
 			require.NoError(t, fs.MkdirAll(outputDir, 0o755))
 
@@ -214,7 +243,7 @@ spec:
 			runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
 			runner.fs = fs
 
-			xrPath, err := runner.convertClaimToXR(claimFile, tt.xrdPath, outputDir)
+			xrPath, err := runner.convertClaimToXR(claimFile, tt.xrdPath, tt.goldenPath, outputDir)
 			require.NoError(t, err)
 
 			xrData, err := afero.ReadFile(fs, xrPath)
@@ -224,6 +253,59 @@ spec:
 			require.NoError(t, yaml.Unmarshal(xrData, xr))
 
 			assert.Equal(t, tt.wantKind, xr.GetKind())
+
+			if tt.wantName != "" {
+				assert.Equal(t, tt.wantName, xr.GetName())
+			} else {
+				assert.True(t, strings.HasPrefix(xr.GetName(), "test-claim-"), "expected a random-suffixed name, got %q", xr.GetName())
+				assert.NotEqual(t, "test-claim-abcde", xr.GetName())
+			}
+		})
+	}
+}
+
+// TestFirstFullRenderGolden tests the pure function that picks the golden file to reuse an XR
+// name from, out of a test case's assertions.
+func TestFirstFullRenderGolden(t *testing.T) {
+	tests := []struct {
+		name       string
+		assertions api.Assertions
+		want       string
+	}{
+		{
+			name:       "no assertions at all",
+			assertions: api.Assertions{},
+			want:       "",
+		},
+		{
+			name: "only resource-scoped entries, no full-render one",
+			assertions: api.Assertions{
+				Diff: []api.AssertionGoldenFile{{Name: "a", Expected: "a.yaml", Resource: "Pod/foo"}},
+				Dyff: []api.AssertionGoldenFile{{Name: "b", Expected: "b.yaml", Resource: "Pod/bar"}},
+			},
+			want: "",
+		},
+		{
+			name: "full-render diff entry wins",
+			assertions: api.Assertions{
+				Diff: []api.AssertionGoldenFile{{Name: "a", Expected: "golden_diff.yaml"}},
+				Dyff: []api.AssertionGoldenFile{{Name: "b", Expected: "golden_dyff.yaml"}},
+			},
+			want: "golden_diff.yaml",
+		},
+		{
+			name: "falls back to full-render dyff entry when diff has none",
+			assertions: api.Assertions{
+				Diff: []api.AssertionGoldenFile{{Name: "a", Expected: "a.yaml", Resource: "Pod/foo"}},
+				Dyff: []api.AssertionGoldenFile{{Name: "b", Expected: "golden_dyff.yaml"}},
+			},
+			want: "golden_dyff.yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, firstFullRenderGolden(tt.assertions))
 		})
 	}
 }

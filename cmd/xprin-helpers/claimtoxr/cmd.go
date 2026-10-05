@@ -39,12 +39,13 @@ type Cmd struct {
 	InputFile string `arg:"" default:"-" help:"The Claim YAML file to be converted. If not specified or '-', stdin will be used." optional:"" predictor:"file" type:"path"`
 
 	// Flags.
-	OutputFile string `help:"The file to write the generated XR YAML to. If not specified, stdout will be used."                                                                  placeholder:"PATH" predictor:"file"   short:"o"        type:"path"`
-	Name       string `help:"The name to use for the XR. If empty, defaults to the Claim's name (direct mode) or the Claim's name with a random suffix (non-direct)."             placeholder:"NAME" type:"string"`
-	Kind       string `help:"The kind to use for the XR. Mutually exclusive with --xrd. If neither is set, defaults to 'X' prepended to the Claim's kind (e.g. Infra -> XInfra)." placeholder:"KIND" type:"string"      xor:"kind-xrd"`
-	XRD        string `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim, used to resolve the XR's kind. Mutually exclusive with --kind."    name:"xrd"         placeholder:"PATH" predictor:"file" type:"path" xor:"kind-xrd"`
-	Direct     bool   `help:"Create a direct XR without Claim references and suffix."                                                                                             name:"direct"      negatable:""`
-	GenUID     bool   `help:"Set a fresh random metadata.uid on the generated XR."                                                                                                name:"gen-uid"`
+	OutputFile string `help:"The file to write the generated XR YAML to. If not specified, stdout will be used."                                                                                                                     placeholder:"PATH" predictor:"file"   short:"o"         type:"path"`
+	Name       string `help:"The name to use for the XR. Mutually exclusive with --golden. If neither is set, defaults to the Claim's name (direct mode) or the Claim's name with a random suffix (non-direct)."                     placeholder:"NAME" type:"string"      xor:"name-golden"`
+	Kind       string `help:"The kind to use for the XR. Mutually exclusive with --xrd. If neither is set, defaults to 'X' prepended to the Claim's kind (e.g. Infra -> XInfra)."                                                    placeholder:"KIND" type:"string"      xor:"kind-xrd"`
+	XRD        string `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that owns the Claim, used to resolve the XR's kind. Mutually exclusive with --kind."                                                       name:"xrd"         placeholder:"PATH" predictor:"file"  type:"path" xor:"kind-xrd"`
+	Golden     string `help:"A previous render/golden YAML file. If it has a document of the resolved XR kind, its name is reused instead of a fresh random suffix, making the output reproducible. Mutually exclusive with --name." name:"golden"      placeholder:"PATH" predictor:"file"  type:"path" xor:"name-golden"`
+	Direct     bool   `help:"Create a direct XR without Claim references and suffix."                                                                                                                                                name:"direct"      negatable:""`
+	GenUID     bool   `help:"Set a fresh random metadata.uid on the generated XR."                                                                                                                                                   name:"gen-uid"`
 
 	fs afero.Fs
 }
@@ -72,11 +73,13 @@ Examples:
   # Convert claim.yaml using an explicit XR name (overrides the default suffix or claim name)
   xprin-helpers convert-claim-to-xr claim.yaml --name my-xr
 
+  # Convert claim.yaml and create a reproducible XR by setting the XR's name based on a previous golden file of a render output, or just an XR output
+  xprin-helpers convert-claim-to-xr claim.yaml --golden render_output.yaml
+
   # Convert claim.yaml to XR format with a specific kind
   xprin-helpers convert-claim-to-xr claim.yaml --kind MyCompositeResource
 
-  # Convert claim.yaml with the kind resolved from its XRD (use this instead
-  # of --kind when the XR's kind isn't 'X' + the Claim's kind)
+  # Convert claim.yaml with the kind resolved from its XRD
   xprin-helpers convert-claim-to-xr claim.yaml --xrd xrd.yaml
 
   # Convert claim.yaml to a directly created XR (no Claim references, no name suffix)
@@ -117,11 +120,25 @@ func (c *Cmd) Run(k *kong.Context) error {
 		}
 	}
 
+	kind := ResolveKind(claim.GetKind(), c.Kind, xrd)
+
+	name := c.Name
+
+	if name == "" && c.Golden != "" {
+		matched, found, err := FindNameInGolden(c.fs, c.Golden, kind)
+		if err != nil {
+			return errors.Wrapf(err, "cannot read golden file %q", c.Golden)
+		}
+
+		if found {
+			name = matched
+		}
+	}
+
 	// Convert to XR
 	xr, err := ConvertClaimToXR(claim, Options{
-		Name:        c.Name,
-		Kind:        c.Kind,
-		XRD:         xrd,
+		Name:        name,
+		Kind:        kind,
 		Direct:      c.Direct,
 		GenerateUID: c.GenUID,
 	})

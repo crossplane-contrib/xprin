@@ -60,7 +60,7 @@ type Runner struct {
 	verifyPathExists                  func(path string) error
 	runCommand                        func(name string, args ...string) ([]byte, error)
 	copy                              func(src, dest string, opts ...cp.Options) error
-	convertClaimToXRFunc              func(r *Runner, claimPath, xrdPath, outputPath string) (string, error)
+	convertClaimToXRFunc              func(r *Runner, claimPath, xrdPath, goldenPath, outputPath string) (string, error)
 	patchXRFunc                       func(r *Runner, xrPath, outputPath string, patches api.Patches) (string, error)
 }
 
@@ -535,8 +535,17 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 			utils.DebugPrintf("Using provided XR file: %s\n", inputXR)
 		}
 	} else {
-		// Convert Claim to XR
-		inputXR, err = r.convertClaimToXRFunc(r, testCase.Inputs.Claim, testCase.Patches.XRD, r.inputsDir)
+		// Convert Claim to XR, reusing a previously-generated XR name from an existing full-render
+		// golden file if the test case has one, so the conversion reproduces that render.
+		goldenPath := ""
+
+		if rel := firstFullRenderGolden(testCase.Assertions); rel != "" {
+			if expanded, expandErr := r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, rel); expandErr == nil {
+				goldenPath = expanded
+			}
+		}
+
+		inputXR, err = r.convertClaimToXRFunc(r, testCase.Inputs.Claim, testCase.Patches.XRD, goldenPath, r.inputsDir)
 		if err != nil {
 			return result.Fail(fmt.Errorf("failed to convert Claim: %w", err))
 		}
