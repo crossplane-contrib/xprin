@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/spf13/afero"
@@ -683,5 +684,118 @@ func TestProcessTestSuiteFile(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+func TestProcessTargets_ContainerCleanup(t *testing.T) {
+	origNewRunnerFunc := newRunnerFunc
+	origNewCoordinatorFunc := newCoordinatorFunc
+
+	defer func() {
+		newRunnerFunc = origNewRunnerFunc
+		newCoordinatorFunc = origNewCoordinatorFunc
+	}()
+
+	t.Run("initializes Containers and cleans up every tracked name", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		testFile := "/suite_xprin.yaml"
+		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
+
+		var options *testexecutionUtils.Options
+
+		const functionsPath = "/suite/functions.yaml"
+		require.NoError(t, afero.WriteFile(fs, functionsPath, []byte(`apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-a
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-a:v1.0.0
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-b
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-b:v1.0.0
+`), 0o644))
+
+		newRunnerFunc = func(opts *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+			options = opts
+
+			return &mockRunner{
+				runTestsFunc: func() error {
+					// Simulate a Runner applying container reuse for this suite's functions.
+					require.NotNil(t, opts.Containers, "ProcessTargets must initialize Containers before running any suite")
+					return containers.ApplyReuse(fs, opts.Containers, functionsPath)
+				},
+			}
+		}
+
+		mockDocker := &unittestsUtils.MockDocker{}
+
+		newCoordinatorFunc = func() (*containers.Coordinator, error) {
+			return containers.NewCoordinator(mockDocker), nil
+		}
+
+		opts := &testexecutionUtils.Options{}
+		require.Nil(t, opts.Containers, "precondition: Containers starts nil")
+
+		err := ProcessTargets(fs, []string{testFile}, opts)
+		require.NoError(t, err)
+
+		assert.Same(t, opts.Containers, options.Containers, "the same coordinator instance must be shared with the runner")
+
+		wantNames := []string{
+			options.Containers.ContainerName("xpkg.crossplane.io/crossplane-contrib/function-a:v1.0.0"),
+			options.Containers.ContainerName("xpkg.crossplane.io/crossplane-contrib/function-b:v1.0.0"),
+		}
+		assert.ElementsMatch(t, wantNames, mockDocker.RemovedContainers)
+	})
+
+	t.Run("NoContainerReuse disables the registry entirely", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		testFile := "/suite_xprin.yaml"
+		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
+
+		var containersSeenByRunner *containers.Coordinator
+
+		newRunnerFunc = func(opts *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+			return &mockRunner{
+				runTestsFunc: func() error {
+					containersSeenByRunner = opts.Containers
+					return nil
+				},
+			}
+		}
+
+		newCoordinatorCalled := false
+
+		newCoordinatorFunc = func() (*containers.Coordinator, error) {
+			newCoordinatorCalled = true
+
+			return nil, nil
+		}
+
+		opts := &testexecutionUtils.Options{NoContainerReuse: true}
+
+		err := ProcessTargets(fs, []string{testFile}, opts)
+		require.NoError(t, err)
+
+		assert.Nil(t, opts.Containers, "Containers must stay nil when NoContainerReuse is set")
+		assert.Nil(t, containersSeenByRunner, "the runner must also observe a nil registry")
+		assert.False(t, newCoordinatorCalled, "no coordinator should even be created when reuse is disabled")
+	})
+
+	t.Run("coordinator creation failure is returned", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		testFile := "/suite_xprin.yaml"
+		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
+
+		newCoordinatorFunc = func() (*containers.Coordinator, error) {
+			return nil, errors.New("no docker")
+		}
+
+		err := ProcessTargets(fs, []string{testFile}, &testexecutionUtils.Options{})
+		require.ErrorContains(t, err, "failed to set up container reuse: no docker")
 	})
 }

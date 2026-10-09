@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/runner"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/utils"
@@ -44,12 +45,35 @@ var (
 	newRunnerFunc = func(options *testexecutionUtils.Options, testSuiteFile string, testSuiteSpec *api.TestSuiteSpec) runnerInterface {
 		return runner.NewRunner(options, testSuiteFile, testSuiteSpec)
 	}
+	newCoordinatorFunc = func() (*containers.Coordinator, error) {
+		docker, err := containers.NewDocker()
+		if err != nil {
+			return nil, err
+		}
+
+		return containers.NewCoordinator(docker), nil
+	}
 )
 
 // ProcessTargets processes the targets and runs the tests
 //
 //nolint:gocognit // Complex target processing with multiple validation and execution phases
 func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionUtils.Options) error {
+	// Containers tracks reuse of Docker containers for composition functions for this whole
+	// invocation. Initialized here rather than required of callers, so every entry point into
+	// test execution gets reuse enabled for free, unless the user opted out via
+	// --no-container-reuse.
+	if !options.NoContainerReuse {
+		coordinator, err := newCoordinatorFunc()
+		if err != nil {
+			return fmt.Errorf("failed to set up container reuse: %w", err)
+		}
+
+		options.Containers = coordinator
+
+		defer options.Containers.RemoveAll()
+	}
+
 	var hasErrors bool
 
 	for _, path := range targets {

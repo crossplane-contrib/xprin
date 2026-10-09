@@ -28,6 +28,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/gertd/go-pluralize"
@@ -467,6 +468,12 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		return result.Fail(err)
 	}
 
+	if r.Containers != nil {
+		if err := containers.ApplyReuse(r.fs, r.Containers, testCase.Inputs.Functions); err != nil {
+			return result.Fail(fmt.Errorf("failed to apply container reuse: %w", err))
+		}
+	}
+
 	crdsDir := filepath.Join(r.inputsDir, "crds")
 
 	uniqueNames := uniqueBaseNamesForPaths(testCase.Inputs.CRDs)
@@ -576,6 +583,18 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	renderArgs = append(renderArgs, r.Render...)
 	if r.CrossplaneVersion != "" && r.XPCLI.SupportsRenderVersion() {
 		renderArgs = append(renderArgs, "--crossplane-version="+r.CrossplaneVersion)
+	}
+
+	if r.Containers != nil && r.XPCLI.SupportsRenderVersion() {
+		// crossplane's dockerized render engine otherwise creates a new Docker network per
+		// render call, stranding a reused container on an earlier call's network — see
+		// Coordinator.NetworkName.
+		networkName, err := r.Containers.NetworkName()
+		if err != nil {
+			return result.Fail(fmt.Errorf("failed to create docker network for container reuse: %w", err))
+		}
+
+		renderArgs = append(renderArgs, "--crossplane-docker-network="+networkName)
 	}
 
 	renderArgs = append(renderArgs, inputXR, testCase.Inputs.Composition, testCase.Inputs.Functions)

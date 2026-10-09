@@ -35,7 +35,7 @@ DEBUG: Copied functions to: /tmp/xprin-testcase-XXXX/inputs/functions/functions.
 DEBUG: Copied to: /tmp/xprin-testcase-XXXX/inputs/crds/xrd_legacy.yaml
 DEBUG: Copied to: /tmp/xprin-testcase-XXXX/inputs/crds/crossplane.yaml
 DEBUG: Using provided XR file: /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml
-DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-version=vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml /tmp/xprin-testcase-XXXX/inputs/composition/composition.yaml /tmp/xprin-testcase-XXXX/inputs/functions/functions.yaml
+DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-version=vX.Y.Z --crossplane-docker-network=xprin-net-XXXX /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml /tmp/xprin-testcase-XXXX/inputs/composition/composition.yaml /tmp/xprin-testcase-XXXX/inputs/functions/functions.yaml
 DEBUG: Wrote rendered output to: /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
 DEBUG: Running validate command: /usr/local/bin/crossplane resource validate --error-on-missing-schemas --crossplane-image=xpkg.crossplane.io/crossplane/crossplane:vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/crds /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
 DEBUG: Wrote validation output to: /tmp/xprin-testcase-XXXX/outputs/validate.txt
@@ -75,7 +75,7 @@ DEBUG: Copied to: /tmp/xprin-testcase-XXXX/inputs/crds/xrd_legacy.yaml
 DEBUG: Copied to: /tmp/xprin-testcase-XXXX/inputs/crds/crossplane.yaml
 DEBUG: Copied xrd to: /tmp/xprin-testcase-XXXX/inputs/xrd/xrd_legacy.yaml
 DEBUG: Using provided XR file: /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml
-DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-version=vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml /tmp/xprin-testcase-XXXX/inputs/composition/composition.yaml /tmp/xprin-testcase-XXXX/inputs/functions/functions.yaml --xrd=/tmp/xprin-testcase-XXXX/inputs/xrd/xrd_legacy.yaml
+DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-version=vX.Y.Z --crossplane-docker-network=xprin-net-XXXX /tmp/xprin-testcase-XXXX/inputs/xr/xr_without_team.yaml /tmp/xprin-testcase-XXXX/inputs/composition/composition.yaml /tmp/xprin-testcase-XXXX/inputs/functions/functions.yaml --xrd=/tmp/xprin-testcase-XXXX/inputs/xrd/xrd_legacy.yaml
 DEBUG: Wrote rendered output to: /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
 DEBUG: Running validate command: /usr/local/bin/crossplane resource validate --error-on-missing-schemas --crossplane-image=xpkg.crossplane.io/crossplane/crossplane:vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/crds /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
 DEBUG: Wrote validation output to: /tmp/xprin-testcase-XXXX/outputs/validate.txt
