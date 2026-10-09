@@ -1667,7 +1667,7 @@ func TestRunTestCase(t *testing.T) {
 			}
 
 			testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-			result := testRunner.runTestCase(tc.testCase, testSuiteResult)
+			result := testRunner.runTestCase(tc.testCase, 1, testSuiteResult)
 
 			if tc.wantError != "" {
 				assert.Equal(t, engine.StatusFail(), result.Status)
@@ -2195,7 +2195,7 @@ func TestRunTestCase_CommonPathExpansionAndVerification(t *testing.T) {
 			}
 
 			testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-			result := testRunner.runTestCase(tc.testCase, testSuiteResult)
+			result := testRunner.runTestCase(tc.testCase, 1, testSuiteResult)
 
 			if tc.wantError != "" {
 				assert.Equal(t, engine.StatusFail(), result.Status)
@@ -2687,7 +2687,7 @@ func TestRunTestCase_LocalPathExpansionAndVerification(t *testing.T) {
 			}
 
 			testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-			result := testRunner.runTestCase(tc.testCase, testSuiteResult)
+			result := testRunner.runTestCase(tc.testCase, 1, testSuiteResult)
 
 			if tc.wantError != "" {
 				assert.Equal(t, engine.StatusFail(), result.Status)
@@ -3055,7 +3055,7 @@ func TestRunTestCase_MergeCommon(t *testing.T) {
 			}
 
 			testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-			result := testRunner.runTestCase(tc.testCase, testSuiteResult)
+			result := testRunner.runTestCase(tc.testCase, 1, testSuiteResult)
 
 			if tc.wantError != "" {
 				assert.Equal(t, engine.StatusFail(), result.Status)
@@ -3104,7 +3104,7 @@ func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
 		},
 	}
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-	result := runner.runTestCase(testCase, testSuiteResult)
+	result := runner.runTestCase(testCase, 1, testSuiteResult)
 	assert.Equal(t, engine.StatusPass(), result.Status)
 	require.NoError(t, result.Error)
 	assert.False(t, result.StartTime.IsZero(), "TestCaseResult should have StartTime set")
@@ -3158,7 +3158,7 @@ func TestRunTestCase_SkipsValidateWhenNoCRDs(t *testing.T) {
 	}
 
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-	result := runner.runTestCase(testCase, testSuiteResult)
+	result := runner.runTestCase(testCase, 1, testSuiteResult)
 	assert.Equal(t, engine.StatusPass(), result.Status)
 	assert.NoError(t, result.Error)
 }
@@ -3812,7 +3812,7 @@ metadata:
 	}
 
 	// Call runapi.TestCase WITHOUT runTestCaseFunc - this executes the REAL code path
-	result := runner.runTestCase(testCase, testSuiteResult)
+	result := runner.runTestCase(testCase, 1, testSuiteResult)
 	require.NoError(t, result.Error)
 	assert.Equal(t, engine.StatusPass(), result.Status)
 
@@ -4024,7 +4024,7 @@ metadata:
 		}
 
 		// Call runTestCase WITHOUT runTestCaseFunc - this executes the REAL code path
-		result := runner.runTestCase(testCase, testSuiteResult)
+		result := runner.runTestCase(testCase, 1, testSuiteResult)
 		require.NoError(t, result.Error)
 		assert.Equal(t, engine.StatusPass(), result.Status)
 
@@ -4090,7 +4090,7 @@ metadata:
 			return result.Complete()
 		}
 
-		result := runner.runTestCase(testCase, testSuiteResult)
+		result := runner.runTestCase(testCase, 1, testSuiteResult)
 		require.NoError(t, result.Error)
 
 		// Verify copy was NOT called when ID is empty
@@ -4131,7 +4131,7 @@ metadata:
 		}
 
 		// Run first test case
-		result1 := runner.runTestCase(testCase1, testSuiteResult)
+		result1 := runner.runTestCase(testCase1, 1, testSuiteResult)
 		require.NoError(t, result1.Error)
 
 		// Second test case - should have access to first test via GetCompletedTests
@@ -4175,7 +4175,7 @@ metadata:
 		}
 
 		// Run second test case
-		result2 := runner.runTestCase(testCase2, testSuiteResult)
+		result2 := runner.runTestCase(testCase2, 1, testSuiteResult)
 		require.NoError(t, result2.Error)
 	})
 }

@@ -41,19 +41,13 @@ import (
 type Runner struct {
 	*testexecutionUtils.Options
 
-	fs               afero.Fs
-	testSuiteSpec    *api.TestSuiteSpec
-	testSuiteFile    string
-	testSuiteFileDir string
-	output           io.Writer
-	// Directory paths
-	inputsDir             string
-	outputsDir            string
-	testCaseTmpDir        string
+	fs                    afero.Fs
+	testSuiteSpec         *api.TestSuiteSpec
+	testSuiteFile         string
+	testSuiteFileDir      string
+	output                io.Writer
 	testSuiteArtifactsDir string
-	// Artifact state
-	currentTestCaseIndex int
-	totalTestCases       int
+	totalTestCases        int
 	// Mockable function fields
 	runTestsFunc                      func() error
 	runTestCaseFunc                   func(api.TestCase) *engine.TestCaseResult
@@ -63,6 +57,14 @@ type Runner struct {
 	copy                              func(src, dest string, opts ...cp.Options) error
 	convertClaimToXRFunc              func(r *Runner, claimPath, xrdPath, goldenPath, outputPath string) (string, error)
 	patchXRFunc                       func(r *Runner, xrPath, outputPath string, patches api.Patches) (string, error)
+}
+
+// testCaseEnv is the state of one test case run.
+type testCaseEnv struct {
+	tmpDir     string
+	inputsDir  string
+	outputsDir string
+	index      int
 }
 
 // templateContext provides variables available in test suite templates.
@@ -181,9 +183,8 @@ func (r *Runner) RunTests() error {
 
 	// Loop through all test cases and run them directly
 	for idx, testCase := range r.testSuiteSpec.Tests {
-		r.currentTestCaseIndex = idx + 1
 		// Run the test and let the engine handle everything
-		testCaseResult := r.runTestCase(testCase, testSuiteResult)
+		testCaseResult := r.runTestCase(testCase, idx+1, testSuiteResult)
 		testCaseResult.Print(r.output) // Print immediately as test completes
 		testSuiteResult.AddResult(testCaseResult)
 	}
@@ -210,10 +211,12 @@ func (r *Runner) RunTests() error {
 // runTestCase executes a single test case and returns a complete TestCaseResult
 //
 //nolint:gocognit // Complex test case execution with multiple validation and execution phases
-func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
+func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
 	if r.runTestCaseFunc != nil {
 		return r.runTestCaseFunc(testCase)
 	}
+
+	env := &testCaseEnv{index: index}
 
 	if r.Debug {
 		utils.DebugPrintf("Starting test case '%s'\n", testCase.Name)
@@ -230,35 +233,35 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	// Create a temporary directory for the test case (with inputs and outputs subdirectories)
 	var err error
 
-	r.testCaseTmpDir, err = afero.TempDir(r.fs, "", "xprin-testcase-")
+	env.tmpDir, err = afero.TempDir(r.fs, "", "xprin-testcase-")
 	if err != nil {
 		return result.Fail(fmt.Errorf("failed to create temporary directory: %w", err))
 	}
 
 	defer func() {
-		_ = r.fs.RemoveAll(r.testCaseTmpDir)
+		_ = r.fs.RemoveAll(env.tmpDir)
 	}()
 
 	if r.ArtifactsRunDir != "" {
-		defer r.copyTestCaseArtifacts(testCase.Name)
+		defer r.copyTestCaseArtifacts(env, testCase.Name)
 	}
 
 	// Create subdirectories for inputs and outputs
-	r.inputsDir = filepath.Join(r.testCaseTmpDir, "inputs")
+	env.inputsDir = filepath.Join(env.tmpDir, "inputs")
 
-	r.outputsDir = filepath.Join(r.testCaseTmpDir, "outputs")
-	if err := r.fs.MkdirAll(r.inputsDir, 0o750); err != nil {
+	env.outputsDir = filepath.Join(env.tmpDir, "outputs")
+	if err := r.fs.MkdirAll(env.inputsDir, 0o750); err != nil {
 		return result.Fail(fmt.Errorf("failed to create inputs directory: %w", err))
 	}
 
-	if err := r.fs.MkdirAll(r.outputsDir, 0o750); err != nil {
+	if err := r.fs.MkdirAll(env.outputsDir, 0o750); err != nil {
 		return result.Fail(fmt.Errorf("failed to create outputs directory: %w", err))
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Created temporary directory for test case: %s\n", r.testCaseTmpDir)
-		utils.DebugPrintf("- Inputs: %s\n", r.inputsDir)
-		utils.DebugPrintf("- Outputs: %s\n", r.outputsDir)
+		utils.DebugPrintf("Created temporary directory for test case: %s\n", env.tmpDir)
+		utils.DebugPrintf("- Inputs: %s\n", env.inputsDir)
+		utils.DebugPrintf("- Outputs: %s\n", env.outputsDir)
 	}
 
 	if r.testSuiteSpec.HasCommon() {
@@ -447,23 +450,23 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 
 	// Copy all inputs to the temporary inputs directory
 	if testCase.HasXR() {
-		testCase.Inputs.XR, err = r.copyInput(testCase.Inputs.XR, "xr")
+		testCase.Inputs.XR, err = r.copyInput(env, testCase.Inputs.XR, "xr")
 		if err != nil {
 			return result.Fail(err)
 		}
 	} else {
-		testCase.Inputs.Claim, err = r.copyInput(testCase.Inputs.Claim, "claim")
+		testCase.Inputs.Claim, err = r.copyInput(env, testCase.Inputs.Claim, "claim")
 		if err != nil {
 			return result.Fail(err)
 		}
 	}
 
-	testCase.Inputs.Composition, err = r.copyInput(testCase.Inputs.Composition, "composition")
+	testCase.Inputs.Composition, err = r.copyInput(env, testCase.Inputs.Composition, "composition")
 	if err != nil {
 		return result.Fail(err)
 	}
 
-	testCase.Inputs.Functions, err = r.copyInput(testCase.Inputs.Functions, "functions")
+	testCase.Inputs.Functions, err = r.copyInput(env, testCase.Inputs.Functions, "functions")
 	if err != nil {
 		return result.Fail(err)
 	}
@@ -474,7 +477,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		}
 	}
 
-	crdsDir := filepath.Join(r.inputsDir, "crds")
+	crdsDir := filepath.Join(env.inputsDir, "crds")
 
 	uniqueNames := uniqueBaseNamesForPaths(testCase.Inputs.CRDs)
 	for i, crdPath := range testCase.Inputs.CRDs {
@@ -487,35 +490,35 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	}
 
 	for key, contextFile := range testCase.Inputs.ContextFiles {
-		testCase.Inputs.ContextFiles[key], err = r.copyInput(contextFile, "context-files")
+		testCase.Inputs.ContextFiles[key], err = r.copyInput(env, contextFile, "context-files")
 		if err != nil {
 			return result.Fail(err)
 		}
 	}
 
 	if testCase.Inputs.ObservedResources != "" {
-		testCase.Inputs.ObservedResources, err = r.copyInput(testCase.Inputs.ObservedResources, "observed-resources")
+		testCase.Inputs.ObservedResources, err = r.copyInput(env, testCase.Inputs.ObservedResources, "observed-resources")
 		if err != nil {
 			return result.Fail(err)
 		}
 	}
 
 	if testCase.Inputs.ExtraResources != "" {
-		testCase.Inputs.ExtraResources, err = r.copyInput(testCase.Inputs.ExtraResources, "extra-resources")
+		testCase.Inputs.ExtraResources, err = r.copyInput(env, testCase.Inputs.ExtraResources, "extra-resources")
 		if err != nil {
 			return result.Fail(err)
 		}
 	}
 
 	if testCase.Inputs.FunctionCredentials != "" {
-		testCase.Inputs.FunctionCredentials, err = r.copyInput(testCase.Inputs.FunctionCredentials, "function-credentials")
+		testCase.Inputs.FunctionCredentials, err = r.copyInput(env, testCase.Inputs.FunctionCredentials, "function-credentials")
 		if err != nil {
 			return result.Fail(err)
 		}
 	}
 
 	if testCase.Patches.XRD != "" {
-		testCase.Patches.XRD, err = r.copyInput(testCase.Patches.XRD, "xrd")
+		testCase.Patches.XRD, err = r.copyInput(env, testCase.Patches.XRD, "xrd")
 		if err != nil {
 			return result.Fail(err)
 		}
@@ -552,7 +555,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 			}
 		}
 
-		inputXR, err = r.convertClaimToXRFunc(r, testCase.Inputs.Claim, testCase.Patches.XRD, goldenPath, r.inputsDir)
+		inputXR, err = r.convertClaimToXRFunc(r, testCase.Inputs.Claim, testCase.Patches.XRD, goldenPath, env.inputsDir)
 		if err != nil {
 			return result.Fail(fmt.Errorf("failed to convert Claim: %w", err))
 		}
@@ -571,7 +574,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		// cleared it, we skip patchXR entirely. Connection-secret fields (including invalid combos)
 		// still pass through so CheckConnectionSecret() inside patchXR can return a proper error.
 		if patchesToApply.HasPatches() {
-			inputXR, err = r.patchXRFunc(r, inputXR, r.inputsDir, patchesToApply)
+			inputXR, err = r.patchXRFunc(r, inputXR, env.inputsDir, patchesToApply)
 			if err != nil {
 				return result.Fail(fmt.Errorf("failed to patch XR: %w", err))
 			}
@@ -639,7 +642,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	}
 
 	// Write rendered output to the outputs directory
-	result.Outputs.Render = filepath.Join(r.outputsDir, "rendered.yaml")
+	result.Outputs.Render = filepath.Join(env.outputsDir, "rendered.yaml")
 	if err := afero.WriteFile(r.fs, result.Outputs.Render, result.RawRenderOutput, 0o600); err != nil {
 		return result.Fail(fmt.Errorf("failed to write rendered output to temporary file: %w", err))
 	}
@@ -657,7 +660,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 
 	if len(result.RenderedResources) > 0 {
 		// Create separate XR file with just the first resource
-		result.Outputs.XR = filepath.Join(r.outputsDir, "xr.yaml")
+		result.Outputs.XR = filepath.Join(env.outputsDir, "xr.yaml")
 
 		xrYAML, err := yaml.Marshal(result.RenderedResources[0])
 		if err != nil {
@@ -676,7 +679,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 
 		// Create filename: rendered-{kind}-{name}.yaml
 		filename := fmt.Sprintf("rendered-%s-%s.yaml", strings.ToLower(kind), name)
-		filepath := filepath.Join(r.outputsDir, filename)
+		filepath := filepath.Join(env.outputsDir, filename)
 
 		// Marshal and write
 		resourceYAML, err := yaml.Marshal(resource)
@@ -706,7 +709,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 			validateArgs = append(validateArgs, "--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:"+r.CrossplaneVersion)
 		}
 
-		validateArgs = append(validateArgs, filepath.Join(r.inputsDir, "crds"), result.Outputs.Render)
+		validateArgs = append(validateArgs, filepath.Join(env.inputsDir, "crds"), result.Outputs.Render)
 		// Run crossplane beta validate command
 		if r.Debug {
 			utils.DebugPrintf("Running validate command: %s %s\n", r.Dependencies["crossplane"], strings.Join(validateArgs, " "))
@@ -720,7 +723,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		result.ProcessValidateOutput()
 
 		// Write validation output to the outputs directory
-		validateOutputFile := filepath.Join(r.outputsDir, "validate.txt")
+		validateOutputFile := filepath.Join(env.outputsDir, "validate.txt")
 		if err := afero.WriteFile(r.fs, validateOutputFile, result.RawValidateOutput, 0o600); err != nil {
 			return result.Fail(fmt.Errorf("failed to write validation output to file: %w", err))
 		}
@@ -785,7 +788,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 		}
 
 		// Write raw assertion results to assertions.txt (raw == all assertions, regardless of the Verbose or ShowAssertions flags)
-		assertionsFile := filepath.Join(r.outputsDir, "assertions.txt")
+		assertionsFile := filepath.Join(env.outputsDir, "assertions.txt")
 		if err := afero.WriteFile(r.fs, assertionsFile, []byte(result.RawAssertionsOutput), 0o600); err != nil {
 			return result.Fail(fmt.Errorf("failed to write assertions output to file: %w", err))
 		}
@@ -809,7 +812,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, testSuiteResult *engine.Test
 	// Copy outputs to testsuite artifacts directory
 	if testCase.ID != "" {
 		artifactsDir := filepath.Join(r.testSuiteArtifactsDir, testCase.ID)
-		if err := r.copy(r.outputsDir, artifactsDir); err != nil {
+		if err := r.copy(env.outputsDir, artifactsDir); err != nil {
 			return result.Fail(fmt.Errorf("failed to copy outputs to testsuite artifacts directory: %w", err))
 		}
 

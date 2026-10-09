@@ -34,9 +34,9 @@ import (
 )
 
 // copyInput copies a file or directory to the inputs directory organized by type and returns the destination path.
-func (r *Runner) copyInput(src, inputType string) (string, error) {
+func (r *Runner) copyInput(env *testCaseEnv, src, inputType string) (string, error) {
 	// Create subdirectory for the input type
-	typeDir := filepath.Join(r.inputsDir, inputType)
+	typeDir := filepath.Join(env.inputsDir, inputType)
 	if err := r.fs.MkdirAll(typeDir, 0o750); err != nil {
 		return "", fmt.Errorf("failed to create %s directory: %w", inputType, err)
 	}
