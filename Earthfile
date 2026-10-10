@@ -157,7 +157,7 @@ go-test:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY --dir cmd/ internal/ .
-  RUN go test -covermode=count -coverprofile=coverage.txt ./...
+  RUN go test -race -covermode=atomic -coverprofile=coverage.txt ./...
   SAVE ARTIFACT coverage.txt AS LOCAL _output/tests/coverage.txt
 
 # go-lint lints Go code.
