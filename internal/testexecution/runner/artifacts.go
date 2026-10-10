@@ -145,14 +145,14 @@ func (r *Runner) initArtifactsRunDir() error {
 // copyTestCaseArtifacts copies inputs/ and outputs/ from the test case tmp dir into
 // the run root. Called via defer so it runs on every exit path, including early failures.
 // Errors are printed to stderr rather than failing the test.
-func (r *Runner) copyTestCaseArtifacts(testCaseName string) {
-	if r.ArtifactsRunDir == "" || r.testCaseTmpDir == "" {
+func (r *Runner) copyTestCaseArtifacts(env *testCaseEnv, testCaseName string) {
+	if r.ArtifactsRunDir == "" || env.tmpDir == "" {
 		return
 	}
 
 	relPath := artifactsRelPath(r.testSuiteFile, r.WorkingDir)
 	w := indexPadWidth(r.totalTestCases)
-	dirName := fmt.Sprintf("%0*d_%s", w, r.currentTestCaseIndex, sanitizePathSegment(testCaseName))
+	dirName := fmt.Sprintf("%0*d_%s", w, env.index, sanitizePathSegment(testCaseName))
 	dest := filepath.Join(r.ArtifactsRunDir, relPath, dirName)
 
 	if err := r.fs.MkdirAll(dest, 0o750); err != nil {
@@ -160,12 +160,12 @@ func (r *Runner) copyTestCaseArtifacts(testCaseName string) {
 		return
 	}
 
-	if err := r.copy(r.inputsDir, filepath.Join(dest, "inputs")); err != nil {
+	if err := r.copy(env.inputsDir, filepath.Join(dest, "inputs")); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: failed to copy inputs for %q: %v\n", testCaseName, err)
 	}
 
-	if _, err := r.fs.Stat(r.outputsDir); err == nil {
-		if err := r.copy(r.outputsDir, filepath.Join(dest, "outputs")); err != nil {
+	if _, err := r.fs.Stat(env.outputsDir); err == nil {
+		if err := r.copy(env.outputsDir, filepath.Join(dest, "outputs")); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: failed to copy outputs for %q: %v\n", testCaseName, err)
 		}
 	}

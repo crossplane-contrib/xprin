@@ -27,6 +27,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/placeholder"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
@@ -199,8 +200,8 @@ func TestExecuteHooks_PostTestHooks(t *testing.T) {
 
 	// Create hooks with template variables (post-test hooks)
 	hooks := []api.Hook{
-		{Name: "post-hook-1", Run: fmt.Sprintf("echo 'Repository: %s.Repositories.myrepo%s'", testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose)},
-		{Name: "post-hook-2", Run: fmt.Sprintf("echo 'XR: %s.Outputs.XR%s'", testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose)},
+		{Name: "post-hook-1", Run: fmt.Sprintf("echo 'Repository: %s.Repositories.myrepo%s'", placeholder.Open, placeholder.Close)},
+		{Name: "post-hook-2", Run: fmt.Sprintf("echo 'XR: %s.Outputs.XR%s'", placeholder.Open, placeholder.Close)},
 	}
 
 	// Mock the runCommand function
@@ -354,7 +355,7 @@ func TestExecuteHooks_PreTestHooks_OutputsTemplateVariables(t *testing.T) {
 	// Create hooks with Outputs template variables
 	// Since outputs=nil for pre-test hooks, these template variables cannot be resolved and should cause an error
 	hooks := []api.Hook{
-		{Name: "pre-hook-with-outputs", Run: fmt.Sprintf("echo 'Outputs XR: %s.Outputs.XR%s'", testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose)},
+		{Name: "pre-hook-with-outputs", Run: fmt.Sprintf("echo 'Outputs XR: %s.Outputs.XR%s'", placeholder.Open, placeholder.Close)},
 	}
 
 	runCommand := func(_ string, _ ...string) ([]byte, error) {
@@ -411,9 +412,9 @@ func TestExecuteHooks_PostTestHooks_InputsAndOutputsTemplateVariables(t *testing
 
 	// Create hooks with BOTH Inputs and Outputs template variables (using placeholders as they would appear after YAML loading)
 	hooks := []api.Hook{
-		{Name: "post-hook-1", Run: fmt.Sprintf("echo 'Input XR: %s.Inputs.XR%s, Output XR: %s.Outputs.XR%s'", testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose, testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose)},
-		{Name: "post-hook-2", Run: fmt.Sprintf("echo 'Input Composition: %s.Inputs.Composition%s, Output Render: %s.Outputs.Render%s'", testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose, testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose)},
-		{Name: "post-hook-3", Run: fmt.Sprintf("echo 'Output RenderCount: %s.Outputs.RenderCount%s, Repository: %s.Repositories.myrepo%s'", testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose, testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose)},
+		{Name: "post-hook-1", Run: fmt.Sprintf("echo 'Input XR: %s.Inputs.XR%s, Output XR: %s.Outputs.XR%s'", placeholder.Open, placeholder.Close, placeholder.Open, placeholder.Close)},
+		{Name: "post-hook-2", Run: fmt.Sprintf("echo 'Input Composition: %s.Inputs.Composition%s, Output Render: %s.Outputs.Render%s'", placeholder.Open, placeholder.Close, placeholder.Open, placeholder.Close)},
+		{Name: "post-hook-3", Run: fmt.Sprintf("echo 'Output RenderCount: %s.Outputs.RenderCount%s, Repository: %s.Repositories.myrepo%s'", placeholder.Open, placeholder.Close, placeholder.Open, placeholder.Close)},
 	}
 
 	// Mock the runCommand function
@@ -531,7 +532,7 @@ func TestProcessHookTemplateVariables(t *testing.T) {
 			return "echo /path", nil
 		}
 		exec := newHookExecutor(map[string]string{"r": "/path"}, false, nil, renderTemplate)
-		hook := api.Hook{Run: testexecutionUtils.CreatePlaceholder(".Repositories.r")}
+		hook := api.Hook{Run: placeholder.Create(".Repositories.r")}
 		final, cmdVars, err := exec.processHookTemplateVariables(hook, api.Inputs{}, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "echo /path", final)
@@ -544,7 +545,7 @@ func TestProcessHookTemplateVariables(t *testing.T) {
 			return "", fmt.Errorf("render failed")
 		}
 		exec := newHookExecutor(nil, false, nil, renderTemplate)
-		hook := api.Hook{Run: testexecutionUtils.CreatePlaceholder(".X")}
+		hook := api.Hook{Run: placeholder.Create(".X")}
 		_, _, err := exec.processHookTemplateVariables(hook, api.Inputs{}, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "render failed")

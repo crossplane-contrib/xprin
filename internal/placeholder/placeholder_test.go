@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+package placeholder
 
 import (
 	"strings"
 	"testing"
 )
 
-func TestCreatePlaceholder(t *testing.T) {
+func TestCreate(t *testing.T) {
 	tests := []struct {
 		name        string
 		templateVar string
@@ -30,36 +30,36 @@ func TestCreatePlaceholder(t *testing.T) {
 		{
 			name:        "simple variable",
 			templateVar: ".Inputs.XR",
-			want:        PlaceholderOpen + ".Inputs.XR" + PlaceholderClose,
+			want:        Open + ".Inputs.XR" + Close,
 		},
 		{
 			name:        "repository variable",
 			templateVar: ".Repositories.myrepo",
-			want:        PlaceholderOpen + ".Repositories.myrepo" + PlaceholderClose,
+			want:        Open + ".Repositories.myrepo" + Close,
 		},
 		{
 			name:        "empty variable",
 			templateVar: "",
-			want:        PlaceholderOpen + PlaceholderClose,
+			want:        Open + Close,
 		},
 		{
 			name:        "variable with spaces",
 			templateVar: "  .Inputs.XR  ",
-			want:        PlaceholderOpen + "  .Inputs.XR  " + PlaceholderClose,
+			want:        Open + "  .Inputs.XR  " + Close,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CreatePlaceholder(tt.templateVar)
+			got := Create(tt.templateVar)
 			if got != tt.want {
-				t.Errorf("CreatePlaceholder(%q) = %q, want %q", tt.templateVar, got, tt.want)
+				t.Errorf("Create(%q) = %q, want %q", tt.templateVar, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestReplaceTemplateVarsWithPlaceholders(t *testing.T) {
+func TestReplace(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
@@ -68,17 +68,17 @@ func TestReplaceTemplateVarsWithPlaceholders(t *testing.T) {
 		{
 			name:    "single template variable",
 			content: "path: {{ .Inputs.XR }}",
-			want:    "path: " + PlaceholderOpen + ".Inputs.XR" + PlaceholderClose,
+			want:    "path: " + Open + ".Inputs.XR" + Close,
 		},
 		{
 			name:    "multiple template variables",
 			content: "{{ .Repositories.myrepo }}/functions and {{ .Inputs.XR }}",
-			want:    PlaceholderOpen + ".Repositories.myrepo" + PlaceholderClose + "/functions and " + PlaceholderOpen + ".Inputs.XR" + PlaceholderClose,
+			want:    Open + ".Repositories.myrepo" + Close + "/functions and " + Open + ".Inputs.XR" + Close,
 		},
 		{
 			name:    "template variable with spaces",
 			content: "path: {{  .Inputs.XR  }}",
-			want:    "path: " + PlaceholderOpen + ".Inputs.XR" + PlaceholderClose,
+			want:    "path: " + Open + ".Inputs.XR" + Close,
 		},
 		{
 			name:    "no template variables",
@@ -88,36 +88,36 @@ func TestReplaceTemplateVarsWithPlaceholders(t *testing.T) {
 		{
 			name:    "mixed content",
 			content: "static: /path and dynamic: {{ .Repositories.myrepo }}/functions",
-			want:    "static: /path and dynamic: " + PlaceholderOpen + ".Repositories.myrepo" + PlaceholderClose + "/functions",
+			want:    "static: /path and dynamic: " + Open + ".Repositories.myrepo" + Close + "/functions",
 		},
 		{
 			name:    "nested template variables",
 			content: "{{ .Inputs.XR }} and {{ .Outputs.XR }}",
-			want:    PlaceholderOpen + ".Inputs.XR" + PlaceholderClose + " and " + PlaceholderOpen + ".Outputs.XR" + PlaceholderClose,
+			want:    Open + ".Inputs.XR" + Close + " and " + Open + ".Outputs.XR" + Close,
 		},
 		{
 			name:    "template variable in YAML",
 			content: "functions: {{ .Repositories.myrepo }}/functions\ncrds:\n  - {{ .Repositories.otherrepo }}/crds",
-			want:    "functions: " + PlaceholderOpen + ".Repositories.myrepo" + PlaceholderClose + "/functions\ncrds:\n  - " + PlaceholderOpen + ".Repositories.otherrepo" + PlaceholderClose + "/crds",
+			want:    "functions: " + Open + ".Repositories.myrepo" + Close + "/functions\ncrds:\n  - " + Open + ".Repositories.otherrepo" + Close + "/crds",
 		},
 		{
 			name:    "empty template variable",
 			content: "path: {{ }}",
-			want:    "path: " + PlaceholderOpen + PlaceholderClose,
+			want:    "path: " + Open + Close,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ReplaceTemplateVarsWithPlaceholders(tt.content)
+			got := Replace(tt.content)
 			if got != tt.want {
-				t.Errorf("ReplaceTemplateVarsWithPlaceholders() = %q, want %q", got, tt.want)
+				t.Errorf("Replace() = %q, want %q", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestRestoreTemplateVars(t *testing.T) {
+func TestRestore(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
@@ -125,12 +125,12 @@ func TestRestoreTemplateVars(t *testing.T) {
 	}{
 		{
 			name:    "single placeholder",
-			content: "path: " + PlaceholderOpen + ".Inputs.XR" + PlaceholderClose,
+			content: "path: " + Open + ".Inputs.XR" + Close,
 			want:    "path: {{.Inputs.XR}}",
 		},
 		{
 			name:    "multiple placeholders",
-			content: PlaceholderOpen + ".Repositories.myrepo" + PlaceholderClose + "/functions and " + PlaceholderOpen + ".Inputs.XR" + PlaceholderClose,
+			content: Open + ".Repositories.myrepo" + Close + "/functions and " + Open + ".Inputs.XR" + Close,
 			want:    "{{.Repositories.myrepo}}/functions and {{.Inputs.XR}}",
 		},
 		{
@@ -140,26 +140,26 @@ func TestRestoreTemplateVars(t *testing.T) {
 		},
 		{
 			name:    "mixed content",
-			content: "static: /path and dynamic: " + PlaceholderOpen + ".Repositories.myrepo" + PlaceholderClose + "/functions",
+			content: "static: /path and dynamic: " + Open + ".Repositories.myrepo" + Close + "/functions",
 			want:    "static: /path and dynamic: {{.Repositories.myrepo}}/functions",
 		},
 		{
 			name:    "empty placeholder",
-			content: "path: " + PlaceholderOpen + PlaceholderClose,
+			content: "path: " + Open + Close,
 			want:    "path: {{}}",
 		},
 		{
 			name:    "placeholder in YAML",
-			content: "functions: " + PlaceholderOpen + ".Repositories.myrepo" + PlaceholderClose + "/functions\ncrds:\n  - " + PlaceholderOpen + ".Repositories.otherrepo" + PlaceholderClose + "/crds",
+			content: "functions: " + Open + ".Repositories.myrepo" + Close + "/functions\ncrds:\n  - " + Open + ".Repositories.otherrepo" + Close + "/crds",
 			want:    "functions: {{.Repositories.myrepo}}/functions\ncrds:\n  - {{.Repositories.otherrepo}}/crds",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := RestoreTemplateVars(tt.content)
+			got := Restore(tt.content)
 			if got != tt.want {
-				t.Errorf("RestoreTemplateVars() = %q, want %q", got, tt.want)
+				t.Errorf("Restore() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -195,19 +195,19 @@ func TestReplaceAndRestoreRoundTrip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Replace template variables with placeholders
-			replaced := ReplaceTemplateVarsWithPlaceholders(tt.content)
+			replaced := Replace(tt.content)
 
 			// Verify that placeholders were created (content should be different)
 			if replaced == tt.content && strings.Contains(tt.content, "{{") {
-				t.Errorf("ReplaceTemplateVarsWithPlaceholders() did not replace template variables")
+				t.Errorf("Replace() did not replace template variables")
 			}
 
 			// Restore template variables from placeholders
-			restored := RestoreTemplateVars(replaced)
+			restored := Restore(replaced)
 
 			// Verify that template variables were restored (should contain {{ and }})
 			if !strings.Contains(restored, "{{") || !strings.Contains(restored, "}}") {
-				t.Errorf("RestoreTemplateVars() did not restore template variables: %q", restored)
+				t.Errorf("Restore() did not restore template variables: %q", restored)
 			}
 
 			// Verify that the variable names are preserved (even if whitespace differs)

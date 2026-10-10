@@ -18,7 +18,7 @@ package runner
 
 import (
 	"github.com/crossplane-contrib/xprin/internal/api"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 )
 
@@ -115,7 +115,7 @@ func (r *Runner) debugPrintHooks(hooks api.Hooks) {
 					utils.DebugPrintf("    - name: %s\n", hook.Name)
 				}
 				// Show processed hook command instead of raw with placeholders
-				processedCommand := testexecutionUtils.RestoreTemplateVars(hook.Run)
+				processedCommand := placeholder.Restore(hook.Run)
 				utils.DebugPrintf("      run: %s\n", processedCommand)
 			}
 		}
@@ -128,7 +128,7 @@ func (r *Runner) debugPrintHooks(hooks api.Hooks) {
 					utils.DebugPrintf("    - name: %s\n", hook.Name)
 				}
 				// Show processed hook command instead of raw with placeholders
-				processedCommand := testexecutionUtils.RestoreTemplateVars(hook.Run)
+				processedCommand := placeholder.Restore(hook.Run)
 				utils.DebugPrintf("      run: %s\n", processedCommand)
 			}
 		}

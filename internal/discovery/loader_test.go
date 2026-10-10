@@ -14,19 +14,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processor
+package discovery
 
 import (
 	"testing"
 
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/placeholder"
+	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
-func TestLoad(t *testing.T) {
+func TestLoad_Parse(t *testing.T) {
 	fs := afero.NewMemMapFs()
+
+	// load calls Load without printing what it reports.
+	load := func(fs afero.Fs, path string) (*api.TestSuiteSpec, error) {
+		var (
+			spec *api.TestSuiteSpec
+			err  error
+		)
+
+		unittestsUtils.CaptureStderr(func() {
+			spec, err = Load(fs, path, Options{})
+		})
+
+		return spec, err
+	}
 
 	// Setup directories for testing relative paths
 	functionsDir := "/myfunctions"
@@ -114,9 +130,9 @@ tests:
 	_, err = load(fs, invalidTestFile)
 	require.NoError(t, err) // test is indeed invalid, but we expect it to load without functions, it will fail later in execution
 
-	_, err = load(fs, invalidTestFile2)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no test cases found")
+	spec, err := load(fs, invalidTestFile2)
+	require.NoError(t, err)
+	assert.Nil(t, spec, "a file without test cases has no spec")
 
 	_, err = load(fs, invalidYAMLFile)
 	require.Error(t, err)
@@ -185,11 +201,11 @@ tests:
 			require.NoError(t, err)
 
 			// Check that template variables are converted to placeholders during load
-			assert.Contains(t, config.Common.Inputs.Functions, testexecutionUtils.CreatePlaceholder(".Repositories.myrepo"))
-			assert.Contains(t, config.Common.Inputs.CRDs[0], testexecutionUtils.CreatePlaceholder(".Repositories.otherrepo"))
-			assert.Contains(t, config.Common.Inputs.CRDs[1], testexecutionUtils.CreatePlaceholder(".Repositories.otherrepo"))
-			assert.Contains(t, config.Common.Hooks.PreTest[0].Run, testexecutionUtils.CreatePlaceholder(".Inputs.XR"))
-			assert.Contains(t, config.Common.Hooks.PostTest[0].Run, testexecutionUtils.CreatePlaceholder(".Outputs.XR"))
+			assert.Contains(t, config.Common.Inputs.Functions, placeholder.Create(".Repositories.myrepo"))
+			assert.Contains(t, config.Common.Inputs.CRDs[0], placeholder.Create(".Repositories.otherrepo"))
+			assert.Contains(t, config.Common.Inputs.CRDs[1], placeholder.Create(".Repositories.otherrepo"))
+			assert.Contains(t, config.Common.Hooks.PreTest[0].Run, placeholder.Create(".Inputs.XR"))
+			assert.Contains(t, config.Common.Hooks.PostTest[0].Run, placeholder.Create(".Outputs.XR"))
 		})
 
 		t.Run("mixed content", func(t *testing.T) {
@@ -218,10 +234,76 @@ tests:
 			require.NoError(t, err)
 
 			// Check mixed content
-			assert.Contains(t, config.Common.Inputs.Functions, testexecutionUtils.CreatePlaceholder(".Repositories.myrepo"))
+			assert.Contains(t, config.Common.Inputs.Functions, placeholder.Create(".Repositories.myrepo"))
 			assert.Equal(t, "./static-crd", config.Common.Inputs.CRDs[0])
-			assert.Contains(t, config.Common.Inputs.CRDs[1], testexecutionUtils.CreatePlaceholder(".Repositories.otherrepo"))
-			assert.Contains(t, config.Common.Hooks.PreTest[0].Run, testexecutionUtils.CreatePlaceholder(".Inputs.XR"))
+			assert.Contains(t, config.Common.Inputs.CRDs[1], placeholder.Create(".Repositories.otherrepo"))
+			assert.Contains(t, config.Common.Hooks.PreTest[0].Run, placeholder.Create(".Inputs.XR"))
 		})
+	})
+}
+
+func TestLoad(t *testing.T) {
+	write := func(t *testing.T, content string) afero.Fs {
+		t.Helper()
+
+		fs := afero.NewMemMapFs()
+		require.NoError(t, afero.WriteFile(fs, "/a_xprin.yaml", []byte(content), 0o644))
+
+		return fs
+	}
+
+	t.Run("a valid file", func(t *testing.T) {
+		spec, err := Load(write(t, "tests:\n- name: one\n  id: one\n"), "/a_xprin.yaml", Options{})
+		require.NoError(t, err)
+		require.NotNil(t, spec)
+		assert.Equal(t, "one", spec.Tests[0].Name)
+	})
+
+	t.Run("a file without test cases is reported, and is not an error", func(t *testing.T) {
+		var (
+			spec *api.TestSuiteSpec
+			err  error
+		)
+
+		out := unittestsUtils.CaptureStderr(func() {
+			spec, err = Load(write(t, "tests: []\n"), "/a_xprin.yaml", Options{})
+		})
+
+		require.NoError(t, err)
+		assert.Nil(t, spec)
+		assert.Contains(t, out, "?   \t/a_xprin.yaml\t[no test cases found]")
+	})
+
+	t.Run("quiet does not report a file without test cases", func(t *testing.T) {
+		var err error
+
+		out := unittestsUtils.CaptureStderr(func() {
+			_, err = Load(write(t, "tests: []\n"), "/a_xprin.yaml", Options{Quiet: true})
+		})
+
+		require.NoError(t, err)
+		assert.Empty(t, out)
+	})
+
+	t.Run("a file that does not parse is reported as an error", func(t *testing.T) {
+		var err error
+
+		out := unittestsUtils.CaptureStderr(func() {
+			_, err = Load(write(t, "tests: [unclosed"), "/a_xprin.yaml", Options{})
+		})
+
+		require.Error(t, err)
+		assert.Contains(t, out, "FAIL\t/a_xprin.yaml\t[invalid testsuite file]")
+	})
+
+	t.Run("duplicate IDs are reported as an error", func(t *testing.T) {
+		var err error
+
+		out := unittestsUtils.CaptureStderr(func() {
+			_, err = Load(write(t, "tests:\n- name: one\n  id: same\n- name: two\n  id: same\n"), "/a_xprin.yaml", Options{})
+		})
+
+		require.ErrorContains(t, err, "duplicate test case ID")
+		assert.Contains(t, out, "FAIL\t/a_xprin.yaml\t[invalid testsuite file]")
 	})
 }
