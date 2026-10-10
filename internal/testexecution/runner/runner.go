@@ -24,11 +24,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"text/template"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/placeholder"
+	"github.com/crossplane-contrib/xprin/internal/templates"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/utils"
@@ -860,9 +860,9 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 // renderTemplate renders Go template syntax with the given context.
 func (r *Runner) renderTemplate(content string, templateContext *templateContext, templateName string) (string, error) {
 	// Parse and execute template
-	tmpl, err := template.New(templateName).Option("missingkey=error").Parse(content)
+	tmpl, err := templates.Parse(templateName, content)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse template: %w", err)
+		return "", err
 	}
 
 	var buf strings.Builder
