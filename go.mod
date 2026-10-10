@@ -10,6 +10,7 @@ require (
 	github.com/crossplane/cli/v2 v2.5.0
 	github.com/crossplane/crossplane-runtime/v2 v2.4.2
 	github.com/crossplane/crossplane/apis/v2 v2.4.2
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/gertd/go-pluralize v0.2.1
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/gonvenience/bunt v1.4.3
@@ -49,7 +50,6 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/cli v29.7.1+incompatible // indirect
-	github.com/docker/docker v28.5.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.6 // indirect
 	github.com/docker/go-connections v0.8.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect

@@ -17,7 +17,10 @@ limitations under the License.
 // Package utils provides shared utilities for test execution including options, path expansion, and template processing.
 package utils
 
-import "github.com/crossplane-contrib/xprin/internal/xpcli"
+import (
+	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
+	"github.com/crossplane-contrib/xprin/internal/xpcli"
+)
 
 // Options groups all test runner options for easier passing to ProcessTargets and related functions.
 type Options struct {
@@ -45,4 +48,15 @@ type Options struct {
 	// UpdateGoldens writes render output to the expected: paths of assertions.diff/dyff instead of comparing.
 	// Skips validate, assertions, and post-test hooks.
 	UpdateGoldens bool
+	// Containers tracks reuse of Docker containers for composition functions across this
+	// invocation. Shared by pointer across every Runner created for this invocation. nil
+	// disables container reuse — ProcessTargets initializes it for real runs (unless
+	// NoContainerReuse is set); tests that construct Options directly without going through
+	// ProcessTargets simply get the feature disabled.
+	Containers *containers.Coordinator
+	// NoContainerReuse disables reuse of Docker containers for composition functions
+	// (--no-container-reuse): every render call creates and tears down a fresh container
+	// instead of reusing one per function image across the invocation. ProcessTargets honors
+	// this by never initializing Containers.
+	NoContainerReuse bool
 }

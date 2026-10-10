@@ -30,7 +30,9 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	cp "github.com/otiai10/copy"
 	"github.com/spf13/afero"
@@ -1345,6 +1347,127 @@ func TestRunTestCase(t *testing.T) {
 				t.Cleanup(func() {
 					assert.False(t, renderGotVersion, "render must NOT receive --crossplane-version on legacy CLI")
 					assert.True(t, validateGotImage, "validate must receive --crossplane-image even on legacy CLI")
+				})
+			},
+			wantError: "",
+		},
+		{
+			// Container reuse + CrossplaneVersion on v2: render must also get
+			// --crossplane-docker-network, pinning every call to the same network so a reused
+			// container (left on an earlier call's network otherwise) stays reachable.
+			name: "crossplane-docker-network passed to render when reuse enabled on v2",
+			testCase: api.TestCase{
+				Name: "test",
+				Inputs: api.Inputs{
+					XR:          "xr.yaml",
+					Composition: "comp.yaml",
+					Functions:   "functions.yaml",
+				},
+			},
+			setup: func(r *Runner) {
+				localOpts := *r.Options
+				localOpts.CrossplaneVersion = "v1.2.3"
+				localOpts.XPCLI = xpcli.InitXPCLI(xpcli.TierV2)
+				localOpts.Containers = containers.NewCoordinator(&unittestsUtils.MockDocker{})
+				r.Options = &localOpts
+
+				renderGotNetwork := false
+
+				r.runCommand = func(name string, args ...string) ([]byte, error) {
+					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
+						for _, a := range args {
+							if strings.HasPrefix(a, "--crossplane-docker-network=") {
+								renderGotNetwork = true
+							}
+						}
+
+						return validRenderYAML, nil
+					}
+
+					return []byte{}, nil
+				}
+
+				t.Cleanup(func() {
+					assert.True(t, renderGotNetwork, "render must receive --crossplane-docker-network when reuse is enabled on v2")
+				})
+			},
+			wantError: "",
+		},
+		{
+			// The dockerized render engine creates per-call networks even without
+			// --crossplane-version, so the network must be pinned regardless.
+			name: "crossplane-docker-network passed to render when reuse enabled, no crossplane-version",
+			testCase: api.TestCase{
+				Name: "test",
+				Inputs: api.Inputs{
+					XR:          "xr.yaml",
+					Composition: "comp.yaml",
+					Functions:   "functions.yaml",
+				},
+			},
+			setup: func(r *Runner) {
+				localOpts := *r.Options
+				localOpts.XPCLI = xpcli.InitXPCLI(xpcli.TierV2)
+				localOpts.Containers = containers.NewCoordinator(&unittestsUtils.MockDocker{})
+				r.Options = &localOpts
+
+				renderGotNetwork := false
+
+				r.runCommand = func(name string, args ...string) ([]byte, error) {
+					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
+						for _, a := range args {
+							if strings.HasPrefix(a, "--crossplane-docker-network=") {
+								renderGotNetwork = true
+							}
+						}
+
+						return validRenderYAML, nil
+					}
+
+					return []byte{}, nil
+				}
+
+				t.Cleanup(func() {
+					assert.True(t, renderGotNetwork, "render must receive --crossplane-docker-network when reuse is enabled on v2, even without --crossplane-version")
+				})
+			},
+			wantError: "",
+		},
+		{
+			name: "crossplane-docker-network omitted when reuse disabled",
+			testCase: api.TestCase{
+				Name: "test",
+				Inputs: api.Inputs{
+					XR:          "xr.yaml",
+					Composition: "comp.yaml",
+					Functions:   "functions.yaml",
+				},
+			},
+			setup: func(r *Runner) {
+				localOpts := *r.Options
+				localOpts.CrossplaneVersion = "v1.2.3"
+				localOpts.XPCLI = xpcli.InitXPCLI(xpcli.TierV2)
+				localOpts.Containers = nil
+				r.Options = &localOpts
+
+				renderGotNetwork := false
+
+				r.runCommand = func(name string, args ...string) ([]byte, error) {
+					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
+						for _, a := range args {
+							if strings.HasPrefix(a, "--crossplane-docker-network=") {
+								renderGotNetwork = true
+							}
+						}
+
+						return validRenderYAML, nil
+					}
+
+					return []byte{}, nil
+				}
+
+				t.Cleanup(func() {
+					assert.False(t, renderGotNetwork, "render must NOT receive --crossplane-docker-network when container reuse is disabled")
 				})
 			},
 			wantError: "",

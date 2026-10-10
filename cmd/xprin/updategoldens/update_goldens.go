@@ -32,12 +32,13 @@ import (
 
 // Cmd represents the update-goldens subcommand.
 type Cmd struct {
-	Targets           []string            `arg:""                                                                                       help:"One or more test targets: individual files (e.g., 'tests/aws_xprin.yaml'), directories (e.g., 'tests/aws/'), or recursive directories (e.g., 'tests/aws/...'). Files must be named 'xprin.yaml' or '*_xprin.yaml'"`
-	Verbose           bool                `help:"Show verbose output (RUN, PASS/FAIL/SKIP, written files)."                             short:"v"`
-	Quiet             bool                `help:"Suppress '[no testsuite files]' and '[no test cases found]' messages."                 name:"quiet"                                                                                                                                                                                                             short:"q"`
+	Targets           []string            `arg:""                                                                                                                                                                                                            help:"One or more test targets: individual files (e.g., 'tests/aws_xprin.yaml'), directories (e.g., 'tests/aws/'), or recursive directories (e.g., 'tests/aws/...'). Files must be named 'xprin.yaml' or '*_xprin.yaml'"`
+	Verbose           bool                `help:"Show verbose output (RUN, PASS/FAIL/SKIP, written files)."                                                                                                                                                  short:"v"`
+	Quiet             bool                `help:"Suppress '[no testsuite files]' and '[no test cases found]' messages."                                                                                                                                      name:"quiet"                                                                                                                                                                                                             short:"q"`
 	Debug             bool                `help:"Show detailed debug information about test discovery, path resolution, and execution."`
-	Color             string              `default:"auto"                                                                               enum:"on,off,auto"                                                                                                                                                                                                       help:"Specify color usage: on, off, or auto (default auto)." name:"color"`
-	CrossplaneVersion string              `help:"Version of the Crossplane controller image, passed to crossplane render."              name:"crossplane-version"`
+	Color             string              `default:"auto"                                                                                                                                                                                                    enum:"on,off,auto"                                                                                                                                                                                                       help:"Specify color usage: on, off, or auto (default auto)." name:"color"`
+	CrossplaneVersion string              `help:"Version of the Crossplane controller image, passed to crossplane render."                                                                                                                                   name:"crossplane-version"`
+	NoContainerReuse  bool                `help:"Disable reuse of Docker containers for composition functions. Every render call creates and tears down a fresh container, instead of reusing one container per function image across the whole invocation." name:"no-container-reuse"`
 	Config            *internalcfg.Config `kong:"-"`
 	cwd               string
 	fs                afero.Fs
@@ -91,6 +92,7 @@ func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionUtils.Options {
 		Validate:          validate,
 		XPCLI:             cfg.XPCLI,
 		CrossplaneVersion: c.CrossplaneVersion,
+		NoContainerReuse:  c.NoContainerReuse,
 		WorkingDir:        c.cwd,
 		UpdateGoldens:     true,
 	}

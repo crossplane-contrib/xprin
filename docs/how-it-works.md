@@ -157,6 +157,8 @@ flowchart TD
 
 **CLI version note:** when a test case sets `patches.xrd`, xprin appends `--xrd <path>` to the render command, but only when the detected CLI is v2.0+, which introduced the flag. On CLI v1.x, `patches.xrd` still applies XRD defaults via `xprin-helpers patch-xr --xrd <path>` without the render flag. Passing `--xrd` matters for LegacyCluster XRDs: without it the v2 render engine defaults to Modern schema, placing `resourceRefs` at `spec.crossplane.resourceRefs` instead of `spec.resourceRefs`, which breaks validation against the XRD schema.
 
+**Function container reuse:** before building the render command, xprin patches the functions file(s) in the temp directory so that each function's Docker container is named deterministically (derived from its image reference) and left running after the call instead of being torn down. See [Function Container Reuse](#function-container-reuse) below for the full mechanism, and `--no-container-reuse` to disable it.
+
 ### Phase 4: Validate (Optional)
 
 **What happens:**
@@ -222,7 +224,7 @@ flowchart TD
 **What happens:**
 1. **Post-test Hooks**: All post-test hooks are executed sequentially
 2. **Artifact Export** (if test has ID): Outputs are copied to artifacts directory
-3. **Cleanup**: Temp directory is cleaned up (unless debug mode)
+3. **Cleanup**: Temp directory is cleaned up
 
 **Template Variables Available:**
 - All input variables (same as pre-test hooks)
@@ -642,7 +644,7 @@ xprin follows a separation of concerns:
 - Each test case gets its own temp directory
 - Temp directories are created under system temp (e.g., `/tmp/xprin-*`)
 - All operations happen in temp directory (inputs are copied, not modified)
-- Temp directories are cleaned up after test completion (unless debug mode)
+- Temp directories are cleaned up after test completion
 
 ### External Tool Integration
 
@@ -664,15 +666,38 @@ All external tools are executed as subprocesses with captured output.
 
 ### Caching
 
-- No caching of render/validate results
-- Each test run is independent
-- Temp directories are always fresh
+- No caching of render/validate *results* — every test case's render and validate output is computed fresh, regardless of whether an identical input was rendered before
+- Temp directories (inputs/outputs) are always fresh per test case
+- Composition function *containers* are reused across the whole invocation — see "Function Container Reuse" below. This caches container startup, not render output.
+
+### Function Container Reuse
+
+By default, `xprin test` reuses one Docker container per unique composition function image for the entire invocation, instead of starting and tearing down a container for every single `crossplane render` call.
+
+**Only function containers are reused.** With Crossplane CLI v2.3+, `crossplane render` also starts a Crossplane controller container on every call. That one can't be reused: `crossplane render` has no option to name, keep or reuse it (unlike the function containers), so it is started and removed by render itself for every test case, with or without `--no-container-reuse`.
+
+**How it works:**
+1. Before each test case's render call, xprin reads the function image reference (`spec.package`) from each `Function` resource in that test case's functions file(s).
+2. It computes a container name deterministically from that image reference (so the same image always maps to the same container name, and different images never collide) and patches the function's annotations in the temp copy of the functions file:
+   - `render.crossplane.io/runtime-docker-name` — reuse the container if it's already running, otherwise create it
+   - `render.crossplane.io/runtime-docker-cleanup: Orphan` — don't remove it after this render call
+3. The first test case anywhere in the run that uses a given image pays to start its container; every later test case that uses the same image reuses it directly, regardless being in the same or another testsuite file.
+4. If you've already set `render.crossplane.io/runtime-docker-name` or `render.crossplane.io/runtime-docker-cleanup` yourself on a `Function` resource, xprin leaves your annotations untouched.
+5. With Crossplane CLI v2.3+, `crossplane render` runs its Crossplane controller container and creates a new, uniquely-named Docker network for every call, connecting only the containers it creates to it. A container reused from an earlier call would be left on that earlier network and unreachable, so xprin creates one `xprin-net-<run-id>` network for the invocation and passes it to every render call via `--crossplane-docker-network`. Older CLIs have no such flag and don't need it.
+6. All containers created during the invocation, and the shared network, are removed once, when `xprin test` finishes, whether it succeeded or failed.
+
+**Why this is safe:** Crossplane composition functions are stateless by contract. In a real cluster, the same function container already serves many unrelated reconciles over its lifetime without restarting. Reusing a container across test cases relies on the same guarantee.
+
+**Disabling it:** pass `--no-container-reuse` (to `xprin test` or `xprin update-goldens`) to fall back to a fresh container per render call, matching the pre-reuse behavior. You might want this if you suspect a function under test isn't actually stateless, or to rule out container reuse while debugging an unrelated issue.
+
+**A known edge case:** if `xprin test` is killed abruptly (e.g. `SIGKILL`, out-of-memory), the cleanup step doesn't run and a container (and the shared network) can be left behind. They're identifiable by their `xprin-<run-id>-<hash>` / `xprin-net-<run-id>` names and safe to remove manually (`docker rm -f`, `docker network rm`).
 
 ### Resource Cleanup
 
 - Temp directories are cleaned up immediately after test completion
 - Artifacts directory is cleaned up after all tests complete
-- Debug mode preserves temp directories for inspection
+- The --artifacts-dir flag copies the artifacts along with the inputs from the temp directory to a persistent one for inspection
+- Composition function containers (and the shared Docker network, on Crossplane CLI v2.3+) are reused across test cases and suite files, then removed once the whole `xprin test` invocation finishes (see "Function Container Reuse" above)
 
 ---
 
