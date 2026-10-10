@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processor
+package discovery
 
 import (
 	"testing"
@@ -187,7 +187,7 @@ func TestReportTestSuiteError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Capture stderr output
 			stderrOutput := unittestsUtils.CaptureStderr(func() {
-				err := reportTestSuiteError(tt.testSuiteFile, tt.originalErr, tt.failureReason)
+				err := ReportTestSuiteError(tt.testSuiteFile, tt.originalErr, tt.failureReason)
 
 				// Verify the returned error message
 				assert.Equal(t, tt.expectedErrorMsg, err.Error())
@@ -212,9 +212,9 @@ func TestHelperFunctionsConsistency(t *testing.T) {
 			_ = reportError(target, "test failure", originalErr)
 		})
 
-		// Test reportTestSuiteError stderr output
+		// Test ReportTestSuiteError stderr output
 		reportTestSuiteErrorStderr := unittestsUtils.CaptureStderr(func() {
-			_ = reportTestSuiteError(target, originalErr, "test failure")
+			_ = ReportTestSuiteError(target, originalErr, "test failure")
 		})
 
 		// Both should contain the target file name prefixed with #
@@ -241,8 +241,8 @@ func TestHelperFunctionsConsistency(t *testing.T) {
 			// Test reportError return value
 			err1 = reportError(target, "failure type", originalErr)
 
-			// Test reportTestSuiteError return value
-			err2 = reportTestSuiteError(target, originalErr, "failure type")
+			// Test ReportTestSuiteError return value
+			err2 = ReportTestSuiteError(target, originalErr, "failure type")
 		})
 
 		require.Error(t, err1)
@@ -313,9 +313,9 @@ func TestHelperFunctionsConsistency(t *testing.T) {
 					assert.Contains(t, stderrOutput, expectedContent, "stderr should contain: %s", expectedContent)
 				}
 
-				// Test reportTestSuiteError
+				// Test ReportTestSuiteError
 				stderrOutput2 := unittestsUtils.CaptureStderr(func() {
-					err := reportTestSuiteError(scenario.target, scenario.originalErr, scenario.failureReason)
+					err := ReportTestSuiteError(scenario.target, scenario.originalErr, scenario.failureReason)
 					require.Error(t, err)
 					assert.Contains(t, err.Error(), scenario.target)
 				})

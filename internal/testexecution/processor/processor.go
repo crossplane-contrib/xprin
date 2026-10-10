@@ -14,22 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package processor runs the tests of the testsuite files that the targets resolve to.
 package processor
 
 import (
-	"errors"
 	"fmt"
-	iofs "io/fs"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/discovery"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/runner"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
-	"github.com/crossplane-contrib/xprin/internal/utils"
-	"github.com/gertd/go-pluralize"
 	"github.com/spf13/afero"
 )
 
@@ -55,9 +51,7 @@ var (
 	}
 )
 
-// ProcessTargets processes the targets and runs the tests
-//
-//nolint:gocognit // Complex target processing with multiple validation and execution phases
+// ProcessTargets processes the targets and runs the tests.
 func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionUtils.Options) error {
 	// Containers tracks reuse of Docker containers for composition functions for this whole
 	// invocation. Initialized here rather than required of callers, so every entry point into
@@ -74,149 +68,21 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionUtils.O
 		defer options.Containers.RemoveAll()
 	}
 
-	var hasErrors bool
-
-	for _, path := range targets {
-		if before, ok := strings.CutSuffix(path, "..."); ok {
-			root := before
-			if before, ok := strings.CutSuffix(root, string(filepath.Separator)); ok {
-				root = before
-			}
-
-			dirs, err := recursiveDirs(fs, root)
-			if err != nil {
-				_ = reportError(root, "failed to find testsuite files", err)
-				hasErrors = true
-
-				continue
-			}
-
-			for _, dir := range dirs {
-				info, err := fs.Stat(dir)
-				if err != nil || !info.IsDir() {
-					continue
-				}
-
-				if err := processDirectory(fs, dir, options); err != nil {
-					hasErrors = true
-				}
-			}
-
-			continue
-		}
-
-		info, err := fs.Stat(path)
-		if errors.Is(err, iofs.ErrNotExist) {
-			if options.Debug {
-				utils.DebugPrintf("Skipping test path %s because it does not exist\n", path)
-			}
-
-			continue
-		}
-
-		if err != nil {
-			_ = reportError(path, "failed to access test path", err)
-			hasErrors = true
-
-			continue
-		}
-
-		if info.IsDir() {
-			if err := processDirectory(fs, path, options); err != nil {
-				hasErrors = true
-			}
-
-			continue
-		}
-
-		// Direct file - check if it's a valid test file
-		if !isValidTestSuiteFileName(path) {
-			if options.Debug {
-				utils.DebugPrintf("Skipping file %s because it is not a valid test file. It should be named 'xprin.yaml' or end with '_xprin.yaml' with at least one character before the underscore\n", path)
-			}
-
-			continue
-		}
-
-		if err := processTestSuiteFile(fs, path, options); err != nil {
-			hasErrors = true
-		}
-	}
-
-	if hasErrors {
-		utils.OutputPrintf("FAIL\n")
-		return fmt.Errorf("processing completed with errors")
-	}
-
-	return nil
+	return discovery.Walk(fs, targets, discoveryOptions(options), func(testSuiteFile string) error {
+		return processTestSuiteFile(fs, testSuiteFile, options)
+	})
 }
 
-// processDirectory handles finding testsuite files in a directory, printing the go test-style message if none are found.
-// Optionally runs tests from each found testsuite file after loading and validating the configuration.
-func processDirectory(fs afero.Fs, dir string, options *testexecutionUtils.Options) error {
-	if options.Debug {
-		utils.DebugPrintf("Processing directory %s\n", dir)
-	}
-
-	files, err := findTestSuiteFiles(fs, dir)
-	if err != nil {
-		// Special case: if the error is just that no files were found, handle it as an info message
-		if strings.HasPrefix(err.Error(), "no test files found matching pattern") {
-			if !options.Quiet {
-				fmt.Fprintf(os.Stderr, "?   \t%s\t[no testsuite files]\n", dir)
-			}
-
-			return nil
-		}
-		// For other errors, report them as real errors
-		return reportError(dir, "failed to find testsuite files", err)
-	}
-	// Note: No need to check len(files) == 0 here because:
-	// 1. findTestSuiteFiles guarantees it will return an error if no files are found
-	// 2. If we get here, we already know there's no error, so files must be non-empty
-	if options.Debug {
-		plural := pluralize.NewClient()
-		utils.DebugPrintf("Found %s in directory %s\n", plural.Pluralize("testsuite file", len(files), true), dir)
-	}
-
-	var hasErrors bool
-
-	for _, testSuiteFile := range files {
-		if err := processTestSuiteFile(fs, testSuiteFile, options); err != nil {
-			hasErrors = true
-		}
-	}
-
-	if hasErrors {
-		return fmt.Errorf("errors occurred processing files in directory %s", dir)
-	}
-
-	return nil
+// discoveryOptions returns what the discovery package needs to know from the options.
+func discoveryOptions(options *testexecutionUtils.Options) discovery.Options {
+	return discovery.Options{Quiet: options.Quiet, Debug: options.Debug}
 }
 
 // processTestSuiteFile processes a single test file, loading the configuration and running tests if applicable.
 func processTestSuiteFile(fs afero.Fs, testSuiteFile string, options *testexecutionUtils.Options) error {
-	if options.Debug {
-		utils.DebugPrintf("Processing testsuite file %s\n", testSuiteFile)
-	}
-
-	// Load and validate test configuration
-	testSuiteSpec, err := load(fs, testSuiteFile)
-	if err != nil {
-		if strings.HasPrefix(err.Error(), ("no test cases found")) {
-			if !options.Quiet {
-				fmt.Fprintf(os.Stderr, "?   \t%s\t[no test cases found]\n", testSuiteFile)
-			}
-
-			return nil
-		}
-
-		return reportTestSuiteError(testSuiteFile, err, "invalid testsuite file")
-	}
-
-	// Now that we know we have tests to run, check for empty names and duplicate IDs
-	if err := testSuiteSpec.CheckValidTestSuiteFile(); err != nil {
-		return reportTestSuiteError(testSuiteFile, err, "invalid testsuite file")
+	testSuiteSpec, err := discovery.Load(fs, testSuiteFile, discoveryOptions(options))
+	if err != nil || testSuiteSpec == nil {
+		return err
 	}
 
 	testRunner := newRunnerFunc(options, testSuiteFile, testSuiteSpec)
@@ -225,7 +91,7 @@ func processTestSuiteFile(fs afero.Fs, testSuiteFile string, options *testexecut
 	if fileErr != nil {
 		errMsg := fileErr.Error()
 		if !strings.Contains(errMsg, "tests failed in testsuite") {
-			return reportTestSuiteError(testSuiteFile, fileErr, "testsuite file execution error")
+			return discovery.ReportTestSuiteError(testSuiteFile, fileErr, "testsuite file execution error")
 		}
 
 		return fmt.Errorf("test execution failed for %s: %w", testSuiteFile, fileErr)

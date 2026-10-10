@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processor
+package discovery
 
 import (
 	"fmt"
@@ -30,8 +30,8 @@ func reportError(target, failureReason string, err error) error {
 	return fmt.Errorf("%s", errorMsg)
 }
 
-// reportTestSuiteError handles error reporting for test suite files with detailed error message.
-func reportTestSuiteError(testSuiteFile string, err error, failureReason string) error {
+// ReportTestSuiteError handles error reporting for test suite files with detailed error message.
+func ReportTestSuiteError(testSuiteFile string, err error, failureReason string) error {
 	errMsg := fmt.Sprintf("# %s\n%v", testSuiteFile, err)
 	fmt.Fprintf(os.Stderr, "%s\n", errMsg)
 	fmt.Fprintf(os.Stderr, "FAIL\t%s\t[%s]\n", testSuiteFile, failureReason)
