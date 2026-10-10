@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+// Package placeholder encodes/decodes the template vars of testsuite files as placeholders
+package placeholder
 
 import (
 	"fmt"
@@ -22,19 +23,19 @@ import (
 	"strings"
 )
 
-// Constants for template variable placeholders.
+// Open and Close replace the {{ and }} of a template variable.
 const (
-	PlaceholderOpen  = "__OPEN__"
-	PlaceholderClose = "__CLOSE__"
+	Open  = "__OPEN__"
+	Close = "__CLOSE__"
 )
 
-// CreatePlaceholder creates a template variable placeholder for testing.
-func CreatePlaceholder(templateVar string) string {
-	return fmt.Sprintf("%s%s%s", PlaceholderOpen, templateVar, PlaceholderClose)
+// Create returns a placeholder for templateVar, as Replace would create it.
+func Create(templateVar string) string {
+	return fmt.Sprintf("%s%s%s", Open, templateVar, Close)
 }
 
-// ReplaceTemplateVarsWithPlaceholders replaces template variables with placeholders.
-func ReplaceTemplateVarsWithPlaceholders(content string) string {
+// Replace replaces the template variables in content with placeholders.
+func Replace(content string) string {
 	re := regexp.MustCompile(`\{\{\s*(.*?)\s*\}\}`)
 
 	return re.ReplaceAllStringFunc(content, func(match string) string {
@@ -43,14 +44,14 @@ func ReplaceTemplateVarsWithPlaceholders(content string) string {
 		// Remove any remaining whitespace
 		cleanContent := strings.TrimSpace(innerContent)
 
-		return fmt.Sprintf("%s%s%s", PlaceholderOpen, cleanContent, PlaceholderClose)
+		return fmt.Sprintf("%s%s%s", Open, cleanContent, Close)
 	})
 }
 
-// RestoreTemplateVars restores template variables from placeholders.
-func RestoreTemplateVars(content string) string {
-	content = strings.ReplaceAll(content, PlaceholderOpen, "{{")
-	content = strings.ReplaceAll(content, PlaceholderClose, "}}")
+// Restore turns the placeholders in content back into template variables.
+func Restore(content string) string {
+	content = strings.ReplaceAll(content, Open, "{{")
+	content = strings.ReplaceAll(content, Close, "}}")
 
 	return content
 }

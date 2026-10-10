@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
@@ -831,7 +832,7 @@ func TestRunTestCase(t *testing.T) {
 					PostTest: []api.Hook{
 						{
 							Name: "templated-cleanup",
-							Run:  fmt.Sprintf("echo 'value: %s.Outputs.UnknownField%s'", testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose),
+							Run:  fmt.Sprintf("echo 'value: %s.Outputs.UnknownField%s'", placeholder.Open, placeholder.Close),
 						},
 					},
 				},
@@ -3558,7 +3559,7 @@ func TestProcessTemplateVariables(t *testing.T) {
 		},
 		Hooks: api.Hooks{
 			PreTest: []api.Hook{
-				{Name: "pre-test", Run: fmt.Sprintf("echo 'Setting up %s'", testexecutionUtils.CreatePlaceholder(".Repositories.myrepo"))},
+				{Name: "pre-test", Run: fmt.Sprintf("echo 'Setting up %s'", placeholder.Create(".Repositories.myrepo"))},
 			},
 		},
 	}
@@ -4140,7 +4141,7 @@ metadata:
 			ID:   "test2-id",
 			Hooks: api.Hooks{
 				PreTest: []api.Hook{
-					{Run: fmt.Sprintf("echo '%s.Tests.test1-id.Outputs.XR%s'", testexecutionUtils.PlaceholderOpen, testexecutionUtils.PlaceholderClose)},
+					{Run: fmt.Sprintf("echo '%s.Tests.test1-id.Outputs.XR%s'", placeholder.Open, placeholder.Close)},
 				},
 			},
 		}

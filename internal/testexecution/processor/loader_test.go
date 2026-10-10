@@ -19,7 +19,7 @@ package processor
 import (
 	"testing"
 
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/placeholder"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
@@ -185,11 +185,11 @@ tests:
 			require.NoError(t, err)
 
 			// Check that template variables are converted to placeholders during load
-			assert.Contains(t, config.Common.Inputs.Functions, testexecutionUtils.CreatePlaceholder(".Repositories.myrepo"))
-			assert.Contains(t, config.Common.Inputs.CRDs[0], testexecutionUtils.CreatePlaceholder(".Repositories.otherrepo"))
-			assert.Contains(t, config.Common.Inputs.CRDs[1], testexecutionUtils.CreatePlaceholder(".Repositories.otherrepo"))
-			assert.Contains(t, config.Common.Hooks.PreTest[0].Run, testexecutionUtils.CreatePlaceholder(".Inputs.XR"))
-			assert.Contains(t, config.Common.Hooks.PostTest[0].Run, testexecutionUtils.CreatePlaceholder(".Outputs.XR"))
+			assert.Contains(t, config.Common.Inputs.Functions, placeholder.Create(".Repositories.myrepo"))
+			assert.Contains(t, config.Common.Inputs.CRDs[0], placeholder.Create(".Repositories.otherrepo"))
+			assert.Contains(t, config.Common.Inputs.CRDs[1], placeholder.Create(".Repositories.otherrepo"))
+			assert.Contains(t, config.Common.Hooks.PreTest[0].Run, placeholder.Create(".Inputs.XR"))
+			assert.Contains(t, config.Common.Hooks.PostTest[0].Run, placeholder.Create(".Outputs.XR"))
 		})
 
 		t.Run("mixed content", func(t *testing.T) {
@@ -218,10 +218,10 @@ tests:
 			require.NoError(t, err)
 
 			// Check mixed content
-			assert.Contains(t, config.Common.Inputs.Functions, testexecutionUtils.CreatePlaceholder(".Repositories.myrepo"))
+			assert.Contains(t, config.Common.Inputs.Functions, placeholder.Create(".Repositories.myrepo"))
 			assert.Equal(t, "./static-crd", config.Common.Inputs.CRDs[0])
-			assert.Contains(t, config.Common.Inputs.CRDs[1], testexecutionUtils.CreatePlaceholder(".Repositories.otherrepo"))
-			assert.Contains(t, config.Common.Hooks.PreTest[0].Run, testexecutionUtils.CreatePlaceholder(".Inputs.XR"))
+			assert.Contains(t, config.Common.Inputs.CRDs[1], placeholder.Create(".Repositories.otherrepo"))
+			assert.Contains(t, config.Common.Hooks.PreTest[0].Run, placeholder.Create(".Inputs.XR"))
 		})
 	})
 }

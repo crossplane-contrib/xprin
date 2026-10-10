@@ -28,6 +28,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/utils"
@@ -883,7 +884,7 @@ func (r *Runner) processTemplateVariables(testCase *api.TestCase, testSuiteResul
 	content := string(yamlData)
 
 	// Check if there are any template variables
-	if !strings.Contains(content, testexecutionUtils.PlaceholderOpen) {
+	if !strings.Contains(content, placeholder.Open) {
 		return nil // No template variables to process
 	}
 
@@ -895,7 +896,7 @@ func (r *Runner) processTemplateVariables(testCase *api.TestCase, testSuiteResul
 		return fmt.Errorf("failed to remove hooks from YAML: %w", err)
 	}
 
-	content = testexecutionUtils.RestoreTemplateVars(content)
+	content = placeholder.Restore(content)
 
 	// Render template
 	templateContext := newTemplateContext(r.Repositories, testCase.Inputs, nil, testSuiteResult.GetCompletedTests())

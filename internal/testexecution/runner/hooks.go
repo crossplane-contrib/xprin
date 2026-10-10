@@ -24,7 +24,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 )
 
@@ -57,11 +57,11 @@ func newHookExecutor(
 //   - command with template vars: restored form (e.g. {{ .Repositories.myrepo }}) — stored in HookResult
 //   - final command: template vars rendered (e.g. /path/to/repo) — what we execute
 func (e *hookExecutor) processHookTemplateVariables(hook api.Hook, inputs api.Inputs, outputs *engine.Outputs, tests map[string]*engine.TestCaseResult) (finalCommand, commandWithTemplateVars string, err error) {
-	if !strings.Contains(hook.Run, testexecutionUtils.PlaceholderOpen) {
+	if !strings.Contains(hook.Run, placeholder.Open) {
 		return hook.Run, hook.Run, nil
 	}
 
-	commandWithTemplateVars = testexecutionUtils.RestoreTemplateVars(hook.Run)
+	commandWithTemplateVars = placeholder.Restore(hook.Run)
 	context := newTemplateContext(e.repositories, inputs, outputs, tests)
 
 	finalCommand, err = e.renderTemplate(commandWithTemplateVars, context, "hook")
@@ -103,8 +103,8 @@ func (e *hookExecutor) executeHook(hook api.Hook, hookType string, inputs api.In
 		templateErr := fmt.Errorf("failed to render hook template: %w", err)
 
 		commandWithTemplateVarsForResult := hook.Run
-		if strings.Contains(hook.Run, testexecutionUtils.PlaceholderOpen) {
-			commandWithTemplateVarsForResult = testexecutionUtils.RestoreTemplateVars(hook.Run)
+		if strings.Contains(hook.Run, placeholder.Open) {
+			commandWithTemplateVarsForResult = placeholder.Restore(hook.Run)
 		}
 
 		hookResult := engine.NewHookResult(hook.Name, commandWithTemplateVarsForResult, nil, templateErr)

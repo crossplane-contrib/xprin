@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
-	"github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/placeholder"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/yaml"
 )
@@ -36,7 +36,7 @@ func load(fs afero.Fs, path string) (*api.TestSuiteSpec, error) {
 	content := string(data)
 
 	if strings.Contains(content, "{{") {
-		content = utils.ReplaceTemplateVarsWithPlaceholders(content)
+		content = placeholder.Replace(content)
 	}
 
 	var testSuiteSpec api.TestSuiteSpec
