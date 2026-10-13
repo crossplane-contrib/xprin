@@ -888,15 +888,15 @@ func (r *Runner) processTemplateVariables(testCase *api.TestCase, testSuiteResul
 		return nil // No template variables to process
 	}
 
-	// Preserve hooks from testCase before removeHooks modifies them
+	// The hooks are rendered when they run, not with the rest of the testcase
 	originalHooks := testCase.Hooks
 
-	content, err = r.removeHooks(testCase)
+	withoutHooks, err := templates.MarshalWithoutHooks(*testCase)
 	if err != nil {
 		return fmt.Errorf("failed to remove hooks from YAML: %w", err)
 	}
 
-	content = placeholder.Restore(content)
+	content = placeholder.Restore(string(withoutHooks))
 
 	// Render template
 	templateContext := newTemplateContext(r.Repositories, testCase.Inputs, nil, testSuiteResult.GetCompletedTests())
@@ -912,24 +912,6 @@ func (r *Runner) processTemplateVariables(testCase *api.TestCase, testSuiteResul
 	}
 
 	return nil
-}
-
-// removeHooks removes all hooks from the test case.
-func (r *Runner) removeHooks(testCase *api.TestCase) (string, error) {
-	if testCase.Hooks.PreTest != nil {
-		testCase.Hooks.PreTest = nil
-	}
-
-	if testCase.Hooks.PostTest != nil {
-		testCase.Hooks.PostTest = nil
-	}
-
-	yamlData, err := yaml.Marshal(testCase)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal test case to YAML: %w", err)
-	}
-
-	return string(yamlData), nil
 }
 
 // restoreHooks parses the processed YAML back to test case and restores hooks.

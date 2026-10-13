@@ -19,6 +19,8 @@ package templates
 import (
 	"testing"
 
+	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/placeholder"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
@@ -44,4 +46,57 @@ func TestParse(t *testing.T) {
 		_, err := Parse("t", "{{ .Tests.test-case-1.Outputs.XR }}")
 		require.ErrorContains(t, err, "bad character U+002D '-'")
 	})
+}
+
+func TestMarshalWithoutHooks(t *testing.T) {
+	xr := placeholder.Create(".Repositories.myrepo") + "/xr.yaml"
+	hookVar := placeholder.Create(".Inputs.XR")
+	assertionVar := placeholder.Create(".Tests.a.Outputs.XR")
+
+	testCase := api.TestCase{
+		Name: "test",
+		ID:   "test-id",
+		Inputs: api.Inputs{
+			XR:          xr,
+			Composition: "comp.yaml",
+		},
+		Hooks: api.Hooks{
+			PreTest:  []api.Hook{{Name: "setup", Run: "echo " + hookVar}},
+			PostTest: []api.Hook{{Name: "cleanup", Run: "echo cleaning"}},
+		},
+		Assertions: api.Assertions{Xprin: []api.AssertionXprin{{Name: "assertion", Type: "Count", Value: assertionVar}}},
+	}
+
+	data, err := MarshalWithoutHooks(testCase)
+	require.NoError(t, err)
+
+	out := string(data)
+
+	assert.Contains(t, out, "name: test")
+	assert.Contains(t, out, xr, "the placeholders of the rest of the testcase are kept")
+	assert.Contains(t, out, assertionVar, "so are the ones of the assertions")
+
+	for _, fromTheHooks := range []string{"setup", "cleanup", "echo", hookVar} {
+		assert.NotContains(t, out, fromTheHooks)
+	}
+
+	// The caller's testcase keeps its hooks
+	require.Len(t, testCase.Hooks.PreTest, 1)
+	require.Len(t, testCase.Hooks.PostTest, 1)
+	assert.Equal(t, "echo "+hookVar, testCase.Hooks.PreTest[0].Run)
+}
+
+func TestMarshalWithoutHooks_NoHooks(t *testing.T) {
+	data, err := MarshalWithoutHooks(api.TestCase{Name: "test"})
+
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "name: test")
+}
+
+func TestMarshalWithoutHooks_Error(t *testing.T) {
+	testCase := api.TestCase{Name: "test", Assertions: api.Assertions{Xprin: []api.AssertionXprin{{Name: "n", Value: make(chan int)}}}}
+
+	_, err := MarshalWithoutHooks(testCase)
+
+	require.ErrorContains(t, err, "failed to marshal test case to YAML")
 }
