@@ -7,7 +7,7 @@
 - [Testsuite filenames](#testsuite-filenames)
 - [Command Examples](#command-examples)
   - [How to Run Tests](#how-to-run-tests)
-  - [Common Command Options](#common-command-options)
+  - [Usual Command Options](#usual-command-options)
   - [Updating Golden Files](#updating-golden-files)
   - [Configuration Management](#configuration-management)
 - [Testsuite examples](#testsuite-examples)
@@ -357,7 +357,7 @@ Example:
 ```yaml
 tests:
 - name: "Initial Database Setup"
-  id: "db-setup"
+  id: "db_setup"
   inputs:
     xr: database-xr.yaml
     composition: database-composition.yaml
@@ -375,11 +375,11 @@ tests:
   hooks:
     pre-test:
     - name: "verify database setup"
-      run: ./scripts/verify_database_setup.sh {{ .Tests.db-setup.Outputs.Render }} {{ .Tests.db-setup.Outputs.XR }}
+      run: ./scripts/verify_database_setup.sh {{ .Tests.db_setup.Outputs.Render }} {{ .Tests.db_setup.Outputs.XR }}
 
     post-test:
     - name: "compare outputs"
-      run: ./scripts/compare_test_outputs.sh {{ .Tests.db-setup.Outputs.RenderCount }} {{ .Outputs.RenderCount }} {{ .Tests.db-setup.Outputs.Render }}
+      run: ./scripts/compare_test_outputs.sh {{ .Tests.db_setup.Outputs.RenderCount }} {{ .Outputs.RenderCount }} {{ .Tests.db_setup.Outputs.Render }}
 ```
 
 For detailed information about how test chaining works, see [How It Works](how-it-works.md#test-chaining-and-artifacts).
