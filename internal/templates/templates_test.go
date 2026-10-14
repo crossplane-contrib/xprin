@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
-	"github.com/crossplane-contrib/xprin/internal/placeholder"
+	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
