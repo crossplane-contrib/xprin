@@ -30,7 +30,7 @@ testcase_005_exit=1
 testcase_005_update_goldens=true
 
 # Multiple Failures - Combined File (Verbose)
-testcase_006="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml -v"
+testcase_006="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml examples/mytests/5_chained_tests/legacy_failure_xprin.yaml -v"
 testcase_006_exit=1
 testcase_006_update_goldens=true
 
@@ -40,7 +40,7 @@ testcase_007_exit=1
 testcase_007_update_goldens=true
 
 # Invalid testsuite file
-testcase_008="examples/mytests/0_e2e/generated_invalid_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_008="examples/mytests/0_e2e/generated_invalid_xprin.yaml examples/mytests/0_e2e/generated_empty_needs_xprin.yaml examples/mytests/0_e2e/broken_needs_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
 testcase_008_exit=1
 
 # Successful with hooks/validate/assertions (Verbose, show flags) + update-goldens verification
@@ -48,7 +48,7 @@ testcase_009="examples/mytests/0_e2e/success_xprin.yaml examples/mytests/6_asser
 testcase_009_update_goldens=true
 
 # Chained Outputs and Cross-Composition Chaining
-testcase_010="examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml -v --show-render --show-validate"
+testcase_010="examples/mytests/5_chained_tests/example1_needs_xprin.yaml examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml examples/mytests/5_chained_tests/legacy_success_xprin.yaml -v --show-render --show-validate"
 
 # Claim input with kind resolved from XRD (not 'X' + Claim kind) and reproducible name via --golden
 testcase_011="examples/mytests/0_e2e/claim_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"

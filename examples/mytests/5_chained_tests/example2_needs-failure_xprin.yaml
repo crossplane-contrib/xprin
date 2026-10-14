@@ -1,0 +1,37 @@
+common:
+  patches:
+    xrd: ../../aws/xrd.yaml
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+
+tests:
+- name: "Initial reconciliation loop"
+  id: aws_first
+  inputs:
+    xr: ../../aws/xr.yaml
+  assertions:
+    xprin:
+    - name: "Number of resources (wrong on purpose, to make the test fail)"
+      type: "Count"
+      value: 0
+
+# Needs the one that failed, so it is not run: it is skipped
+- name: "Second reconciliation loop"
+  id: aws_second
+  needs:
+  - aws_first
+  inputs:
+    xr: ../../aws/xr.yaml
+    observed-resources: ../../aws/observed
+
+# Needs the one that was skipped, so it is skipped too
+- name: "Third reconciliation loop"
+  needs:
+  - aws_second
+  inputs:
+    xr: ../../aws/xr.yaml
+    observed-resources: ../../aws/observed

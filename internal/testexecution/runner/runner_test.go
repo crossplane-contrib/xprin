@@ -3575,7 +3575,7 @@ func TestProcessTemplateVariables(t *testing.T) {
 
 	// Process template variables
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-	err := runner.processTemplateVariables(&testCase, testSuiteResult)
+	err := runner.processTemplateVariables(&testCase, testSuiteResult.GetCompletedTests())
 	require.NoError(t, err)
 
 	// Verify that template variables were processed
@@ -3627,7 +3627,7 @@ metadata:
 
 	// Process template variables
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-	err := runner.processTemplateVariables(&testCase, testSuiteResult)
+	err := runner.processTemplateVariables(&testCase, testSuiteResult.GetCompletedTests())
 	require.NoError(t, err)
 
 	// Verify that the test case was not modified
@@ -3654,7 +3654,7 @@ func TestProcessTemplateVariables_LeavesTheHooksToTheStepsThatRunThem(t *testing
 
 	runner := &Runner{Options: &testexecutionUtils.Options{Repositories: map[string]string{"myrepo": "/path/to/myrepo"}}}
 
-	require.NoError(t, runner.processTemplateVariables(&testCase, engine.NewTestSuiteResult("test-suite.yaml", false)))
+	require.NoError(t, runner.processTemplateVariables(&testCase, nil))
 
 	assert.Equal(t, "/path/to/myrepo/xr.yaml", testCase.Inputs.XR, "the rest of the test case is rendered")
 	assert.Equal(t, "echo "+preTest, testCase.Hooks.PreTest[0].Run, "the hooks are not")

@@ -52,7 +52,7 @@ common:
 
 tests:
 - name: "My Test Case"
-  id: "test-case-1"
+  id: "test_case_1"
   inputs:
     xr: xr.yaml
     composition: comp.yaml
@@ -101,7 +101,9 @@ tests:
     - name: "Full render matches golden (structural)"
       expected: golden_full_render.yaml
 - name: "Test: Basic Setup with Claim"
-  id: "test-case-2"
+  id: "test_case_2"
+  needs:
+  - "test_case_1"
   inputs:
     claim: claim.yaml
     composition: comp.yaml
@@ -109,10 +111,10 @@ tests:
   hooks:
     pre-test:
     - name: "use previous test output"
-      run: "echo 'Previous test XR: {{ .Tests.test-case-1.Outputs.XR }}'"
+      run: "echo 'Previous test XR: {{ .Tests.test_case_1.Outputs.XR }}'"
     post-test:
     - name: "compare outputs"
-      run: "diff -u {{ .Tests.test-case-1.Outputs.Render }} {{ .Outputs.Render }} || true"
+      run: "diff -u {{ .Tests.test_case_1.Outputs.Render }} {{ .Outputs.Render }} || true"
 ```
 
 ## Field Reference
@@ -138,7 +140,8 @@ tests:
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
 | `name` | ✅ | string | Test case name (alphanumeric, underscores, hyphens) |
-| `id` | ❌ | string | Optional unique test case ID (enables cross-test references and artifact storage) |
+| `id` | ❌ | string | Optional unique test case ID (makes the test case available to `needs`, and enables cross-test references and artifact storage) |
+| `needs` | ❌ | list of strings | IDs of the test cases listed before this one whose outputs it uses; can't be empty, and the test case is skipped if one of them failed or was skipped (supported since xprin 0.6.0, and the only way from 0.7.0, see [Dependencies Between Test Cases](how-it-works.md#dependencies-between-test-cases-needs)) |
 | `inputs` | ✅ | map | Inputs for the test case |
 | `patches` | ❌ | map | XR patching configuration |
 | `hooks` | ❌ | map | Hooks for the test case |
@@ -256,13 +259,15 @@ Available in post-test hooks only:
 - `{{ index .Outputs.Rendered "Kind/Name" }}` - Individual resource paths
 
 ### Cross-test References
-Available when test has `id` field:
+Available when test has `id` field, to the test cases that list it in `needs`:
 - `{{ .Tests.{test-id}.Outputs.XR }}` - XR from referenced test
 - `{{ .Tests.{test-id}.Outputs.Render }}` - Render output from referenced test
 - `{{ .Tests.{test-id}.Outputs.Validate }}` - Validate output from referenced test
 - `{{ .Tests.{test-id}.Outputs.Assertions }}` - Assertions output from referenced test
 - `{{ .Tests.{test-id}.Outputs.RenderCount }}` - Render count from referenced test
 - `{{ index .Tests.{test-id}.Outputs.Rendered "Kind/Name" }}` - Individual resource from referenced test
+
+A test case can depend on another one with `needs` alone, without using its outputs. To use them (`.Tests.{test-id}`) it has to list that ID in `needs`: that is the only way from 0.7.0. See [Dependencies Between Test Cases](how-it-works.md#dependencies-between-test-cases-needs) and [Migrating](how-it-works.md#migrating-from-automatic-detection-deprecated).
 
 For detailed information, see [How It Works](how-it-works.md#template-variable-expansion) and [How It Works](how-it-works.md#test-chaining-and-artifacts).
 

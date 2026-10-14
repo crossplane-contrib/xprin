@@ -14,6 +14,8 @@ tests:
   inputs:
     xr: ../../aws/xr.yaml
 - name: "Second reconciliation loop"
+  needs:
+  - aws_first
   inputs:
-    xr: {{ .Tests.aws_first.Outputs.XR }}
+    xr: ../../aws/xr.yaml
     observed-resources: ../../aws/observed

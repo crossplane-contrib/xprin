@@ -1,0 +1,26 @@
+# The old way, deprecated: no needs at all, the dependencies are detected from the template variables.
+# xprin prints a warning about it. It is supported until xprin 0.6.x, and this file is removed in 0.7.0.
+common:
+  patches:
+    xrd: ../../aws/xrd.yaml
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+
+tests:
+- name: "Legacy: first loop"
+  id: legacy_first
+  inputs:
+    xr: ../../aws/xr.yaml
+
+- name: "Legacy: second loop, uses the outputs of the first without needs"
+  inputs:
+    xr: {{ .Tests.legacy_first.Outputs.XR }}
+    observed-resources: ../../aws/observed
+  hooks:
+    pre-test:
+    - name: "Uses the outputs of the first one in a hook, without needs"
+      run: test -f {{ .Tests.legacy_first.Outputs.XR }}

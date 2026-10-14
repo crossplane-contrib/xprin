@@ -167,7 +167,7 @@ The flow ensures that:
 - The rendered output is validated against schemas if CRDs are available
 - Assertions validate rendered resources declaratively (count, existence, field checks) after validation
 - Post-test hooks can clean up and perform additional validation after assertions
-- Test outputs can be exported as artifacts (when `id` is set) and referenced by later tests via `.Tests.{test-id}` template variables for test chaining
+- Test cases can depend on earlier ones with `needs`, and their outputs (exported as artifacts when `id` is set) can be referenced via `.Tests.{test-id}` template variables for test chaining
 
 ## Documentation
 

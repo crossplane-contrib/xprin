@@ -15,6 +15,8 @@ tests:
 
 - name: "GCP layer first loop"
   id: gcp_first
+  needs:
+  - base_final
   patches:
     xrd: ../../gcp/xrd.yaml
   inputs:
@@ -27,6 +29,8 @@ tests:
 
 - name: "GCP layer second loop"
   id: gcp_second
+  needs:
+  - gcp_first
   patches:
     xrd: ../../gcp/xrd.yaml
   inputs:
@@ -39,6 +43,8 @@ tests:
     observed-resources: ../../gcp/observed
 
 - name: "GCP layer third loop"
+  needs:
+  - gcp_second
   patches:
     xrd: ../../gcp/xrd.yaml
   inputs:
@@ -55,6 +61,8 @@ tests:
 
 - name: "AWS layer first loop"
   id: aws_first
+  needs:
+  - base_final
   patches:
     xrd: ../../aws/xrd.yaml
   inputs:
@@ -67,6 +75,8 @@ tests:
 
 - name: "AWS layer second loop"
   id: aws_second
+  needs:
+  - aws_first
   patches:
     xrd: ../../aws/xrd.yaml
   inputs:
@@ -79,6 +89,8 @@ tests:
     observed-resources: ../../aws/observed
 
 - name: "AWS layer third loop"
+  needs:
+  - aws_second
   patches:
     xrd: ../../aws/xrd.yaml
   inputs:

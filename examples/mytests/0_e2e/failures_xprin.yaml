@@ -7,6 +7,7 @@ tests:
 
 # Render failures
 - name: "Render failure (claim used as XR)"
+  id: broken
   inputs:
     xr: ../../aws/claim.yaml
     crds:
@@ -120,6 +121,7 @@ tests:
         exit 1
 
 - name: "Successful test case"
+  id: success
   inputs:
     xr: ../../aws/xr.yaml
     composition: ../../aws/composition.yaml
@@ -160,6 +162,7 @@ tests:
 
 # Assertion failures
 - name: "Assertion failure"
+  id: assertion_failure
   inputs:
     xr: ../../aws/xr.yaml
     crds:
@@ -285,3 +288,63 @@ tests:
       run: echo "bye"
     - name: "Failed post-test hook"
       run: exit 2
+
+# needs: a test case can only use the outputs of the ones it lists, and is skipped when one of them failed or was skipped
+- name: "Needs: a test case that needs the one that failed (skipped)"
+  id: skipped
+  needs:
+  - broken
+  inputs:
+    xr: '{{ .Tests.broken.Outputs.XR }}'
+
+- name: "Needs: a test case that needs the one that was skipped and the one that failed (skipped)"
+  needs:
+  - skipped
+  - broken
+  - success
+  inputs:
+    xr: ../../aws/xr.yaml
+
+- name: "Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs)"
+  inputs:
+    xr: '{{ .Tests.success.Outputs.XR }}'
+
+- name: "Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs)"
+  inputs:
+    xr: '{{ (index .Tests "success").Outputs.XR }}'
+
+- name: "Needs: a typo in the ID at the template variable"
+  needs:
+  - success
+  inputs:
+    xr: '{{ .Tests.succes.Outputs.XR }}'
+
+- name: "Needs: a typo in the output"
+  needs:
+  - success
+  inputs:
+    xr: '{{ .Tests.success.Outputs.XRR }}'
+
+- name: "Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs)"
+  needs:
+  - success
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    pre-test:
+    - name: "Uses the outputs of a test case it does not list"
+      run: echo "{{ .Tests.broken.Outputs.XR }}"
+
+# Also with update-goldens: the golden files of a test case are not written when a test case it needs failed
+- name: "Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens)"
+  needs:
+  - assertion_failure
+  inputs:
+    xr: ../../aws/xr.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+  assertions:
+    diff:
+    - name: "Full render matches golden"
+      expected: golden_needs_skipped.yaml

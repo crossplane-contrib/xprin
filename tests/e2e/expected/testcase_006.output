@@ -28,12 +28,40 @@
 --- SKIP: Failed validation and assertion (X.XXXs)
 === RUN   Failed validation, assertion, and post-test hook
 --- SKIP: Failed validation, assertion, and post-test hook (X.XXXs)
+=== RUN   Needs: a test case that needs the one that failed (skipped)
+--- SKIP: Needs: a test case that needs the one that failed (skipped) (X.XXXs)
+=== RUN   Needs: a test case that needs the one that was skipped and the one that failed (skipped)
+--- SKIP: Needs: a test case that needs the one that was skipped and the one that failed (skipped) (X.XXXs)
+=== RUN   Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs)
+--- SKIP: Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs)
+--- SKIP: Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: a typo in the ID at the template variable
+--- SKIP: Needs: a typo in the ID at the template variable (X.XXXs)
+=== RUN   Needs: a typo in the output
+--- SKIP: Needs: a typo in the output (X.XXXs)
+=== RUN   Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs)
+--- SKIP: Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens)
+--- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
+    [!] needs failed test case "assertion_failure"
 FAIL
 FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
 === RUN   Missing required inputs (multiline error)
 --- SKIP: Missing required inputs (multiline error) (X.XXXs)
 PASS
 ok	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
+WARNING: examples/mytests/5_chained_tests/legacy_failure_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs.
+=== RUN   Legacy: a typo in the ID
+--- SKIP: Legacy: a typo in the ID (X.XXXs)
+=== RUN   Legacy: uses a test case that is listed below it
+--- SKIP: Legacy: uses a test case that is listed below it (X.XXXs)
+=== RUN   Legacy: a typo in the ID, in a hook
+--- SKIP: Legacy: a typo in the ID, in a hook (X.XXXs)
+=== RUN   Legacy: last
+--- SKIP: Legacy: last (X.XXXs)
+PASS
+ok	examples/mytests/5_chained_tests/legacy_failure_xprin.yaml	X.XXXs
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors
 === RUN   Render failure (claim used as XR)
@@ -172,6 +200,33 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
         Total: 2 assertions, 1 successful, 1 failed, 0 errors
     Post-test Hooks:
         [x] Failed post-test hook [exit code: 2]
+=== RUN   Needs: a test case that needs the one that failed (skipped)
+--- SKIP: Needs: a test case that needs the one that failed (skipped) (X.XXXs)
+    [!] needs failed test case "broken"
+=== RUN   Needs: a test case that needs the one that was skipped and the one that failed (skipped)
+--- SKIP: Needs: a test case that needs the one that was skipped and the one that failed (skipped) (X.XXXs)
+    [!] needs skipped test case "skipped"
+    [!] needs failed test case "broken"
+=== RUN   Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs)
+--- FAIL: Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs)
+--- FAIL: Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: a typo in the ID at the template variable
+--- FAIL: Needs: a typo in the ID at the template variable (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.succes.Outputs.XR>: map has no entry for key "succes"
+=== RUN   Needs: a typo in the output
+--- FAIL: Needs: a typo in the output (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.success.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
+=== RUN   Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs)
+--- FAIL: Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs) (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case it does not list
+            error: failed to render hook template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens)
+--- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
+    [!] needs failed test case "assertion_failure"
 FAIL
 FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
 === RUN   Missing required inputs (multiline error)
@@ -181,5 +236,21 @@ FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
     [!] missing mandatory field: functions (it can be specified either in the test case or in the common inputs)
 FAIL
 FAIL	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
+WARNING: examples/mytests/5_chained_tests/legacy_failure_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs.
+=== RUN   Legacy: a typo in the ID
+--- FAIL: Legacy: a typo in the ID (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:9:14: executing "testcase" at <.Tests.legacy_frist.Outputs.XR>: map has no entry for key "legacy_frist"
+=== RUN   Legacy: uses a test case that is listed below it
+--- FAIL: Legacy: uses a test case that is listed below it (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:9:14: executing "testcase" at <.Tests.legacy_last.Outputs.XR>: map has no entry for key "legacy_last"
+=== RUN   Legacy: a typo in the ID, in a hook
+--- FAIL: Legacy: a typo in the ID, in a hook (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case that does not exist
+            error: failed to render hook template: failed to execute template: template: hook:1:14: executing "hook" at <.Tests.legacy_frist.Outputs.XR>: map has no entry for key "legacy_frist"
+=== RUN   Legacy: last
+--- PASS: Legacy: last (X.XXXs)
+FAIL
+FAIL	examples/mytests/5_chained_tests/legacy_failure_xprin.yaml	X.XXXs
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors

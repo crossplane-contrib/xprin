@@ -607,28 +607,33 @@ ok	examples/mytests/4_hooks/example3_post-test-hooks_xprin.yaml	1.464s
 
 ## Chained Tests / Artifacts
 
-When a test case has an `id` field, its outputs are stored and become available to later tests via the `.Tests` template variable. This allows you to chain tests together, using outputs from one test as inputs to another.
+Test cases can depend on each other. A test case lists the IDs of the test cases it depends on in `needs`: it runs after them, and only if they passed (if one failed, or was skipped, it is skipped, and the reason is printed under it).
 
-### Example 1: Chained Test Outputs
+When a test case has an `id` field, its outputs are also stored and become available to the test cases that list it in `needs`, via the `.Tests` template variable. This allows you to chain tests together, using outputs from one test as inputs to another.
 
-**File**: [`mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml`](mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml)
+The examples build up: first a dependency alone, then what happens when a test case fails, then using the outputs, then chaining compositions.
 
-This example demonstrates how to use outputs from a previous test as input to a subsequent test. The first test runs an initial reconciliation loop and stores its result with id `aws_first`. The second test uses `{{ .Tests.aws_first.Outputs.XR }}` to reference the XR output from the first test, enabling you to test multiple reconciliation loops in sequence.
+### Example 1: Dependencies with `needs`
+
+**File**: [`mytests/5_chained_tests/example1_needs_xprin.yaml`](mytests/5_chained_tests/example1_needs_xprin.yaml)
+
+The simplest use of `needs`: the second test case depends on the first one, without using any of its outputs. This is useful when test cases share state, or when it only makes sense to run one once the other works.
 
 **Key Points:**
-- The first test has `id: aws_first`, which makes its outputs available as artifacts to later tests
-- The second test uses `{{ .Tests.aws_first.Outputs.XR }}` to reference the XR output from the first test
-- This enables testing multiple reconciliation loops in sequence, where each loop uses the output from the previous one
+- The first test case has an `id` (`aws_first`), so that it can be needed
+- The second test case lists it in `needs`: it runs after the first one, and only if the first one passed
+- If the first one fails, the second is not run: it is shown as `SKIP`, with the reason printed under it (see [Dependencies Between Test Cases](../docs/how-it-works.md#dependencies-between-test-cases-needs))
+- `needs` can only list test cases that are listed before it in the file
 
 ```bash
-xprin test examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml -v --show-render --show-validate
+xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-render --show-validate
 ```
 
 <details>
 <summary><strong>Output</strong></summary>
 
 ```bash
-➜ xprin test examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml -v --show-render --show-validate
+➜ xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-render --show-validate
 
 === RUN   Initial reconciliation loop
 --- PASS: Initial reconciliation loop (1.33s)
@@ -651,16 +656,116 @@ xprin test examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
 PASS
-ok	examples/mytests/5_chained_tests/example1_chained-test-outputs_xprin.yaml	2.668s
+ok	examples/mytests/5_chained_tests/example1_needs_xprin.yaml	2.668s
 ```
 
 </details>
 
 ---
 
-### Example 2: Cross-Composition Chaining
+### Example 2: When a Test Case Fails, the Ones that Need It Are Skipped
 
-**File**: [`mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml`](mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml)
+**File**: [`mytests/5_chained_tests/example2_needs-failure_xprin.yaml`](mytests/5_chained_tests/example2_needs-failure_xprin.yaml)
+
+This is what to expect when a test case that is higher in the dependency chain fails. The first test case has an assertion that is wrong on purpose, so it fails. The second one needs it, and the third one needs the second one.
+
+**Key Points:**
+- A test case that needs one that **failed** or was **skipped** is **not run**: it is shown as `SKIP`, and the reason is printed under it, even without `-v`, so you can see at a glance why it didn't run
+- The skip propagates: a test case that needs one that was skipped is skipped too
+- The reasons list one needed test case per line, and say if it failed or was skipped
+- Only the test case that really failed is reported as `FAIL`: the skipped ones don't add noise, or misleading errors about missing outputs. Test cases that don't need the failed one run as usual
+- The run fails (exit code 1) because of the failed test case
+
+```bash
+xprin test examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml -v --show-render --show-validate --show-assertions
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```bash
+➜ xprin test examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml -v --show-render --show-validate --show-assertions
+
+=== RUN   Initial reconciliation loop
+--- FAIL: Initial reconciliation loop (1.33s)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
+    Assertions:
+        [x] Number of resources (wrong on purpose, to make the test fail) - expected 0 resources, got 2
+        Total: 1 assertions, 0 successful, 1 failed, 0 errors
+=== RUN   Second reconciliation loop
+--- SKIP: Second reconciliation loop (0.00s)
+    [!] needs failed test case "aws_first"
+=== RUN   Third reconciliation loop
+--- SKIP: Third reconciliation loop (0.00s)
+    [!] needs skipped test case "aws_second"
+FAIL
+FAIL	examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml	1.35s
+```
+
+</details>
+
+---
+
+### Example 3: Chained Test Outputs
+
+**File**: [`mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml`](mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml)
+
+This example demonstrates how to use outputs from a previous test as input to a subsequent test. The first test runs an initial reconciliation loop and stores its result with id `aws_first`. The second test uses `{{ .Tests.aws_first.Outputs.XR }}` to reference the XR output from the first test, enabling you to test multiple reconciliation loops in sequence.
+
+**Key Points:**
+- The first test has `id: aws_first`, which makes its outputs available as artifacts to later tests
+- The second test uses `{{ .Tests.aws_first.Outputs.XR }}` to reference the XR output from the first test
+- The second test lists `aws_first` in `needs`: a test case can only use (`.Tests`) the outputs of the test cases it lists
+- The outputs are available in the hooks too (the second test has a `pre-test` hook that checks that the XR of the first one exists)
+- This enables testing multiple reconciliation loops in sequence, where each loop uses the output from the previous one
+
+```bash
+xprin test examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml -v --show-render --show-validate
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```bash
+➜ xprin test examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml -v --show-render --show-validate
+
+=== RUN   Initial reconciliation loop
+--- PASS: Initial reconciliation loop (1.33s)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
+=== RUN   Second reconciliation loop
+--- PASS: Second reconciliation loop (1.34s)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        ├── Cluster/platform-aws-rds
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] rds.aws.upbound.io/v1beta1, Kind=Cluster, platform-aws-rds validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
+PASS
+ok	examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml	2.668s
+```
+
+</details>
+
+---
+
+### Example 4: Cross-Composition Chaining
+
+**File**: [`mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml`](mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml)
 
 This example demonstrates cross-composition chaining, where one composition renders XRs that become the input to other compositions. The base composition creates both AWS and GCP XRs; the GCP and AWS layer tests each use the corresponding rendered XR as input.
 
@@ -668,13 +773,14 @@ This example demonstrates cross-composition chaining, where one composition rend
 - The base composition renders `XAWSInfrastructure` and `XGCPInfrastructure` XRs as part of its output
 - The GCP test uses `{{ index .Tests.base_final.Outputs.Rendered "XGCPInfrastructure/platform-base-gcp" }}` to extract the GCP XR from the first test's output
 - The AWS test uses `{{ index .Tests.base_final.Outputs.Rendered "XAWSInfrastructure/platform-base-aws" }}` to extract the AWS XR from the first test's output
+- Both list `base_final` in `needs`
 - This enables testing compositions that depend on outputs from other compositions
 
 <details>
 <summary><strong>Output</strong></summary>
 
 ```bash
-➜ xprin test examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml -v --show-render --show-validate
+➜ xprin test examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml -v --show-render --show-validate
 
 === RUN   Base layer final loop
 --- PASS: Base layer final loop (0.86s)
@@ -708,18 +814,28 @@ This example demonstrates cross-composition chaining, where one composition rend
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-base-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 PASS
-ok	examples/mytests/5_chained_tests/example2_cross-composition-chaining_xprin.yaml	3.09s
+ok	examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml	3.09s
 ```
 
 </details>
 
 ---
 
-### Example 3: Combining all the above
+### Example 5: Combining all the above
 
-**File**: [`mytests/5_chained_tests/example3_xprin.yaml`](mytests/5_chained_tests/example3_xprin.yaml)
+**File**: [`mytests/5_chained_tests/example5_xprin.yaml`](mytests/5_chained_tests/example5_xprin.yaml)
 
 This example combines all the above cases, I'll let you discover the output :smile: Feel free also to change/break it to see how it works on failures.
+
+---
+
+### What happens when `needs` goes wrong
+
+The files under [`mytests/0_e2e/`](mytests/0_e2e/) and [`mytests/5_chained_tests/`](mytests/5_chained_tests/) also act as the acceptance tests of `needs`:
+
+- [`failures_xprin.yaml`](mytests/0_e2e/failures_xprin.yaml) (the `Needs:` test cases at the end): more cases of skipped test cases (see Example 2). A test case that uses the outputs of another one without listing it fails with an error that says it has to be listed. A typo in the ID and a typo in the output fail too, with the error of the template.
+- [`broken_needs_xprin.yaml`](mytests/0_e2e/broken_needs_xprin.yaml): `needs` that make the file invalid: an ID that doesn't exist, a test case listed below, and itself.
+- [`legacy_success_xprin.yaml`](mytests/5_chained_tests/legacy_success_xprin.yaml) and [`legacy_failure_xprin.yaml`](mytests/5_chained_tests/legacy_failure_xprin.yaml): the old way (deprecated), without `needs`: the dependency is detected from `.Tests`. It works and xprin prints a warning, but a typo in the ID, or a test case listed below, fail. These files are removed in xprin 0.7.0.
 
 ---
 
