@@ -26,6 +26,7 @@ import (
 	"github.com/alecthomas/kong"
 	checkCmd "github.com/crossplane-contrib/xprin/cmd/xprin/check"
 	configCmd "github.com/crossplane-contrib/xprin/cmd/xprin/config"
+	graphCmd "github.com/crossplane-contrib/xprin/cmd/xprin/graph"
 	"github.com/crossplane-contrib/xprin/cmd/xprin/test"
 	"github.com/crossplane-contrib/xprin/cmd/xprin/updategoldens"
 	"github.com/crossplane-contrib/xprin/cmd/xprin/version"
@@ -38,6 +39,7 @@ type CLI struct {
 	ConfigFile    string            `default:"~/.config/xprin.yaml" help:"Path to xprin config file"                                       short:"c"             type:"path"`
 	Check         checkCmd.Cmd      `cmd:""                         help:"Check dependencies and configuration"`
 	Config        configCmd.Cmd     `cmd:""                         help:"Manage xprin configuration"`
+	Graph         graphCmd.Cmd      `cmd:""                         help:"Show the dependency graph of the test cases"`
 	Test          test.Cmd          `cmd:""                         help:"Run Crossplane tests"`
 	UpdateGoldens updategoldens.Cmd `cmd:""                         help:"Regenerate golden files for assertions.diff and assertions.dyff" name:"update-goldens"`
 	Version       version.Cmd       `cmd:""                         help:"Print the version of xprin"`
@@ -45,7 +47,7 @@ type CLI struct {
 
 // commandsNotRequiringConfig returns subcommand names that do not need config (e.g. version).
 func commandsNotRequiringConfig() []string {
-	return []string{"version"}
+	return []string{"version", "graph <targets>"}
 }
 
 // loadConfigAndInject loads config (from file or Fallback) and injects it into the CLI command structs.

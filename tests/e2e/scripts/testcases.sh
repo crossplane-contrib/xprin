@@ -9,6 +9,8 @@
 # - testcase_<ID>_exit_<tier>: set a per-tier expected non-zero exit code (v1/v2legacy/v2).
 # - testcase_<ID>_tiers="v1 v2legacy v2": run a testcase for specific tiers (space-separated). If it is not set, the testcase runs only for DEFAULT_TIERS (defined in run.sh).
 # - testcase_<ID>_update_goldens=true: run `xprin update-goldens` (file targets only) before xprin test.
+# - testcase_<ID>_graph=true: run `xprin graph` (targets only) before xprin test, and before update-goldens if that is set too.
+#   Its output is the beginning of the output that is compared with the expected file.
 
 # Multiple Successful Files (Non-Verbose)
 testcase_001="examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml examples/mytests/2_multiple_testcases/example2_multiple-reconciliation-loops-using-common_xprin.yaml"
@@ -49,6 +51,7 @@ testcase_009_update_goldens=true
 
 # Chained Outputs and Cross-Composition Chaining
 testcase_010="examples/mytests/5_chained_tests/example1_needs_xprin.yaml examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml examples/mytests/5_chained_tests/legacy_success_xprin.yaml -v --show-render --show-validate"
+testcase_010_graph=true
 
 # Claim input with kind resolved from XRD (not 'X' + Claim kind) and reproducible name via --golden
 testcase_011="examples/mytests/0_e2e/claim_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"

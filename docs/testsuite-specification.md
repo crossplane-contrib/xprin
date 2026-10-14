@@ -267,7 +267,7 @@ Available when test has `id` field, to the test cases that list it in `needs`:
 - `{{ .Tests.{test-id}.Outputs.RenderCount }}` - Render count from referenced test
 - `{{ index .Tests.{test-id}.Outputs.Rendered "Kind/Name" }}` - Individual resource from referenced test
 
-A test case can depend on another one with `needs` alone, without using its outputs. To use them (`.Tests.{test-id}`) it has to list that ID in `needs`: that is the only way from 0.7.0. See [Dependencies Between Test Cases](how-it-works.md#dependencies-between-test-cases-needs) and [Migrating](how-it-works.md#migrating-from-automatic-detection-deprecated).
+A test case can depend on another one with `needs` alone, without using its outputs. To use them (`.Tests.{test-id}`) it has to list that ID in `needs`: that is the only way from 0.7.0. See [Dependencies Between Test Cases](how-it-works.md#dependencies-between-test-cases-needs) and [Migrating](how-it-works.md#migrating-from-automatic-detection-deprecated). The `needs` of the test cases form their **dependency graph**: to see it for your testsuite files, as a tree and without running anything, use `xprin graph <targets>` (see [Dependency Graph](how-it-works.md#dependency-graph)).
 
 For detailed information, see [How It Works](how-it-works.md#template-variable-expansion) and [How It Works](how-it-works.md#test-chaining-and-artifacts).
 
