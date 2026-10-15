@@ -128,3 +128,64 @@ func TestBuild_ChainedSuite(t *testing.T) {
 
 	assert.Equal(t, [][]int{nil, {0}, {1}, {2}, {0}, {4}, {5}}, deps(t, &spec))
 }
+
+func order(t *testing.T, spec *api.TestSuiteSpec) []int {
+	t.Helper()
+
+	return Build(spec).Order()
+}
+
+func TestOrder_WithoutDependenciesIsTheOrderOfTheFile(t *testing.T) {
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{testCase("a", "a"), testCase("b", ""), testCase("c", "c")}}
+
+	assert.Equal(t, []int{0, 1, 2}, order(t, spec))
+}
+
+func TestOrder_NeedsListedBeforeKeepTheOrderOfTheFile(t *testing.T) {
+	var spec api.TestSuiteSpec
+	require.NoError(t, yaml.Unmarshal([]byte(chainedSuite), &spec))
+
+	assert.Equal(t, []int{0, 1, 2, 3, 4, 5, 6}, order(t, &spec))
+}
+
+func TestOrder_ATestCaseRunsAfterTheOnesItNeeds(t *testing.T) {
+	// "a" is first in the file, but needs "c" and "b": b, c, a. The independent "d" keeps its place.
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
+		testCase("a", "a", "c", "b"),
+		testCase("b", "b"),
+		testCase("c", "c"),
+		testCase("d", "d"),
+	}}
+
+	assert.Equal(t, []int{1, 2, 0, 3}, order(t, spec))
+}
+
+func TestOrder_TheOrderOfTheNeedsDoesNotMatter(t *testing.T) {
+	first := &api.TestSuiteSpec{Tests: []api.TestCase{testCase("a", "a", "c", "b"), testCase("b", "b"), testCase("c", "c")}}
+	second := &api.TestSuiteSpec{Tests: []api.TestCase{testCase("a", "a", "b", "c"), testCase("b", "b"), testCase("c", "c")}}
+
+	assert.Equal(t, order(t, first), order(t, second))
+}
+
+func TestOrder_WhenSeveralCanRunTheOneListedFirstDoes(t *testing.T) {
+	// "x" needs "z" and is listed first: "y" (listed second) goes before "z", and "x" goes last
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
+		testCase("x", "x", "z"),
+		testCase("y", "y"),
+		testCase("z", "z"),
+	}}
+
+	assert.Equal(t, []int{1, 2, 0}, order(t, spec))
+}
+
+func TestOrder_ADependencyUnlocksTheOnesThatWaitForIt(t *testing.T) {
+	// "late" is listed first and needs "mid", which needs "base", listed last
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
+		testCase("late", "late", "mid"),
+		testCase("mid", "mid", "base"),
+		testCase("other", "other"),
+		testCase("base", "base"),
+	}}
+
+	assert.Equal(t, []int{2, 3, 1, 0}, order(t, spec))
+}

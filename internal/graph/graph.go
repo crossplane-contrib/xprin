@@ -60,3 +60,55 @@ func Build(spec *api.TestSuiteSpec) *Graph {
 
 	return g
 }
+
+// Order returns the positions of the testcases in the order they run: each one after the testcases it
+// needs. Whenever several can run, the one listed first in the file does, so the order depends only
+// on the file and the dependencies (never on the order of the IDs in a `needs`), and a file without
+// dependencies runs in the order it is written. It is the same for every command that uses it.
+// Testcases that need each other, directly or not, have no order: such a testsuite file is rejected
+// when it is loaded, so there are none here.
+func (g *Graph) Order() []int {
+	// waiting[i] counts the testcases that testcase i still has to wait for: it can run when it reaches 0
+	waiting := make([]int, len(g.deps))
+	// needed[j] lists the testcases that need testcase j: the ones to unblock a little when j has run
+	needed := make([][]int, len(g.deps))
+
+	// Example: if B needs A, waiting[B] starts at 1 and needed[A] is [B]. When A runs, waiting[B]
+	// drops to 0 and B can run.
+
+	// the positions that can run, ascending
+	var ready []int
+
+	// Setup: count what each testcase waits for, note who needs it, and mark the ones that wait for nothing
+	for i, deps := range g.deps {
+		waiting[i] = len(deps)
+
+		for _, j := range deps {
+			needed[j] = append(needed[j], i)
+		}
+
+		if len(deps) == 0 {
+			ready = append(ready, i)
+		}
+	}
+
+	order := make([]int, 0, len(g.deps))
+
+	// Run the first ready testcase (the earliest in the file), then unblock the ones that waited for it
+	for len(ready) > 0 {
+		i := ready[0]
+		ready = ready[1:]
+
+		order = append(order, i)
+
+		// Each testcase that needs it now waits for one less; at zero it is ready, in its sorted place
+		for _, dependent := range needed[i] {
+			if waiting[dependent]--; waiting[dependent] == 0 {
+				at, _ := slices.BinarySearch(ready, dependent)
+				ready = slices.Insert(ready, at, dependent)
+			}
+		}
+	}
+
+	return order
+}
