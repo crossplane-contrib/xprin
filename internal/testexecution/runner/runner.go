@@ -189,10 +189,12 @@ func (r *Runner) RunTests() error {
 		}
 	}
 
-	// Loop through all test cases and run them directly
-	for idx, testCase := range r.testSuiteSpec.Tests {
+	// Loop through all test cases, in the order of their dependencies, and run them directly
+	for positionInOrder, positionInTestSuite := range r.runOrder() {
+		testCase := r.testSuiteSpec.Tests[positionInTestSuite]
+
 		// Run the test and let the engine handle everything
-		testCaseResult := r.runTestCase(testCase, idx+1, testSuiteResult)
+		testCaseResult := r.runTestCase(testCase, positionInOrder+1, testSuiteResult)
 		testCaseResult.Print(r.output) // Print immediately as test completes
 		testSuiteResult.AddResult(testCaseResult)
 	}

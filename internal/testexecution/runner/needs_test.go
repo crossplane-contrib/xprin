@@ -91,6 +91,37 @@ func TestRunTests_Needs(t *testing.T) {
 	})
 }
 
+func TestRunTests_Order(t *testing.T) {
+	// "a" is listed first, but needs "c" and "b", which are listed after it: that is not allowed in a
+	// testsuite file yet, but it is what the order is for
+	tests := []api.TestCase{
+		{Name: "A", ID: "a", Needs: []string{"c", "b"}},
+		{Name: "B", ID: "b"},
+		{Name: "C", ID: "c"},
+		{Name: "D", ID: "d"},
+	}
+
+	t.Run("the test cases run after the ones they need, the rest in the order of the file", func(t *testing.T) {
+		_, ran := runWithResults(t, &api.TestSuiteSpec{Tests: tests})
+
+		assert.Equal(t, []string{"b", "c", "a", "d"}, ran)
+	})
+
+	t.Run("a legacy file runs in the order of the file", func(t *testing.T) {
+		_, ran := runWithResults(t, legacySpec())
+
+		assert.Equal(t, []string{"a", "b", "c"}, ran)
+	})
+
+	t.Run("a test case that needs one listed after it is skipped when that one fails", func(t *testing.T) {
+		out, ran := runWithResults(t, &api.TestSuiteSpec{Tests: tests}, "b")
+
+		assert.Equal(t, []string{"b", "c", "d"}, ran)
+		assert.Contains(t, out, "--- SKIP: A")
+		assert.Contains(t, out, `[!] needs failed test case "b"`)
+	})
+}
+
 func TestRunTests_Needs_UpdateGoldens(t *testing.T) {
 	golden := api.Assertions{Dyff: []api.AssertionGoldenFile{{Name: "g"}}}
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{

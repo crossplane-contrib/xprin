@@ -743,7 +743,7 @@ xprin follows a separation of concerns:
 2. **Runner** (`internal/testexecution/runner/runner.go`): Orchestrates test execution, calls conversion, patching, hooks, assertions, and external tools
 3. **Engine** (`internal/engine/`): Formats output, manages results, handles presentation
 4. **Assertions** (`internal/testexecution/runner/assertions.go`): Executes declarative assertions
-5. **Graph** (`internal/graph/`): Builds the dependency graph of the test cases from their `needs`; `xprin graph` prints it
+5. **Graph** (`internal/graph/`): Builds the dependency graph of the test cases from their `needs`; `xprin graph` prints it, and the Runner runs the test cases in its order
 6. **Helpers** (`cmd/xprin-helpers/`): External tools for Claim conversion and XR patching
 
 ### Temp Directory Management
