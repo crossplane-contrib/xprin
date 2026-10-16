@@ -1,0 +1,38 @@
+common:
+  inputs:
+    crds:
+    - ../../examples/aws/xrd.yaml
+
+tests:
+- name: "XR without required field is rejected"
+  inputs:
+    xr: missing_region.yaml
+  expect-invalid:
+    errors:
+    - "spec.region: Required value"
+
+- name: "XR with unsupported enum value is rejected"
+  inputs:
+    xr: unsupported_enum_value.yaml
+  expect-invalid:
+    errors:
+    - 'spec.sshPublicKey: Unsupported value: "prod_ssh_key"'
+
+- name: "XR with wrong field type is rejected"
+  inputs:
+    xr: wrong_field_type.yaml
+  expect-invalid:
+    errors:
+    - "spec.vpcId in body must be of type string"
+
+- name: "XR with unknown field is rejected"
+  inputs:
+    xr: unknown_field.yaml
+  expect-invalid:
+    errors:
+    - 'unknown field: "environment"'
+
+- name: "XR violating minLength is rejected"
+  inputs:
+    xr: empty_team.yaml
+  expect-invalid: {}

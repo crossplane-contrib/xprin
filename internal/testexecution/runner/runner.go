@@ -282,6 +282,10 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		r.debugPrintTestCase(testCase, "Test specification:")
 	}
 
+	if testCase.IsExpectInvalid() {
+		return r.runExpectInvalidTestCase(testCase, env, result, testSuiteResult)
+	}
+
 	// Always resolve compositionPath, functionPath and all the crdPaths relative to the testsuite file and verify they exist
 	// Only resolve Claim or XR path based on which input type is being used
 	var (
@@ -703,14 +707,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	var finalError []string
 
 	if len(testCase.Inputs.CRDs) >= 1 {
-		validateArgs := make([]string, 0, len(r.Validate)+4)
-
-		validateArgs = append(validateArgs, r.Validate...)
-		if r.CrossplaneVersion != "" {
-			validateArgs = append(validateArgs, "--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:"+r.CrossplaneVersion)
-		}
-
-		validateArgs = append(validateArgs, filepath.Join(env.inputsDir, "crds"), result.Outputs.Render)
+		validateArgs := r.buildValidateArgs(filepath.Join(env.inputsDir, "crds"), result.Outputs.Render)
 		// Run crossplane beta validate command
 		if r.Debug {
 			utils.DebugPrintf("Running validate command: %s %s\n", r.Dependencies["crossplane"], strings.Join(validateArgs, " "))
@@ -855,6 +852,18 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	}
 
 	return result.Complete()
+}
+
+// buildValidateArgs returns the arguments of the crossplane validate command for the given CRDs directory and resources file.
+func (r *Runner) buildValidateArgs(crdsDir, resources string) []string {
+	validateArgs := make([]string, 0, len(r.Validate)+3)
+
+	validateArgs = append(validateArgs, r.Validate...)
+	if r.CrossplaneVersion != "" {
+		validateArgs = append(validateArgs, "--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:"+r.CrossplaneVersion)
+	}
+
+	return append(validateArgs, crdsDir, resources)
 }
 
 // renderTemplate renders Go template syntax with the given context.

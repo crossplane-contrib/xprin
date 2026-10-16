@@ -17,6 +17,7 @@ A Crossplane testing framework that leverages `crossplane render` and `crossplan
 - **Template Variables**: Dynamic content using Go template syntax
 - **Hooks Support**: Pre-test and post-test shell command execution
 - **Assertions**: Validate rendered resources with declarative assertions (count, existence, field checks)
+- **Negative Validation**: Check that invalid XRs are rejected by their XRD with `expect-invalid`
 - **Test Chaining**: Export testcase outputs as artifacts for use in follow-up tests to better emulate the reconciliation process
 - **CI/CD Ready**: Easy integration into any system or pipeline
 
@@ -30,7 +31,7 @@ It was originally developed by Elastic, where it is currently being used for moc
 #### What are typical use cases?
 
 - **Composition testing**: Run `crossplane render` using various combinations of XRs/Claims, Compositions and Functions, and assert on the output.
-- **Schema validation**: Validate various combinations of (mock or production) manifests with CRDs via `crossplane resource validate`.
+- **Schema validation**: Validate various combinations of (mock or production) manifests with CRDs via `crossplane resource validate`, and check that invalid XRs are rejected by their XRD.
 - **Reconciliation emulation**: Chain tests with exported artifacts so later tests consume prior outputs (e.g. observed resources, status).
 - **Advanced render inputs**: Drive render with extra resources, observed resources, additional context, environment configs, in multiple tests run one after the other.
 - **Upgrades**: Validate upgrades of Crossplane itself, providers, functions before or after adoption.

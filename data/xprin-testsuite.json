@@ -121,6 +121,20 @@
       },
       "type": "object"
     },
+    "ExpectInvalid": {
+      "additionalProperties": false,
+      "description": "ExpectInvalid turns a test case into a negative validation test: the input XR is validated directly against the CRDs (no render) and the test passes only if the validation reports at least one schema failure.",
+      "properties": {
+        "errors": {
+          "description": "Substrings that must all appear in the validate output (Optional)",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "Hook": {
       "additionalProperties": false,
       "description": "Hook represents a single executable step with optional metadata.",
@@ -246,6 +260,10 @@
         "assertions": {
           "$ref": "#/$defs/Assertions",
           "description": "Assertions to validate rendered resources (Optional)"
+        },
+        "expect-invalid": {
+          "$ref": "#/$defs/ExpectInvalid",
+          "description": "Expect the XR to be rejected by validation against the CRDs; skips render (Optional)"
         },
         "hooks": {
           "$ref": "#/$defs/Hooks",

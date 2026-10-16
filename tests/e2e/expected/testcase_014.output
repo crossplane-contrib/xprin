@@ -1,0 +1,32 @@
+=== RUN   XR without required field is rejected
+--- PASS: XR without required field is rejected (X.XXXs)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, missing-region : spec.region: Required value
+        Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+=== RUN   XR with unsupported enum value is rejected
+--- PASS: XR with unsupported enum value is rejected (X.XXXs)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, unsupported-ssh-key : spec.sshPublicKey: Unsupported value: "prod_ssh_key": supported values: "qa_ssh_key"
+        Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+=== RUN   XR with wrong field type is rejected
+--- PASS: XR with wrong field type is rejected (X.XXXs)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, wrong-field-type : spec.vpcId: Invalid value: "number": spec.vpcId in body must be of type string: "number"
+        Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+=== RUN   XR with unknown field is rejected
+--- PASS: XR with unknown field is rejected (X.XXXs)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, unknown-field : spec.environment: Invalid value: "environment": unknown field: "environment"
+        Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+=== RUN   XR violating minLength is rejected
+--- PASS: XR violating minLength is rejected (X.XXXs)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, empty-team : spec.team: Invalid value: "": spec.team in body should be at least 1 chars long
+        Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+PASS
+ok	tests/xr-invalid/xr_invalid_xprin.yaml	X.XXXs

@@ -1,0 +1,24 @@
+--- FAIL: expect-invalid fails when the XR is valid (X.XXXs)
+    Validate:
+        Total 1 resources: 0 missing schemas, 1 success cases, 0 failure cases
+    [!] expected the XR to be invalid, but validation succeeded
+--- FAIL: expect-invalid fails when an expected error is not reported (X.XXXs)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, missing-region : spec.region: Required value
+        Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+    [!] expected error not found in validate output: "spec.team: Required value"
+--- FAIL: expect-invalid fails when the schema is missing (X.XXXs)
+    Validate:
+        [!] could not find CRD/XRD for: gcp.example.com/v1, Kind=GCPPlatformClaim
+        Total 1 resources: 1 missing schemas, 0 success cases, 0 failure cases
+        crossplane: error: could not validate all resources, schema(s) missing
+    [!] expected the XR to be invalid, but validation reported 0 failure cases
+--- FAIL: expect-invalid fails with unsupported fields (X.XXXs)
+    [!] unsupported field with expect-invalid: claim (use 'xr' instead)
+    [!] missing mandatory field with expect-invalid: xr (it can be specified either in the test case or in the common inputs)
+    [!] unsupported field with expect-invalid: assertions
+FAIL
+FAIL	examples/mytests/0_e2e/expect_invalid_failures_xprin.yaml	X.XXXs
+FAIL
+YYYY/MM/DD HH:MM:SS processing completed with errors

@@ -307,6 +307,79 @@ ok	examples/mytests/1_simple_tests/example3_validate_xprin.yaml	1.338s
 
 </details>
 
+### Example 4: Expect invalid XRs to be rejected
+
+**File**: [`../tests/xr-invalid/xr_invalid_xprin.yaml`](../tests/xr-invalid/xr_invalid_xprin.yaml)
+
+This example checks that invalid XRs are **rejected** by their XRD. With [`expect-invalid`](../docs/testsuite-specification.md#expect-invalid), each XR is validated directly against the `crds` (no render, so no `composition` or `functions` needed), and the test passes only if the validation fails. The optional `errors` list checks that specific messages are reported.
+
+```yaml
+common:
+  inputs:
+    crds:
+    - ../../examples/aws/xrd.yaml
+
+tests:
+- name: "XR without required field is rejected"
+  inputs:
+    xr: missing_region.yaml
+  expect-invalid:
+    errors:
+    - "spec.region: Required value"
+# ...
+- name: "XR violating minLength is rejected"
+  inputs:
+    xr: empty_team.yaml
+  expect-invalid: {}
+```
+
+```bash
+xprin test tests/xr-invalid/ -v --show-validate
+```
+
+**Outputs:**
+
+<details>
+<summary>Verbose with validate output (-v --show-validate)</summary>
+
+```
+=== RUN   XR without required field is rejected
+--- PASS: XR without required field is rejected (0.29s)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, missing-region : spec.region: Required value
+        Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+...
+=== RUN   XR violating minLength is rejected
+--- PASS: XR violating minLength is rejected (0.27s)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, empty-team : spec.team: Invalid value: "": spec.team in body should be at least 1 chars long
+        Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+PASS
+ok	tests/xr-invalid/xr_invalid_xprin.yaml	1.337s
+```
+
+</details>
+
+<details>
+<summary>Failure output (valid XR, or expected error not reported)</summary>
+
+```
+--- FAIL: expect-invalid fails when the XR is valid (0.25s)
+    Validate:
+        Total 1 resources: 0 missing schemas, 1 success cases, 0 failure cases
+    [!] expected the XR to be invalid, but validation succeeded
+--- FAIL: expect-invalid fails when an expected error is not reported (0.27s)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, missing-region : spec.region: Required value
+        Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+    [!] expected error not found in validate output: "spec.team: Required value"
+```
+
+</details>
+
 ---
 
 ## Multiple Test Cases

@@ -51,3 +51,4 @@ xprin-helpers patch-xr <xr-file> [options]
 - **Hooks**: Execute shell commands before and after tests
 - **XR Patching**: Apply defaults and connection secrets to XRs
 - **Assertions**: Declarative validation of rendered resources (count, existence, field checks; supports resource pattern matching)
+- **Expect Invalid**: Negative tests that check an XR is rejected by its XRD, without rendering

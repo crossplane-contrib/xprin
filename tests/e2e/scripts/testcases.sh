@@ -64,3 +64,10 @@ testcase_012_exit_v2=1
 # --artifacts-dir: complete test (hooks/render/validate/assertions) + silent shell checks on artifact structure
 testcase_013="examples/mytests/0_e2e/used_in_readme_xprin.yaml --artifacts-dir=/tmp/xprin-e2e-artifacts-test"
 testcase_013_update_goldens=true
+
+# expect-invalid: invalid XRs from tests/xr-invalid are rejected by the XRD (Verbose, show validate)
+testcase_014="tests/xr-invalid/ -v --show-validate"
+
+# expect-invalid: valid XR, missing expected error, missing schema and unsupported fields make the test fail
+testcase_015="examples/mytests/0_e2e/expect_invalid_failures_xprin.yaml"
+testcase_015_exit=1

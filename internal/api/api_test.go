@@ -1255,6 +1255,28 @@ func TestTestCase_mergeCommon(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "expect-invalid test case merges inputs and hooks but not patches and assertions",
+			testCase: TestCase{
+				Name:          "test21",
+				Inputs:        Inputs{XR: "xr.yaml"},
+				ExpectInvalid: &ExpectInvalid{},
+			},
+			common: Common{
+				Inputs:  Inputs{CRDs: []string{expectInvalidXRD}},
+				Patches: Patches{XRD: expectInvalidXRD},
+				Hooks:   Hooks{PreTest: []Hook{{Run: "echo pre"}}},
+				Assertions: Assertions{
+					Xprin: []AssertionXprin{{Name: "common-count", Type: "Count", Value: 2}},
+				},
+			},
+			expected: TestCase{
+				Name:          "test21",
+				Inputs:        Inputs{XR: "xr.yaml", CRDs: []string{expectInvalidXRD}},
+				Hooks:         Hooks{PreTest: []Hook{{Run: "echo pre"}}},
+				ExpectInvalid: &ExpectInvalid{},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1382,6 +1404,63 @@ func TestTestCase_checkMandatoryFields(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.errMsg)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+const expectInvalidXRD = "expect-invalid-xrd.yaml"
+
+func TestTestCase_checkMandatoryFields_expectInvalid(t *testing.T) {
+	tests := []struct {
+		name     string
+		testCase TestCase
+		errMsgs  []string
+	}{
+		{
+			name: "valid with XR and CRDs, without composition and functions",
+			testCase: TestCase{
+				Inputs: Inputs{XR: "xr.yaml", CRDs: []string{expectInvalidXRD}},
+			},
+		},
+		{
+			name:     "missing XR and CRDs",
+			testCase: TestCase{},
+			errMsgs: []string{
+				"missing mandatory field with expect-invalid: xr",
+				"missing mandatory field with expect-invalid: crds",
+			},
+		},
+		{
+			name: "claim, patches and assertions are not supported",
+			testCase: TestCase{
+				Inputs:     Inputs{Claim: "claim.yaml", CRDs: []string{expectInvalidXRD}},
+				Patches:    Patches{XRD: expectInvalidXRD},
+				Assertions: Assertions{Xprin: []AssertionXprin{{Name: "count", Type: "Count", Value: 1}}},
+			},
+			errMsgs: []string{
+				"unsupported field with expect-invalid: claim",
+				"unsupported field with expect-invalid: patches",
+				"unsupported field with expect-invalid: assertions",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testCase := tt.testCase
+			testCase.ExpectInvalid = &ExpectInvalid{}
+
+			err := testCase.CheckMandatoryFields()
+			if len(tt.errMsgs) == 0 {
+				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+
+			for _, msg := range tt.errMsgs {
+				assert.Contains(t, err.Error(), msg)
 			}
 		})
 	}

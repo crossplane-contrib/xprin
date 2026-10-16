@@ -143,6 +143,7 @@ tests:
 | `patches` | ❌ | map | XR patching configuration |
 | `hooks` | ❌ | map | Hooks for the test case |
 | `assertions` | ❌ | map | Assertions to validate rendered resources (see [Assertions](assertions.md)) |
+| `expect-invalid` | ❌ | map | Negative validation test: the XR must be rejected by the CRDs (see [Expect Invalid](#expect-invalid)) |
 
 ### Inputs
 
@@ -222,6 +223,37 @@ The table below covers **diff** and **dyff** assertion item fields:
 | `name` | ✅ | string | Assertion name (descriptive identifier) |
 | `expected` | ✅ | string | Path to golden (expected) file |
 | `resource` | ❌ | string | Resource identifier (format: `Kind/name`) |
+
+### Expect Invalid
+
+Set `expect-invalid` to check that an XR is **rejected** by its XRD. The XR is validated directly against the `crds` with the configured validate command (e.g. `crossplane resource validate`), without rendering. The test passes only if validation reports at least one failure case and its output contains every entry of `errors`. Validation succeeding, missing schemas or a CLI error make the test fail.
+
+| Field | Required | Type | Description |
+|-------|----------|------|-------------|
+| `errors` | ❌ | []string | Substrings that must all appear in the validate output |
+
+Requirements: `xr` and `crds` are required, `composition` and `functions` are not needed. `claim`, `patches` and `assertions` are not supported; common `patches` and `assertions` are not merged into such test cases. Hooks are supported.
+
+```yaml
+common:
+  inputs:
+    crds:
+    - xrd.yaml
+
+tests:
+- name: "XR without required field is rejected"
+  inputs:
+    xr: missing_region.yaml
+  expect-invalid:
+    errors:
+    - "spec.region: Required value"
+- name: "XR violating minLength is rejected"
+  inputs:
+    xr: empty_team.yaml
+  expect-invalid: {}
+```
+
+See [tests/xr-invalid](../tests/xr-invalid) for a complete example.
 
 
 ## Path Resolution

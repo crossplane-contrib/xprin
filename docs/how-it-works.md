@@ -248,6 +248,47 @@ flowchart TD
 - This ensures cleanup can happen regardless of test outcome
 - Hook failures are collected and reported
 
+## Expect-invalid Test Cases
+
+A test case with [`expect-invalid`](testsuite-specification.md#expect-invalid) is a negative validation test: it checks that an XR is **rejected** by its XRD. It follows a shorter flow:
+
+```mermaid
+flowchart TD
+    A["Setup<br/>• Expand and check xr and crds paths<br/>• Copy inputs to tmp dir"] --> B["Pre-test Hooks"]
+    B --> C["crossplane resource validate crds/ xr.yaml"]
+    C --> D{"At least 1 failure case<br/>and all expected errors found?"}
+    D -->|Yes| E["PASS"]
+    D -->|No| F["FAIL"]
+    E --> G["Post-test Hooks<br/>Export Artifacts"]
+    F --> G
+
+    classDef xprin fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    classDef crossplane fill:#a855f7,stroke:#7e22ce,stroke-width:2px,color:#fff
+    classDef decision fill:#f3f4f6,stroke:#9ca3af,stroke-width:2px,color:#000
+
+    class A,B,E,F,G xprin
+    class C crossplane
+    class D decision
+```
+
+**What changes compared to a regular test case:**
+- No Claim conversion, no patching, no render and no assertions: the input XR is validated **as is** against the `crds`
+- The validate command is the same as in [Phase 4](#phase-4-validate-optional) (same subcommand, flags and `--crossplane-image`), but its result is inverted
+- `composition` and `functions` are not required
+
+**Result:**
+- **PASS** when the validate summary reports at least one failure case (`... N failure cases` with N ≥ 1) and the output contains every entry of `expect-invalid.errors`
+- **FAIL** when:
+  - validation succeeds (the XR is accepted)
+  - validation fails without any failure case, e.g. missing schemas (`--error-on-missing-schemas`) or a CLI error: these do not prove that the XR is invalid
+  - an expected error is not found in the output
+
+On failure, the `Validate:` section is always shown; on success, it is shown with `-v --show-validate`.
+
+**Template Variables Available in post-test hooks:**
+- All input variables
+- `{{ .Outputs.Validate }}` - Path to validation output
+
 ## Error Handling Behavior
 
 xprin follows a specific error handling strategy that balances immediate failure detection with comprehensive error collection:

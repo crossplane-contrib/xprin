@@ -1,0 +1,33 @@
+common:
+  inputs:
+    crds:
+    - ../../aws/xrd.yaml
+
+tests:
+- name: "expect-invalid fails when the XR is valid"
+  inputs:
+    xr: ../../aws/xr.yaml
+  expect-invalid: {}
+
+- name: "expect-invalid fails when an expected error is not reported"
+  inputs:
+    xr: ../../../tests/xr-invalid/missing_region.yaml
+  expect-invalid:
+    errors:
+    - "spec.region: Required value"
+    - "spec.team: Required value"
+
+- name: "expect-invalid fails when the schema is missing"
+  inputs:
+    xr: ../../gcp/claim.yaml
+  expect-invalid: {}
+
+- name: "expect-invalid fails with unsupported fields"
+  inputs:
+    claim: ../../aws/claim.yaml
+  assertions:
+    xprin:
+    - name: "Number of resources"
+      type: "Count"
+      value: 1
+  expect-invalid: {}

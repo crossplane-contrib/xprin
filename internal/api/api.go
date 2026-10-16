@@ -81,6 +81,12 @@ type Common struct {
 	Assertions Assertions `json:"assertions,omitempty"` // Common assertions to validate rendered resources for all testcases (Optional)
 }
 
+// ExpectInvalid turns a test case into a negative validation test: the input XR is validated directly against the CRDs
+// (no render) and the test passes only if the validation reports at least one schema failure.
+type ExpectInvalid struct {
+	Errors []string `json:"errors,omitempty"` // Substrings that must all appear in the validate output (Optional)
+}
+
 // TestCase represents a single test case.
 type TestCase struct {
 	Name       string     `json:"name"`                 // Descriptive name for the testcase (Required)
@@ -89,6 +95,8 @@ type TestCase struct {
 	Patches    Patches    `json:"patches,omitempty"`    // XR patching configuration (Optional)
 	Hooks      Hooks      `json:"hooks,omitempty"`      // Execution hooks (Optional)
 	Assertions Assertions `json:"assertions,omitempty"` // Assertions to validate rendered resources (Optional)
+
+	ExpectInvalid *ExpectInvalid `json:"expect-invalid,omitempty"` // Expect the XR to be rejected by validation against the CRDs; skips render (Optional)
 }
 
 // Inputs represents the inputs for a test case or common configuration.
@@ -309,6 +317,11 @@ func (tc *TestCase) HasAssertions() bool {
 	return tc.Assertions.HasAssertions()
 }
 
+// IsExpectInvalid returns true if the test case expects the XR to fail validation.
+func (tc *TestCase) IsExpectInvalid() bool {
+	return tc.ExpectInvalid != nil
+}
+
 // MergeCommon merges common inputs and patches into the test case.
 //
 //nolint:gocognit // too many ifs, but not that complex
@@ -356,6 +369,22 @@ func (tc *TestCase) MergeCommon(common Common) {
 		tc.Inputs.FunctionCredentials = common.Inputs.FunctionCredentials
 	}
 
+	// Always merge hooks if common has hooks
+	if common.Hooks.HasHooks() {
+		if !tc.HasPreTestHooks() {
+			tc.Hooks.PreTest = common.Hooks.PreTest
+		}
+
+		if !tc.HasPostTestHooks() {
+			tc.Hooks.PostTest = common.Hooks.PostTest
+		}
+	}
+
+	// Patches and assertions only apply to rendered output, which expect-invalid test cases do not produce.
+	if tc.IsExpectInvalid() {
+		return
+	}
+
 	// Always merge patches if common has patches
 	if common.Patches.HasPatches() {
 		if tc.Patches.XRD == "" {
@@ -372,17 +401,6 @@ func (tc *TestCase) MergeCommon(common Common) {
 
 		if tc.Patches.ConnectionSecretNamespace == "" {
 			tc.Patches.ConnectionSecretNamespace = common.Patches.ConnectionSecretNamespace
-		}
-	}
-
-	// Always merge hooks if common has hooks
-	if common.Hooks.HasHooks() {
-		if !tc.HasPreTestHooks() {
-			tc.Hooks.PreTest = common.Hooks.PreTest
-		}
-
-		if !tc.HasPostTestHooks() {
-			tc.Hooks.PostTest = common.Hooks.PostTest
 		}
 	}
 
@@ -405,6 +423,10 @@ func (tc *TestCase) MergeCommon(common Common) {
 
 // CheckMandatoryFields checks if all mandatory fields are present in the test case.
 func (tc *TestCase) CheckMandatoryFields() error {
+	if tc.IsExpectInvalid() {
+		return tc.checkExpectInvalidFields()
+	}
+
 	var allErrors []string
 
 	if tc.HasClaim() && tc.HasXR() {
@@ -421,6 +443,38 @@ func (tc *TestCase) CheckMandatoryFields() error {
 
 	if tc.Inputs.Functions == "" {
 		allErrors = append(allErrors, "missing mandatory field: functions (it can be specified either in the test case or in the common inputs)")
+	}
+
+	if len(allErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(allErrors, "\n    "))
+	}
+
+	return nil
+}
+
+// checkExpectInvalidFields checks the fields of an expect-invalid test case: composition and functions are not
+// needed since there is no render, but an XR and at least one CRD are.
+func (tc *TestCase) checkExpectInvalidFields() error {
+	var allErrors []string
+
+	if tc.HasClaim() {
+		allErrors = append(allErrors, "unsupported field with expect-invalid: claim (use 'xr' instead)")
+	}
+
+	if !tc.HasXR() {
+		allErrors = append(allErrors, "missing mandatory field with expect-invalid: xr (it can be specified either in the test case or in the common inputs)")
+	}
+
+	if len(tc.Inputs.CRDs) == 0 {
+		allErrors = append(allErrors, "missing mandatory field with expect-invalid: crds (it can be specified either in the test case or in the common inputs)")
+	}
+
+	if tc.HasPatches() {
+		allErrors = append(allErrors, "unsupported field with expect-invalid: patches")
+	}
+
+	if tc.HasAssertions() {
+		allErrors = append(allErrors, "unsupported field with expect-invalid: assertions")
 	}
 
 	if len(allErrors) > 0 {
