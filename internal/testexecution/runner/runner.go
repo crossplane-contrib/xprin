@@ -24,11 +24,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"text/template"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/placeholder"
+	"github.com/crossplane-contrib/xprin/internal/templates"
+	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/utils"
@@ -860,9 +860,9 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 // renderTemplate renders Go template syntax with the given context.
 func (r *Runner) renderTemplate(content string, templateContext *templateContext, templateName string) (string, error) {
 	// Parse and execute template
-	tmpl, err := template.New(templateName).Option("missingkey=error").Parse(content)
+	tmpl, err := templates.Parse(templateName, content)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse template: %w", err)
+		return "", err
 	}
 
 	var buf strings.Builder
@@ -888,15 +888,15 @@ func (r *Runner) processTemplateVariables(testCase *api.TestCase, testSuiteResul
 		return nil // No template variables to process
 	}
 
-	// Preserve hooks from testCase before removeHooks modifies them
+	// The hooks are rendered when they run, not with the rest of the testcase
 	originalHooks := testCase.Hooks
 
-	content, err = r.removeHooks(testCase)
+	withoutHooks, err := templates.MarshalWithoutHooks(*testCase)
 	if err != nil {
 		return fmt.Errorf("failed to remove hooks from YAML: %w", err)
 	}
 
-	content = placeholder.Restore(content)
+	content = placeholder.Restore(string(withoutHooks))
 
 	// Render template
 	templateContext := newTemplateContext(r.Repositories, testCase.Inputs, nil, testSuiteResult.GetCompletedTests())
@@ -912,24 +912,6 @@ func (r *Runner) processTemplateVariables(testCase *api.TestCase, testSuiteResul
 	}
 
 	return nil
-}
-
-// removeHooks removes all hooks from the test case.
-func (r *Runner) removeHooks(testCase *api.TestCase) (string, error) {
-	if testCase.Hooks.PreTest != nil {
-		testCase.Hooks.PreTest = nil
-	}
-
-	if testCase.Hooks.PostTest != nil {
-		testCase.Hooks.PostTest = nil
-	}
-
-	yamlData, err := yaml.Marshal(testCase)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal test case to YAML: %w", err)
-	}
-
-	return string(yamlData), nil
 }
 
 // restoreHooks parses the processed YAML back to test case and restores hooks.

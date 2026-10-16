@@ -30,7 +30,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/placeholder"
+	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
@@ -3634,35 +3634,31 @@ metadata:
 	assert.Equal(t, "echo 'Setting up without templates'", testCase.Hooks.PreTest[0].Run)
 }
 
-// TestRemoveHooks tests the removeHooks function.
-func TestRemoveHooks(t *testing.T) {
-	runner := &Runner{}
+// TestProcessTemplateVariables_LeavesTheHooksToTheStepsThatRunThem checks that the hooks keep their
+// placeholders: they are rendered when they run.
+func TestProcessTemplateVariables_LeavesTheHooksToTheStepsThatRunThem(t *testing.T) {
+	preTest := placeholder.Create(".Inputs.XR")
+	postTest := placeholder.Create(".Outputs.XR")
 
-	// Create a test case with hooks
 	testCase := api.TestCase{
 		Name: "test",
-		ID:   "test-id",
 		Inputs: api.Inputs{
-			XR:          "xr.yaml",
+			XR:          placeholder.Create(".Repositories.myrepo") + "/xr.yaml",
 			Composition: "comp.yaml",
 		},
 		Hooks: api.Hooks{
-			PreTest: []api.Hook{
-				{Name: "pre-test", Run: "echo 'pre-test'"},
-			},
-			PostTest: []api.Hook{
-				{Name: "post-test", Run: "echo 'post-test'"},
-			},
+			PreTest:  []api.Hook{{Name: "pre-test", Run: "echo " + preTest}},
+			PostTest: []api.Hook{{Name: "post-test", Run: "echo " + postTest}},
 		},
 	}
 
-	// Remove all hooks
-	_, err := runner.removeHooks(&testCase)
-	require.NoError(t, err)
+	runner := &Runner{Options: &testexecutionUtils.Options{Repositories: map[string]string{"myrepo": "/path/to/myrepo"}}}
 
-	// Verify both pre-test and post-test hooks were removed
-	assert.Nil(t, testCase.Hooks.PreTest)
-	assert.Nil(t, testCase.Hooks.PostTest)
+	require.NoError(t, runner.processTemplateVariables(&testCase, engine.NewTestSuiteResult("test-suite.yaml", false)))
+
+	assert.Equal(t, "/path/to/myrepo/xr.yaml", testCase.Inputs.XR, "the rest of the test case is rendered")
+	assert.Equal(t, "echo "+preTest, testCase.Hooks.PreTest[0].Run, "the hooks are not")
+	assert.Equal(t, "echo "+postTest, testCase.Hooks.PostTest[0].Run)
 }
 
 // TestRestoreHooks tests the restoreHooks function.
