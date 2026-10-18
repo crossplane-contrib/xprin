@@ -13,3 +13,5 @@ fi
 
 printf '%s\n' '- hello' > "${E2E_TESTS_DIR}/generated_invalid_xprin.yaml"
 printf 'tests:\n- name: "Missing required inputs (multiline error)"\n' > "${E2E_TESTS_DIR}/generated_missing_required_inputs_xprin.yaml"
+# An empty needs is not valid in the schema (minItems: 1), and xprin refuses it too
+printf 'tests:\n- name: "First"\n  id: first\n- name: "Empty needs"\n  needs: []\n' > "${E2E_TESTS_DIR}/generated_empty_needs_xprin.yaml"

@@ -1,0 +1,32 @@
+# The old way (no needs at all) with template variables that can't work. It is removed in 0.7.0.
+common:
+  patches:
+    xrd: ../../aws/xrd.yaml
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+
+tests:
+- name: "Legacy: a typo in the ID"
+  inputs:
+    xr: {{ .Tests.legacy_frist.Outputs.XR }}
+
+- name: "Legacy: uses a test case that is listed below it"
+  inputs:
+    xr: {{ .Tests.legacy_last.Outputs.XR }}
+
+- name: "Legacy: a typo in the ID, in a hook"
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    pre-test:
+    - name: "Uses the outputs of a test case that does not exist"
+      run: echo "{{ .Tests.legacy_frist.Outputs.XR }}"
+
+- name: "Legacy: last"
+  id: legacy_last
+  inputs:
+    xr: ../../aws/xr.yaml

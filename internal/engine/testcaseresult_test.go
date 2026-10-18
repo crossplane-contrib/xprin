@@ -69,9 +69,44 @@ func TestTestCaseResult_Skip(t *testing.T) {
 	t.Run("sets status to SKIP", func(t *testing.T) {
 		result := NewTestCaseResult("test", "test-id", false, false, false, false, false)
 
-		result.Skip()
+		out := result.Skip()
+
+		assert.Same(t, result, out, "it returns the result, like Fail does")
+		assert.Equal(t, StatusSkip(), result.Status)
+		assert.NotZero(t, result.Duration, "it completes the result")
+		assert.NoError(t, result.Error)
+	})
+
+	t.Run("keeps the reasons, one for each line", func(t *testing.T) {
+		result := NewTestCaseResult("test", "test-id", false, false, false, false, false)
+
+		result.Skip(errors.New(`needs failed test case "a"`), errors.New(`needs skipped test case "b"`))
 
 		assert.Equal(t, StatusSkip(), result.Status)
+		assert.EqualError(t, result.Error, "needs failed test case \"a\"\nneeds skipped test case \"b\"")
+	})
+
+	t.Run("the reasons are printed, even when not verbose", func(t *testing.T) {
+		result := NewTestCaseResult("test", "test-id", false, false, false, false, false)
+		result.Skip(errors.New(`needs failed test case "a"`), errors.New(`needs skipped test case "b"`))
+
+		var out bytes.Buffer
+
+		result.Print(&out)
+
+		assert.Contains(t, out.String(), "--- SKIP: test (")
+		assert.Contains(t, out.String(), "    [!] needs failed test case \"a\"\n    [!] needs skipped test case \"b\"\n")
+	})
+
+	t.Run("a skip without reasons is not printed when not verbose", func(t *testing.T) {
+		result := NewTestCaseResult("test", "test-id", false, false, false, false, false)
+		result.Skip()
+
+		var out bytes.Buffer
+
+		result.Print(&out)
+
+		assert.Empty(t, out.String())
 	})
 }
 

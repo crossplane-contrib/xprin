@@ -3,6 +3,8 @@
     written: examples/mytests/0_e2e/golden_single_resource.yaml
     written: examples/mytests/0_e2e/doesnotexist.yaml
     [!] update-goldens: resource "SecurityGroup/doesnotexist" not found in render output
+--- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
+    [!] needs failed test case "assertion_failure"
 FAIL
 FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
 ok	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
@@ -130,6 +132,25 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
         Total: 2 assertions, 1 successful, 1 failed, 0 errors
     Post-test Hooks:
         [x] Failed post-test hook [exit code: 2]
+--- SKIP: Needs: a test case that needs the one that failed (skipped) (X.XXXs)
+    [!] needs failed test case "broken"
+--- SKIP: Needs: a test case that needs the one that was skipped and the one that failed (skipped) (X.XXXs)
+    [!] needs skipped test case "skipped"
+    [!] needs failed test case "broken"
+--- FAIL: Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+--- FAIL: Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+--- FAIL: Needs: a typo in the ID at the template variable (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.succes.Outputs.XR>: map has no entry for key "succes"
+--- FAIL: Needs: a typo in the output (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.success.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
+--- FAIL: Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs) (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case it does not list
+            error: failed to render hook template: failed to execute template: one or more test cases are used but are not listed in needs
+--- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
+    [!] needs failed test case "assertion_failure"
 FAIL
 FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
 --- FAIL: Missing required inputs (multiline error) (X.XXXs)

@@ -259,6 +259,16 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, "one", spec.Tests[0].Name)
 	})
 
+	t.Run("needs in the common configuration is ignored: it is only for test cases", func(t *testing.T) {
+		spec, err := Load(write(t, "common:\n  needs:\n  - one\ntests:\n- name: one\n  id: one\n- name: two\n"), "/a_xprin.yaml", Options{})
+		require.NoError(t, err)
+		require.NotNil(t, spec)
+
+		for _, testCase := range spec.Tests {
+			assert.Empty(t, testCase.Needs, "no test case inherits it")
+		}
+	})
+
 	t.Run("a file without test cases is reported, and is not an error", func(t *testing.T) {
 		var (
 			spec *api.TestSuiteSpec

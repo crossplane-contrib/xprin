@@ -28,6 +28,23 @@
 --- SKIP: Failed validation and assertion (X.XXXs)
 === RUN   Failed validation, assertion, and post-test hook
 --- SKIP: Failed validation, assertion, and post-test hook (X.XXXs)
+=== RUN   Needs: a test case that needs the one that failed (skipped)
+--- SKIP: Needs: a test case that needs the one that failed (skipped) (X.XXXs)
+=== RUN   Needs: a test case that needs the one that was skipped and the one that failed (skipped)
+--- SKIP: Needs: a test case that needs the one that was skipped and the one that failed (skipped) (X.XXXs)
+=== RUN   Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs)
+--- SKIP: Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs)
+--- SKIP: Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: a typo in the ID at the template variable
+--- SKIP: Needs: a typo in the ID at the template variable (X.XXXs)
+=== RUN   Needs: a typo in the output
+--- SKIP: Needs: a typo in the output (X.XXXs)
+=== RUN   Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs)
+--- SKIP: Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens)
+--- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
+    [!] needs failed test case "assertion_failure"
 FAIL
 FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
 === RUN   Missing required inputs (multiline error)
@@ -242,6 +259,33 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
         [✓] Successful post-test hook
             bye
         [x] Failed post-test hook [exit code: 2]
+=== RUN   Needs: a test case that needs the one that failed (skipped)
+--- SKIP: Needs: a test case that needs the one that failed (skipped) (X.XXXs)
+    [!] needs failed test case "broken"
+=== RUN   Needs: a test case that needs the one that was skipped and the one that failed (skipped)
+--- SKIP: Needs: a test case that needs the one that was skipped and the one that failed (skipped) (X.XXXs)
+    [!] needs skipped test case "skipped"
+    [!] needs failed test case "broken"
+=== RUN   Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs)
+--- FAIL: Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs)
+--- FAIL: Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: a typo in the ID at the template variable
+--- FAIL: Needs: a typo in the ID at the template variable (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.succes.Outputs.XR>: map has no entry for key "succes"
+=== RUN   Needs: a typo in the output
+--- FAIL: Needs: a typo in the output (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.success.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
+=== RUN   Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs)
+--- FAIL: Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs) (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case it does not list
+            error: failed to render hook template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens)
+--- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
+    [!] needs failed test case "assertion_failure"
 FAIL
 FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
 === RUN   Missing required inputs (multiline error)

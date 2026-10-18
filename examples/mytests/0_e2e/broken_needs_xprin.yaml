@@ -1,0 +1,49 @@
+common:
+  patches:
+    xrd: ../../aws/xrd.yaml
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+
+tests:
+- name: "First loop"
+  id: first
+  inputs:
+    xr: ../../aws/xr.yaml
+
+- name: "Second loop, with a typo in needs"
+  id: second
+  needs:
+  - frist
+  inputs:
+    xr: '{{ .Tests.first.Outputs.XR }}'
+    observed-resources: ../../aws/observed
+
+- name: "Third loop, needs a test case that is listed below it"
+  needs:
+  - last
+  inputs:
+    xr: '{{ .Tests.last.Outputs.XR }}'
+    observed-resources: ../../aws/observed
+
+- name: "Fourth loop, needs itself"
+  id: fourth
+  needs:
+  - fourth
+  inputs:
+    xr: '{{ .Tests.second.Outputs.XR }}'
+    observed-resources: ../../aws/observed
+
+- name: "Last loop"
+  id: last
+  needs:
+  - second
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    post-test:
+    - name: "Uses the outputs of a test case"
+      run: echo "{{ .Tests.second.Outputs.XR }}"

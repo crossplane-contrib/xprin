@@ -7,7 +7,7 @@
 - [Testsuite filenames](#testsuite-filenames)
 - [Command Examples](#command-examples)
   - [How to Run Tests](#how-to-run-tests)
-  - [Common Command Options](#common-command-options)
+  - [Usual Command Options](#usual-command-options)
   - [Updating Golden Files](#updating-golden-files)
   - [Configuration Management](#configuration-management)
 - [Testsuite examples](#testsuite-examples)
@@ -346,7 +346,27 @@ For complete documentation on all assertion types, examples, and usage, see [Ass
 
 ### Test Chaining
 
-Tests can be chained together by assigning an `id` to a test case. Tests with IDs have their outputs stored in a shared artifacts directory and can be referenced by later tests using the `.Tests.{test-id}` template variable.
+Tests can depend on each other: a test case lists the IDs of the test cases it depends on in `needs`, and it runs after them, and only if they passed (otherwise it is skipped, with the reason printed under it). Only a test case with an `id` can be needed, and only if it is listed before.
+
+```yaml
+tests:
+- name: "Initial Database Setup"
+  id: "db_setup"
+  inputs:
+    xr: database-xr.yaml
+    composition: database-composition.yaml
+    functions: /path/to/functions
+
+- name: "Application Deployment"
+  needs:
+  - db_setup   # runs after db_setup, and only if it passed
+  inputs:
+    xr: app-xr.yaml
+    composition: app-composition.yaml
+    functions: /path/to/functions
+```
+
+A test case that needs another one can also use its outputs: tests with IDs have their outputs stored in a shared artifacts directory, and the test cases that list them in `needs` can reference them using the `.Tests.{test-id}` template variable.
 
 This is useful for:
 - **Sequential workflows**: Using outputs from one test as inputs for the next
@@ -357,7 +377,7 @@ Example:
 ```yaml
 tests:
 - name: "Initial Database Setup"
-  id: "db-setup"
+  id: "db_setup"
   inputs:
     xr: database-xr.yaml
     composition: database-composition.yaml
@@ -368,6 +388,8 @@ tests:
       run: ./scripts/save_test_outputs.sh {{ .Outputs.XR }} {{ .Outputs.RenderCount }}
 
 - name: "Application Deployment"
+  needs:
+  - db_setup
   inputs:
     xr: app-xr.yaml
     composition: app-composition.yaml
@@ -375,14 +397,16 @@ tests:
   hooks:
     pre-test:
     - name: "verify database setup"
-      run: ./scripts/verify_database_setup.sh {{ .Tests.db-setup.Outputs.Render }} {{ .Tests.db-setup.Outputs.XR }}
+      run: ./scripts/verify_database_setup.sh {{ .Tests.db_setup.Outputs.Render }} {{ .Tests.db_setup.Outputs.XR }}
 
     post-test:
     - name: "compare outputs"
-      run: ./scripts/compare_test_outputs.sh {{ .Tests.db-setup.Outputs.RenderCount }} {{ .Outputs.RenderCount }} {{ .Tests.db-setup.Outputs.Render }}
+      run: ./scripts/compare_test_outputs.sh {{ .Tests.db_setup.Outputs.RenderCount }} {{ .Outputs.RenderCount }} {{ .Tests.db_setup.Outputs.Render }}
 ```
 
 For detailed information about how test chaining works, see [How It Works](how-it-works.md#test-chaining-and-artifacts).
+
+> A test case can only use the outputs of the test cases it lists in `needs`. xprin used to find them automatically, which became **deprecated** in 0.6.0 and will stop working in 0.7.0: see [Migrating from Automatic Detection](how-it-works.md#migrating-from-automatic-detection-deprecated).
 
 ---
 

@@ -132,9 +132,14 @@ func (tcr *TestCaseResult) Fail(err error) *TestCaseResult {
 	return tcr.Complete()
 }
 
-// Skip marks a test case as skipped.
-func (tcr *TestCaseResult) Skip() {
+// Skip marks a test case as skipped and completes it, returning the result for chaining.
+// The reasons (one for each test case it needs that failed or was skipped) are its Error,
+// which is printed under the status line, even when not verbose.
+func (tcr *TestCaseResult) Skip(reasons ...error) *TestCaseResult {
 	tcr.Status = StatusSkip()
+	tcr.Error = errors.Join(reasons...)
+
+	return tcr.Complete()
 }
 
 // Complete finalizes a test case result with duration and returns the result for chaining.
@@ -178,7 +183,7 @@ func (tcr *TestCaseResult) MarkAssertionsFailed() error {
 // Print prints the test case result to the given writer.
 func (tcr *TestCaseResult) Print(w io.Writer) {
 	// In non-verbose mode, only print failures and update-goldens results.
-	if (tcr.Status == StatusPass() || tcr.Status == StatusSkip()) && !tcr.Verbose && len(tcr.WrittenGoldenFiles) == 0 {
+	if (tcr.Status == StatusPass() || tcr.Status == StatusSkip()) && !tcr.Verbose && len(tcr.WrittenGoldenFiles) == 0 && tcr.Error == nil {
 		return
 	}
 
@@ -200,8 +205,8 @@ func (tcr *TestCaseResult) Print(w io.Writer) {
 		fmt.Fprintf(w, "%swritten: %s\n", spaces, p) //nolint:errcheck // output function, error handling not practical
 	}
 
-	// Print error when set (only set for failures not represented in a section).
-	if tcr.Status == StatusFail() && tcr.Error != nil {
+	// Print error when set: for a failure not represented in a section, and for the reasons of a skip.
+	if tcr.Error != nil {
 		fmt.Fprint(w, formatErrorBlock(tcr.Error.Error())) //nolint:errcheck // output function, error handling not practical
 	}
 }

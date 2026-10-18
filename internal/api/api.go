@@ -83,12 +83,13 @@ type Common struct {
 
 // TestCase represents a single test case.
 type TestCase struct {
-	Name       string     `json:"name"`                 // Descriptive name for the testcase (Required)
-	ID         string     `json:"id,omitempty"`         // Unique identifier for the testcase (Optional)
-	Inputs     Inputs     `json:"inputs,omitempty"`     // Inputs of a testcase (Required unless specified in the common inputs)
-	Patches    Patches    `json:"patches,omitempty"`    // XR patching configuration (Optional)
-	Hooks      Hooks      `json:"hooks,omitempty"`      // Execution hooks (Optional)
-	Assertions Assertions `json:"assertions,omitempty"` // Assertions to validate rendered resources (Optional)
+	Name       string     `json:"name"`                                         // Descriptive name for the testcase (Required)
+	ID         string     `json:"id,omitempty"`                                 // Unique identifier for the testcase (Optional)
+	Needs      []string   `json:"needs,omitempty"      jsonschema:"minItems=1"` // IDs of the testcases listed before this one that it depends on (Optional)
+	Inputs     Inputs     `json:"inputs,omitempty"`                             // Inputs of a testcase (Required unless specified in the common inputs)
+	Patches    Patches    `json:"patches,omitempty"`                            // XR patching configuration (Optional)
+	Hooks      Hooks      `json:"hooks,omitempty"`                              // Execution hooks (Optional)
+	Assertions Assertions `json:"assertions,omitempty"`                         // Assertions to validate rendered resources (Optional)
 }
 
 // Inputs represents the inputs for a test case or common configuration.
@@ -174,6 +175,7 @@ func (a *Assertions) HasAssertions() bool {
 // CheckValidTestSuiteFile checks:
 // - if test case names are non-empty
 // - if test case IDs are unique (only for tests that have IDs)
+// - if test case `needs` references non-existent or invalid test case IDs
 // and returns a list of all validation errors found.
 func (ts *TestSuiteSpec) CheckValidTestSuiteFile() error {
 	var allErrors []string
@@ -220,11 +222,52 @@ func (ts *TestSuiteSpec) CheckValidTestSuiteFile() error {
 		}
 	}
 
+	allErrors = append(allErrors, ts.checkNeeds()...)
+
 	if len(allErrors) > 0 {
 		return fmt.Errorf("invalid testsuite file:\n- %s", strings.Join(allErrors, "\n- "))
 	}
 
 	return nil
+}
+
+// checkNeeds returns the problems with the `needs` of the testcases.
+// A testcase can only need the ones listed before it, thus the followings are errors:
+// - an ID that doesn't exist
+// - a testcase needs itself
+// - a testcase needs one listed afterwards.
+func (ts *TestSuiteSpec) checkNeeds() []string {
+	// The position of each ID
+	positions := make(map[string]int)
+
+	for i, test := range ts.Tests {
+		if _, ok := positions[test.ID]; !ok && test.ID != "" {
+			positions[test.ID] = i
+		}
+	}
+
+	var problems []string
+
+	for i, test := range ts.Tests {
+		if test.Needs != nil && len(test.Needs) == 0 {
+			problems = append(problems, fmt.Sprintf("test case %q has an empty `needs`: list the IDs of the test cases it needs, or remove it", test.Name))
+		}
+
+		for _, need := range test.Needs {
+			position, ok := positions[need]
+
+			switch {
+			case !ok:
+				problems = append(problems, fmt.Sprintf("test case %q needs %q, but no test case has that ID", test.Name, need))
+			case position == i:
+				problems = append(problems, fmt.Sprintf("test case %q needs itself (%q)", test.Name, need))
+			case position > i:
+				problems = append(problems, fmt.Sprintf("test case %q needs %q, which is listed after it", test.Name, need))
+			}
+		}
+	}
+
+	return problems
 }
 
 // HasCommonPatches returns true if any common patches are set in the test suite.

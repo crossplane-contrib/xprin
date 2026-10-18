@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/templates"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/legacy05"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/gertd/go-pluralize"
@@ -44,6 +45,7 @@ type Runner struct {
 
 	fs                    afero.Fs
 	testSuiteSpec         *api.TestSuiteSpec
+	legacy05              bool // the file is in the format of xprin up to 0.5 (see legacy05.IsTestSuite)
 	testSuiteFile         string
 	testSuiteFileDir      string
 	output                io.Writer
@@ -91,6 +93,7 @@ func NewRunner(options *testexecutionUtils.Options, testSuiteFile string, testSu
 		testSuiteFile:    testSuiteFile,
 		testSuiteFileDir: testSuiteFileDir,
 		testSuiteSpec:    testSuiteSpec,
+		legacy05:         legacy05.IsTestSuite(testSuiteSpec),
 		// Initialize mockable function fields with default implementations
 		runTestCaseFunc:                   nil, // will set default below
 		expandPathRelativeToTestSuiteFile: testexecutionUtils.ExpandPathRelativeToTestSuiteFile,
@@ -140,6 +143,10 @@ func (r *Runner) RunTests() error {
 
 	if r.testSuiteSpec == nil {
 		return fmt.Errorf("testsuite specification is required")
+	}
+
+	if r.legacy05 {
+		utils.WarningPrintf("%s\n", legacy05.Warning(r.testSuiteFile))
 	}
 
 	// Create testsuite artifacts directory (always created, cleaned up when testsuite finishes)
@@ -213,12 +220,6 @@ func (r *Runner) RunTests() error {
 //
 //nolint:gocognit // Complex test case execution with multiple validation and execution phases
 func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
-	if r.runTestCaseFunc != nil {
-		return r.runTestCaseFunc(testCase)
-	}
-
-	env := &testCaseEnv{index: index}
-
 	if r.Debug {
 		utils.DebugPrintf("Starting test case '%s'\n", testCase.Name)
 	}
@@ -227,9 +228,19 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 
 	// In update-goldens mode, skip immediately if there are no golden-file assertions to write.
 	if r.UpdateGoldens && !testCase.HasAssertionsDiff() && !testCase.HasAssertionsDyff() {
-		result.Skip()
-		return result.Complete()
+		return result.Skip()
 	}
+
+	needsResults, skipReasons := r.getNeedsResults(testCase, testSuiteResult)
+	if len(skipReasons) > 0 {
+		return result.Skip(skipReasons...)
+	}
+
+	if r.runTestCaseFunc != nil {
+		return r.runTestCaseFunc(testCase)
+	}
+
+	env := &testCaseEnv{index: index}
 
 	// Create a temporary directory for the test case (with inputs and outputs subdirectories)
 	var err error
@@ -270,7 +281,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	}
 
 	// Process template variables for this test case
-	if err := r.processTemplateVariables(&testCase, testSuiteResult); err != nil {
+	if err := r.processTemplateVariables(&testCase, needsResults); err != nil {
 		return result.Fail(fmt.Errorf("failed to process template variables: %w", err))
 	}
 
@@ -529,7 +540,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	if testCase.HasPreTestHooks() {
 		hookExecutor := newHookExecutor(r.Repositories, r.Debug, r.runCommand, r.renderTemplate)
 
-		result.PreTestHooksResults, err = hookExecutor.executeHooks(testCase.Hooks.PreTest, "pre-test", testCase.Inputs, nil, testSuiteResult.GetCompletedTests())
+		result.PreTestHooksResults, err = hookExecutor.executeHooks(testCase.Hooks.PreTest, "pre-test", testCase.Inputs, nil, needsResults)
 		result.ProcessPreTestHooksOutput()
 
 		if err != nil {
@@ -805,7 +816,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	if testCase.HasPostTestHooks() {
 		hookExecutor := newHookExecutor(r.Repositories, r.Debug, r.runCommand, r.renderTemplate)
 
-		result.PostTestHooksResults, _ = hookExecutor.executeHooks(testCase.Hooks.PostTest, "post-test", testCase.Inputs, &result.Outputs, testSuiteResult.GetCompletedTests())
+		result.PostTestHooksResults, _ = hookExecutor.executeHooks(testCase.Hooks.PostTest, "post-test", testCase.Inputs, &result.Outputs, needsResults)
 		result.ProcessPostTestHooksOutput()
 		// On post-test hook failure, section shows failed hooks; HasPipelineFailure() is true from results
 	}
@@ -867,14 +878,14 @@ func (r *Runner) renderTemplate(content string, templateContext *templateContext
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, templateContext); err != nil {
-		return "", fmt.Errorf("failed to execute template: %w", err)
+		return "", fmt.Errorf("failed to execute template: %w", r.explainMissingNeeds(err))
 	}
 
 	return buf.String(), nil
 }
 
 // processTemplateVariables processes template variables for a test case.
-func (r *Runner) processTemplateVariables(testCase *api.TestCase, testSuiteResult *engine.TestSuiteResult) error {
+func (r *Runner) processTemplateVariables(testCase *api.TestCase, needsResults map[string]*engine.TestCaseResult) error {
 	// Check if there are any template variables by converting to YAML temporarily
 	yamlData, err := yaml.Marshal(testCase)
 	if err != nil {
@@ -899,7 +910,7 @@ func (r *Runner) processTemplateVariables(testCase *api.TestCase, testSuiteResul
 	content = placeholder.Restore(string(withoutHooks))
 
 	// Render template
-	templateContext := newTemplateContext(r.Repositories, testCase.Inputs, nil, testSuiteResult.GetCompletedTests())
+	templateContext := newTemplateContext(r.Repositories, testCase.Inputs, nil, needsResults)
 
 	content, err = r.renderTemplate(content, templateContext, "testcase")
 	if err != nil {

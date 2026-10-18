@@ -1899,3 +1899,64 @@ func TestTestCase_hasAssertions(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckValidTestSuiteFile_Needs(t *testing.T) {
+	tests := map[string]struct {
+		tests   []TestCase
+		wantErr string
+	}{
+		"nothing needed": {
+			tests: []TestCase{{Name: "a", ID: "a"}, {Name: "b"}},
+		},
+		"the testcase before": {
+			tests: []TestCase{{Name: "a", ID: "a"}, {Name: "b", Needs: []string{"a"}}},
+		},
+		"several, in any order": {
+			tests: []TestCase{{Name: "a", ID: "a"}, {Name: "b", ID: "b"}, {Name: "c", Needs: []string{"b", "a"}}},
+		},
+		"a testcase that is needed can need another": {
+			tests: []TestCase{{Name: "a", ID: "a"}, {Name: "b", ID: "b", Needs: []string{"a"}}, {Name: "c", Needs: []string{"b"}}},
+		},
+		"an ID that does not exist": {
+			tests:   []TestCase{{Name: "a", ID: "a"}, {Name: "b", Needs: []string{"nope"}}},
+			wantErr: `test case "b" needs "nope", but no test case has that ID`,
+		},
+		"itself": {
+			tests:   []TestCase{{Name: "a", ID: "a", Needs: []string{"a"}}},
+			wantErr: `test case "a" needs itself ("a")`,
+		},
+		"a testcase listed after it": {
+			tests:   []TestCase{{Name: "a", Needs: []string{"b"}}, {Name: "b", ID: "b"}},
+			wantErr: `test case "a" needs "b", which is listed after it`,
+		},
+		"an empty list": {
+			tests:   []TestCase{{Name: "a", ID: "a"}, {Name: "b", Needs: []string{}}},
+			wantErr: "test case \"b\" has an empty `needs`",
+		},
+		"an empty ID": {
+			tests:   []TestCase{{Name: "a", ID: "a"}, {Name: "b", Needs: []string{""}}},
+			wantErr: `test case "b" needs "", but no test case has that ID`,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := (&TestSuiteSpec{Tests: tc.tests}).CheckValidTestSuiteFile()
+
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+
+				return
+			}
+
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+
+	t.Run("every problem is reported", func(t *testing.T) {
+		err := (&TestSuiteSpec{Tests: []TestCase{{Name: "a", Needs: []string{"x", "y"}}}}).CheckValidTestSuiteFile()
+
+		require.ErrorContains(t, err, `needs "x"`)
+		require.ErrorContains(t, err, `needs "y"`)
+	})
+}

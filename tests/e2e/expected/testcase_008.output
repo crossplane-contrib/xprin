@@ -1,5 +1,15 @@
 # examples/mytests/0_e2e/generated_invalid_xprin.yaml
 failed to parse testsuite file examples/mytests/0_e2e/generated_invalid_xprin.yaml: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal array into Go value of type api.TestSuiteSpec
 FAIL	examples/mytests/0_e2e/generated_invalid_xprin.yaml	[invalid testsuite file]
+# examples/mytests/0_e2e/generated_empty_needs_xprin.yaml
+invalid testsuite file:
+- test case "Empty needs" has an empty `needs`: list the IDs of the test cases it needs, or remove it
+FAIL	examples/mytests/0_e2e/generated_empty_needs_xprin.yaml	[invalid testsuite file]
+# examples/mytests/0_e2e/broken_needs_xprin.yaml
+invalid testsuite file:
+- test case "Second loop, with a typo in needs" needs "frist", but no test case has that ID
+- test case "Third loop, needs a test case that is listed below it" needs "last", which is listed after it
+- test case "Fourth loop, needs itself" needs itself ("fourth")
+FAIL	examples/mytests/0_e2e/broken_needs_xprin.yaml	[invalid testsuite file]
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors

@@ -102,7 +102,7 @@ flowchart TD
 - `{{ .Inputs.Composition }}` - Path to Composition file
 - `{{ .Inputs.Functions }}` - Path to Functions directory
 - `{{ .Repositories.name }}` - Repository paths from configuration
-- `{{ .Tests.{test-id}.Outputs.* }}` - Cross-test references (for tests with IDs)
+- `{{ .Tests.{test-id}.Outputs.* }}` - Cross-test references (for tests with IDs, listed in `needs`)
 
 **Key Points:**
 - All operations happen in an isolated temp directory
@@ -234,13 +234,13 @@ flowchart TD
 - `{{ .Outputs.Assertions }}` - Path to assertions output (assertions.txt; if assertions ran)
 - `{{ .Outputs.RenderCount }}` - Number of rendered resources
 - `{{ index .Outputs.Rendered "Kind/Name" }}` - Individual resource paths
-- `{{ .Tests.{test-id}.Outputs.* }}` - Cross-test references
+- `{{ .Tests.{test-id}.Outputs.* }}` - Cross-test references (for the test cases listed in `needs`)
 
 **Artifact Export:**
 - Only happens if test case has an `id` field
 - All outputs are copied to a shared artifacts directory
 - Artifacts are organized by test ID: `artifacts/{test-id}/`
-- Artifacts are available to subsequent tests via `.Tests.{test-id}.Outputs.*`
+- Artifacts are available to the test cases that list it in `needs`, via `.Tests.{test-id}.Outputs.*` (see [Test Chaining](#test-chaining-and-artifacts))
 - Artifacts directory is cleaned up after all tests complete
 
 **Error Handling:**
@@ -303,11 +303,11 @@ Output uses the following **symbols**; internally, outcomes use the correspondin
 | **[✓]** | Pass | `PASS` | Check ran and passed. |
 | **[x]** | Fail | `FAIL` | Check ran and the condition was false (e.g. assertion failed, hook exited non-zero). |
 | **[!]** | Error | `ERROR` | Check could not run (e.g. missing resource, invalid config, render failure, hook template error). |
-| **[s]** | Skip | `SKIP` | Skipped: test case has no `assertions.diff`/`assertions.dyff` entries in `update-goldens` mode. |
+| **[s]** | Skip | `SKIP` | Skipped: test case has no `assertions.diff`/`assertions.dyff` entries in `update-goldens` mode, or a test case it [`needs`](#dependencies-between-test-cases-needs) failed or was skipped. |
 
 ### Verbose vs non-verbose output
 
-By default (non-verbose), only **FAIL** results are printed. Adding `-v`/`--verbose` we see all results including PASS and SKIP.
+By default (non-verbose), only **FAIL** results are printed. Adding `-v`/`--verbose` we see all results including PASS and SKIP. A test case skipped because of the test cases it `needs` is always shown (even without `-v`), with the reasons.
 
 In `update-goldens` mode, test cases that write golden files are always shown (even without `-v`), so we can confirm which files were written.
 
@@ -409,6 +409,7 @@ Template variables use Go's `text/template` package for dynamic content.
 **Cross-test References:**
 - `{{ .Tests.{test-id}.Outputs.* }}` - Access outputs from previous tests
 - Only available for tests with `id` field
+- Only available to the test cases that list it in `needs`
 - Only available after the referenced test has completed
 
 ### Template Functions
@@ -455,16 +456,74 @@ inputs:
 
 ## Test Chaining and Artifacts
 
-Test chaining allows tests to reference outputs from previous tests, enabling sequential workflows and reconciliation testing.
+Test cases can depend on each other, enabling sequential workflows and reconciliation testing. A test case declares the test cases it depends on in `needs`, and can then also use their outputs.
 
-### How It Works
+### Dependencies Between Test Cases: `needs`
 
-1. **Test ID**: Test case must have an `id` field
+A test case that depends on other test cases lists their IDs in `needs`, as jobs do in GitHub Actions. It doesn't have to use their outputs: the test case runs after them, and only if they passed.
+
+```yaml
+tests:
+- name: "Create the database"
+  id: db
+  inputs:
+    xr: db/xr.yaml
+    composition: db/composition.yaml
+    functions: functions.yaml
+
+- name: "Create the app, which only makes sense once the database works"
+  needs:
+  - db
+  inputs:
+    xr: app/xr.yaml
+    composition: app/composition.yaml
+    functions: functions.yaml
+```
+
+- `needs` is a list of IDs of test cases listed **before** it in the same file, so only a test case with an `id` can be needed. An ID that doesn't exist, the test case itself, or a test case listed after it makes the file invalid. An empty list (`needs: []`) is not allowed either: list the IDs, or remove it.
+- If a test case it needs failed or was skipped, the test case is **not run**: it is skipped (**SKIP**), and the reasons are printed under it, one per needed test case, even without `-v`:
+
+  ```text
+  --- SKIP: Create the app, which only makes sense once the database works (0.00s)
+      [!] needs failed test case "db"
+  ```
+
+  A test case that needs none of the failed ones runs as usual.
+
+  The skip propagates: a test case that needs a skipped one is skipped too. Before `needs`, a test case that used the outputs of a failed one failed with a confusing template error; now only the test case that really failed is reported as a failure. See [Example 2](../examples/README.md#example-2-when-a-test-case-fails-the-ones-that-need-it-are-skipped).
+
+### Using the Outputs of Other Test Cases
+
+A test case that depends on another one can also use its outputs, with the `.Tests` template variable:
+
+```yaml
+tests:
+- name: "Base layer"
+  id: base
+  inputs:
+    xr: base/xr.yaml
+    composition: base/composition.yaml
+    functions: functions.yaml
+
+- name: "Layer on top of the base"
+  needs:
+  - base
+  inputs:
+    xr: '{{ .Tests.base.Outputs.XR }}'
+    composition: top/composition.yaml
+    functions: functions.yaml
+```
+
+A test case can only use (`.Tests.<id>`) the outputs of the test cases it lists in `needs`. Using another one fails the test case, with an error that says it has to be listed.
+
+#### How It Works
+
+1. **Test ID**: The test case that is used must have an `id` field
 2. **Artifact Storage**: After test completes, outputs are copied to `artifacts/{test-id}/`
-3. **Cross-test References**: Subsequent tests can reference artifacts via `.Tests.{test-id}.Outputs.*`
+3. **Cross-test References**: The test cases that list it in `needs` can reference the artifacts via `.Tests.{test-id}.Outputs.*`
 4. **Cleanup**: Artifacts directory is cleaned up after all tests complete
 
-### Artifact Structure
+#### Artifact Structure
 
 ```
 artifacts/
@@ -479,17 +538,34 @@ artifacts/
     ...
 ```
 
-### Use Cases
+#### Use Cases
 
 - **Reconciliation Workflows**: Use XR output from one composition as input to another
 - **Sequential Dependencies**: Chain tests where each depends on previous outputs
 - **Cross-test Validation**: Compare outputs between different scenarios
 
-### Limitations
+#### Limitations
 
 - Tests must run sequentially (not in parallel)
 - Referenced test must complete before reference is valid
-- If referenced test fails early, artifacts may not be available
+- If the referenced test fails, the test cases that need it are skipped, so they never see missing artifacts
+
+### Migrating from Automatic Detection (Deprecated)
+
+Until xprin 0.5 there was no `needs`: a test case that used `.Tests.<id>` depended on that test case automatically, because xprin read the templates to find out. **This is deprecated**, and it is removed in 0.7.0: a test case that uses the outputs of another one has to list it in `needs`. Not listing it gets in the way of running test cases at the same time predictably.
+
+| xprin | Dependencies between test cases |
+|---|---|
+| up to 0.5 | Detected automatically, by reading the templates for `.Tests`. `needs` is not supported. |
+| 0.6 | Both are supported, per testsuite file (see below). Detecting them automatically is **deprecated**: xprin prints a warning for each testsuite file that relies on it. |
+| 0.7.0 and later | Only `needs` is supported. |
+
+**In 0.6 each testsuite file is in one of two formats**, decided when it is loaded:
+
+- **Legacy**: no test case lists `needs`, and some use `.Tests`. They run as they always did, one after another, in file order, each seeing all the earlier ones, and xprin prints a warning for the file. The warning appears for any use of `.Tests`, also one that can't work (for example a typo in the ID: the test case then fails when it runs).
+- **Current**: every other file, which means one where at least one test case lists `needs` (migrated), or one that doesn't use `.Tests` at all. There is no warning, a test case only sees the test cases it lists, and the ones whose needs failed are skipped, as described above.
+
+**Migrating.** In each test case that uses `.Tests.<id>`, list those IDs in `needs`. Once one test case in a file lists `needs`, every test case in it has to list what it uses.
 
 ## Hooks Execution
 
