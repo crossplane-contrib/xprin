@@ -63,7 +63,7 @@ func Load(fs afero.Fs, testSuiteFile string, options Options) (*api.TestSuiteSpe
 	}
 
 	// Now that we know we have tests to run, check for empty names and duplicate IDs
-	if err := testSuiteSpec.CheckValidTestSuiteFile(); err != nil {
+	if err := checkTestSuiteFile(&testSuiteSpec); err != nil {
 		return nil, ReportTestSuiteError(testSuiteFile, err, failureInvalid)
 	}
 

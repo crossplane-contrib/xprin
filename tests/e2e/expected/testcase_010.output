@@ -1,3 +1,19 @@
+examples/mytests/5_chained_tests/example1_needs_xprin.yaml
+└── Initial reconciliation loop [aws_first]
+    └── Second reconciliation loop
+
+examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml
+└── Initial reconciliation loop [aws_first]
+    └── Second reconciliation loop
+
+examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml
+└── Base layer final loop [base_final]
+    ├── GCP layer first loop [gcp_first]
+    └── AWS layer first loop [aws_first]
+
+examples/mytests/5_chained_tests/legacy_success_xprin.yaml
+├── Legacy: first loop [legacy_first]
+└── Legacy: second loop, uses the outputs of the first without needs
 === RUN   Initial reconciliation loop
 --- PASS: Initial reconciliation loop (X.XXXs)
     Render:

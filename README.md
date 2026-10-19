@@ -194,6 +194,9 @@ xprin test <targets>
 
 # Regenerate golden files for assertions.diff and assertions.dyff
 xprin update-goldens <targets>
+
+# Show the dependency graph of the test cases (which needs which others), as a tree
+xprin graph <targets>
 ```
 
 ## Related Tools

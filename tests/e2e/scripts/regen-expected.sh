@@ -78,8 +78,17 @@ run_pass() {
         read -ra cmd_args <<< "${test_args}"
 
         update_goldens_var="${test_var}_update_goldens"
+        graph_var="${test_var}_graph"
         ACTUAL_OUTPUT="$(mktemp)"
         set +e
+        if compgen -v | grep -q "^${graph_var}$" && [ "${!graph_var}" = "true" ]; then
+            # xprin graph only takes targets: drop all flags
+            graph_args=()
+            for arg in "${cmd_args[@]}"; do
+                [[ "${arg}" == -* ]] || graph_args+=("${arg}")
+            done
+            "${XPRIN_BIN}" graph "${graph_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
+        fi
         if compgen -v | grep -q "^${update_goldens_var}$" && [ "${!update_goldens_var}" = "true" ]; then
             # Keep test targets and flags supported by update-goldens; drop test-only flags
             ug_file_args=()
@@ -90,7 +99,7 @@ run_pass() {
                     ug_file_args+=("${arg}")
                 fi
             done
-            "${XPRIN_BIN}" update-goldens "${XPRIN_ARGS[@]}" "${ug_file_args[@]}" > "${ACTUAL_OUTPUT}" 2>&1
+            "${XPRIN_BIN}" update-goldens "${XPRIN_ARGS[@]}" "${ug_file_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
         fi
         "${XPRIN_BIN}" test "${XPRIN_ARGS[@]}" "${cmd_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
         set -e
@@ -152,7 +161,7 @@ if [ "${GENERATE:-}" = "true" ] || [ -n "${CROSSPLANE_V1:-}" ] || [ -n "${CROSSP
     # shellcheck source=/dev/null
     source "${TESTCASES_FILE}"
 
-    TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit' | grep -v '_tiers' | grep -v '_update_goldens' | LC_ALL=C sort))
+    TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit' | grep -v '_tiers' | grep -v '_update_goldens' | grep -v '_graph' | LC_ALL=C sort))
     if [ "${#TEST_CASES[@]}" -eq 0 ]; then
         echo "No test cases defined in ${TESTCASES_FILE}"
         exit 1

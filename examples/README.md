@@ -827,6 +827,26 @@ ok	examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.ya
 
 This example combines all the above cases, I'll let you discover the output :smile: Feel free also to change/break it to see how it works on failures.
 
+To see how its test cases depend on each other (its dependency graph) without running anything, use `xprin graph`:
+
+```bash
+xprin graph examples/mytests/5_chained_tests/example5_xprin.yaml
+```
+
+```
+➜ xprin graph examples/mytests/5_chained_tests/example5_xprin.yaml
+examples/mytests/5_chained_tests/example5_xprin.yaml
+└── Base layer final loop [base_final]
+    ├── GCP layer first loop [gcp_first]
+    │   └── GCP layer second loop [gcp_second]
+    │       └── GCP layer third loop
+    └── AWS layer first loop [aws_first]
+        └── AWS layer second loop [aws_second]
+            └── AWS layer third loop
+```
+
+The base layer comes first. The GCP and AWS chains each need it, but not each other.
+
 ---
 
 ### What happens when `needs` goes wrong

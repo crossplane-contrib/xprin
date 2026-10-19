@@ -22,7 +22,24 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/graph"
 )
+
+// runOrder returns the positions of the test cases in the order they run: the order of the file in a legacy
+// testsuite file, which has no dependencies and doesn't need the graph, and the order of the dependency
+// graph in any other.
+func (r *Runner) runOrder() []int {
+	if r.legacy05 {
+		order := make([]int, len(r.testSuiteSpec.Tests))
+		for i := range order {
+			order[i] = i
+		}
+
+		return order
+	}
+
+	return graph.Build(r.testSuiteSpec).Order()
+}
 
 // getNeedsResults returns the results that the test case can use with `.Tests`, and why it can't run, if
 // some test case it needs failed or was skipped. The results are the ones of its needs, except in a legacy

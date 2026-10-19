@@ -456,7 +456,7 @@ inputs:
 
 ## Test Chaining and Artifacts
 
-Test cases can depend on each other, enabling sequential workflows and reconciliation testing. A test case declares the test cases it depends on in `needs`, and can then also use their outputs.
+Test cases can depend on each other, enabling sequential workflows and reconciliation testing. A test case declares the test cases it depends on in `needs`, and can then also use their outputs. `xprin graph` shows these dependencies (see [Dependency Graph](#dependency-graph)).
 
 ### Dependencies Between Test Cases: `needs`
 
@@ -703,6 +703,36 @@ flowchart TD
 
 **Pre-test hooks run** for test cases that have golden assertions, for the same reason they run in test mode: they may modify the XR or other inputs before render, so skipping them would produce different render output than `xprin test` would see.
 
+## Dependency Graph
+
+`xprin graph <targets>` shows which test cases of each testsuite file need which others, the dependency graph, without running anything. It takes the same targets as `xprin test` (files, directories, and `...` for recursive directories), and needs no configuration.
+
+```
+➜ xprin graph examples/mytests/5_chained_tests/example5_xprin.yaml
+examples/mytests/5_chained_tests/example5_xprin.yaml
+└── Base layer final loop [base_final]
+    ├── GCP layer first loop [gcp_first]
+    │   └── GCP layer second loop [gcp_second]
+    │       └── GCP layer third loop
+    └── AWS layer first loop [aws_first]
+        └── AWS layer second loop [aws_second]
+            └── AWS layer third loop
+```
+
+### Reading the Tree
+
+- Test cases at the top level need no other test case.
+- A test case listed under another one needs it. Test cases listed side by side (siblings) don't need each other.
+- A test case that needs several others is listed under each of them: it is expanded the first time, and marked `(*)` afterwards.
+- The ID of a test case, if it has one, is shown in brackets.
+
+### How Dependencies Are Found
+
+The graph is made of the [`needs`](#dependencies-between-test-cases-needs) of the test cases, and nothing else: xprin doesn't read the templates for it.
+
+- A testsuite file that doesn't use `needs` has no dependencies to show, so all its test cases are at the top level. If it uses `.Tests` anyway, it relies on the deprecated automatic detection, whose dependencies are not shown: list them in `needs` to see them (see [Migrating](#migrating-from-automatic-detection-deprecated)).
+- Dependencies that are not declared in `needs` are not shown, for example a hook that relies on files or state left behind by another test case.
+
 ## Internal Architecture
 
 ### Component Separation
@@ -713,7 +743,8 @@ xprin follows a separation of concerns:
 2. **Runner** (`internal/testexecution/runner/runner.go`): Orchestrates test execution, calls conversion, patching, hooks, assertions, and external tools
 3. **Engine** (`internal/engine/`): Formats output, manages results, handles presentation
 4. **Assertions** (`internal/testexecution/runner/assertions.go`): Executes declarative assertions
-5. **Helpers** (`cmd/xprin-helpers/`): External tools for Claim conversion and XR patching
+5. **Graph** (`internal/graph/`): Builds the dependency graph of the test cases from their `needs`; `xprin graph` prints it, and the Runner runs the test cases in its order
+6. **Helpers** (`cmd/xprin-helpers/`): External tools for Claim conversion and XR patching
 
 ### Temp Directory Management
 

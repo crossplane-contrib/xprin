@@ -55,7 +55,7 @@ if [[ -n "${CROSSPLANE_VERSION}" ]]; then
     XPRIN_ARGS=("--crossplane-version=${CROSSPLANE_VERSION}")
 fi
 
-TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit' | grep -v '_tiers' | grep -v '_update_goldens' | LC_ALL=C sort))
+TEST_CASES=($(compgen -v | grep '^testcase_' | grep -v '_exit' | grep -v '_tiers' | grep -v '_update_goldens' | grep -v '_graph' | LC_ALL=C sort))
 if [ "${#TEST_CASES[@]}" -eq 0 ]; then
     echo "No test cases defined in ${TESTCASES_FILE}"
     exit 1
@@ -116,6 +116,22 @@ for test_var in "${TEST_CASES[@]}"; do
         is_update_goldens=true
     fi
 
+    # Check if this testcase also runs `xprin graph` first.
+    graph_var="${test_var}_graph"
+    is_graph=false
+    if compgen -v | grep -q "^${graph_var}$" && [ "${!graph_var}" = "true" ]; then
+        is_graph=true
+    fi
+
+    if [ "${is_graph}" = "true" ]; then
+        # xprin graph only takes targets: drop all flags
+        graph_args=()
+        for arg in "${cmd_args[@]}"; do
+            [[ "${arg}" == -* ]] || graph_args+=("${arg}")
+        done
+        echo "Command: xprin graph ${graph_args[*]}"
+    fi
+
     if [ "${is_update_goldens}" = "true" ]; then
         # Keep test targets and flags supported by update-goldens; drop test-only flags
         ug_file_args=()
@@ -147,14 +163,21 @@ for test_var in "${TEST_CASES[@]}"; do
     ACTUAL_OUTPUT="${TMPDIR}/actual.output"
     NORMALIZED_OUTPUT="${TMPDIR}/normalized.output"
 
+    : > "${ACTUAL_OUTPUT}"
+
+    GRAPH_EXIT_CODE=0
     set +e
+    if [ "${is_graph}" = "true" ]; then
+        "${XPRIN_BIN}" graph "${graph_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
+        GRAPH_EXIT_CODE=$?
+    fi
     if [ "${is_update_goldens}" = "true" ]; then
         # Run update-goldens (file targets only) before xprin test.
         # update-goldens exit code is intentionally ignored: some test suites contain
         # intentionally invalid golden-file references (e.g. wrong resource names) that
         # cause update-goldens to fail, yet we still want xprin test to run and validate
         # the full failure-mode output.
-        "${XPRIN_BIN}" update-goldens "${XPRIN_ARGS[@]}" "${ug_file_args[@]}" > "${ACTUAL_OUTPUT}" 2>&1
+        "${XPRIN_BIN}" update-goldens "${XPRIN_ARGS[@]}" "${ug_file_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
     fi
     "${XPRIN_BIN}" test "${XPRIN_ARGS[@]}" "${cmd_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
     EXIT_CODE=$?
@@ -163,6 +186,11 @@ for test_var in "${TEST_CASES[@]}"; do
     "${NORMALIZE_SCRIPT}" "${ACTUAL_OUTPUT}" > "${NORMALIZED_OUTPUT}"
 
     TEST_FAILED=0
+
+    if [ "${GRAPH_EXIT_CODE}" -ne 0 ]; then
+        echo "FAIL: xprin graph exited with ${GRAPH_EXIT_CODE}"
+        TEST_FAILED=1
+    fi
 
     # When CROSSPLANE_VERSION is set and the testcase uses --debug, assert that the pinned
     # controller image appears in the raw debug output (validates --crossplane-image wiring).
