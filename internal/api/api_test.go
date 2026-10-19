@@ -1798,3 +1798,30 @@ func TestTestCase_hasAssertions(t *testing.T) {
 		})
 	}
 }
+
+func TestTestSuiteSpec_PositionOf(t *testing.T) {
+	// The second and the fourth test cases have no ID, and the fifth repeats the ID of the first
+	spec := &TestSuiteSpec{Tests: []TestCase{
+		{Name: "First", ID: "first"},
+		{Name: "Second"},
+		{Name: "Third", ID: "third"},
+		{Name: "Fourth"},
+		{Name: "Fifth", ID: "first"},
+	}}
+
+	assert.Equal(t, 0, spec.PositionOf("first"), "the first one wins when an ID is repeated")
+	assert.Equal(t, 2, spec.PositionOf("third"))
+	assert.Equal(t, -1, spec.PositionOf("nope"), "an ID that no test case has")
+	assert.Equal(t, -1, spec.PositionOf(""), "the test cases without an ID don't make an empty one")
+	assert.Equal(t, -1, (&TestSuiteSpec{}).PositionOf("first"))
+}
+
+func TestIsValidID(t *testing.T) {
+	for _, id := range []string{"a", "A", "0", "a-b", "a_b", "Mixed-Case_123"} {
+		assert.True(t, IsValidID(id), id)
+	}
+
+	for _, id := range []string{"", "a b", "a@b", "a.b", "a/b", "é", "a\n"} {
+		assert.False(t, IsValidID(id), id)
+	}
+}

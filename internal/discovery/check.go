@@ -41,24 +41,6 @@ func checkTestSuiteFile(spec *api.TestSuiteSpec) error {
 func checkNamesAndIDs(spec *api.TestSuiteSpec) []string {
 	var allErrors []string
 
-	// Check if an ID contains only alphanumeric characters, underscores, and hyphens
-	hasValidID := func(id string) bool {
-		if len(id) == 0 {
-			return false
-		}
-
-		for _, char := range id {
-			if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') && (char < '0' || char > '9') && char != '_' && char != '-' {
-				return false
-			}
-		}
-
-		return true
-	}
-
-	// Track used IDs to detect duplicates
-	usedIDs := make(map[string]bool)
-
 	for i := range spec.Tests {
 		test := &spec.Tests[i]
 
@@ -70,15 +52,13 @@ func checkNamesAndIDs(spec *api.TestSuiteSpec) []string {
 		// Only validate and check uniqueness for IDs that are explicitly provided
 		if test.ID != "" {
 			// Validate test ID format
-			if !hasValidID(test.ID) {
+			if !api.IsValidID(test.ID) {
 				allErrors = append(allErrors, fmt.Sprintf("test case ID '%s' contains invalid characters (allowed: alphanumeric, underscore, hyphen)", test.ID))
 			}
 
-			// Check for duplicate IDs (only among tests that have IDs)
-			if usedIDs[test.ID] {
+			// A duplicate is an ID that an earlier test case has (only among tests that have IDs)
+			if spec.PositionOf(test.ID) != i {
 				allErrors = append(allErrors, fmt.Sprintf("duplicate test case ID '%s' found", test.ID))
-			} else {
-				usedIDs[test.ID] = true
 			}
 		}
 	}
@@ -92,15 +72,6 @@ func checkNamesAndIDs(spec *api.TestSuiteSpec) []string {
 // - a testcase needs itself
 // - a testcase needs one listed afterwards.
 func checkNeeds(spec *api.TestSuiteSpec) []string {
-	// The position of each ID
-	positions := make(map[string]int)
-
-	for i, test := range spec.Tests {
-		if _, ok := positions[test.ID]; !ok && test.ID != "" {
-			positions[test.ID] = i
-		}
-	}
-
 	var problems []string
 
 	for i, test := range spec.Tests {
@@ -109,10 +80,10 @@ func checkNeeds(spec *api.TestSuiteSpec) []string {
 		}
 
 		for _, need := range test.Needs {
-			position, ok := positions[need]
+			position := spec.PositionOf(need)
 
 			switch {
-			case !ok:
+			case position < 0:
 				problems = append(problems, fmt.Sprintf("test case %q needs %q, but no test case has that ID", test.Name, need))
 			case position == i:
 				problems = append(problems, fmt.Sprintf("test case %q needs itself (%q)", test.Name, need))
