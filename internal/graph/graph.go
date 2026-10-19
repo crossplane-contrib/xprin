@@ -35,20 +35,10 @@ type Graph struct {
 func Build(spec *api.TestSuiteSpec) *Graph {
 	g := &Graph{deps: make([][]int, len(spec.Tests))}
 
-	// The position of each testcase, by ID: only those with an ID can be needed.
-	positions := make(map[string]int)
-
-	// First pass: fill positions (the first testcase wins when an ID is repeated)
-	for i, testCase := range spec.Tests {
-		if _, ok := positions[testCase.ID]; !ok && testCase.ID != "" {
-			positions[testCase.ID] = i
-		}
-	}
-
-	// Second pass: turn the IDs in the `needs` of each testcase into positions
+	// Turn the IDs in the `needs` of each testcase into positions
 	for i, testCase := range spec.Tests {
 		for _, need := range testCase.Needs {
-			if j, ok := positions[need]; ok {
+			if j := spec.PositionOf(need); j >= 0 {
 				g.deps[i] = append(g.deps[i], j)
 			}
 		}

@@ -172,6 +172,42 @@ func (a *Assertions) HasAssertions() bool {
 	return a.HasAssertionsXprin() || a.HasAssertionsDiff() || a.HasAssertionsDyff()
 }
 
+// PositionOf returns the position in the file of the first test case that has this ID, or -1 if no test
+// case has it. A test case without an ID has none, so the empty string is never an ID.
+func (ts *TestSuiteSpec) PositionOf(id string) int {
+	if id == "" {
+		return -1
+	}
+
+	for i := range ts.Tests {
+		if ts.Tests[i].ID == id {
+			return i
+		}
+	}
+
+	return -1
+}
+
+// HasID tells if some test case has this ID.
+func (ts *TestSuiteSpec) HasID(id string) bool {
+	return ts.PositionOf(id) >= 0
+}
+
+// IsValidID tells if an ID is made only of alphanumeric characters, underscores, and hyphens, and is not empty.
+func IsValidID(id string) bool {
+	if len(id) == 0 {
+		return false
+	}
+
+	for _, char := range id {
+		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') && (char < '0' || char > '9') && char != '_' && char != '-' {
+			return false
+		}
+	}
+
+	return true
+}
+
 // HasCommonPatches returns true if any common patches are set in the test suite.
 func (ts *TestSuiteSpec) HasCommonPatches() bool {
 	return ts.Common.Patches.HasPatches()

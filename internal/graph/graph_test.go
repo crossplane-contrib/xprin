@@ -58,6 +58,13 @@ func testCase(name, id string, needs ...string) api.TestCase {
 	return api.TestCase{Name: name, ID: id, Needs: needs}
 }
 
+func TestBuild_ANeedWithAnEmptyIDIsNotADependency(t *testing.T) {
+	// "b" has no ID, and "c" lists the empty ID: that is no testcase, not even "b"
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{testCase("a", "a"), testCase("b", ""), testCase("c", "c", "")}}
+
+	assert.Equal(t, [][]int{nil, nil, nil}, deps(t, spec))
+}
+
 func deps(t *testing.T, spec *api.TestSuiteSpec) [][]int {
 	t.Helper()
 
