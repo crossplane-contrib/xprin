@@ -146,13 +146,16 @@ func TestCheckTestSuiteFile_Needs(t *testing.T) {
 			tests:   []api.TestCase{{Name: "a", ID: "a"}, {Name: "b", Needs: []string{"nope"}}},
 			wantErr: `test case "b" needs "nope", but no test case has that ID`,
 		},
+		"a testcase listed after it": {
+			tests: []api.TestCase{{Name: "a", Needs: []string{"b"}}, {Name: "b", ID: "b"}},
+		},
 		"itself": {
 			tests:   []api.TestCase{{Name: "a", ID: "a", Needs: []string{"a"}}},
-			wantErr: `test case "a" needs itself ("a")`,
+			wantErr: "needs cycle: a -> a",
 		},
-		"a testcase listed after it": {
-			tests:   []api.TestCase{{Name: "a", Needs: []string{"b"}}, {Name: "b", ID: "b"}},
-			wantErr: `test case "a" needs "b", which is listed after it`,
+		"each other": {
+			tests:   []api.TestCase{{Name: "a", ID: "a", Needs: []string{"b"}}, {Name: "b", ID: "b", Needs: []string{"a"}}},
+			wantErr: "needs cycle: a -> b -> a",
 		},
 		"an empty list": {
 			tests:   []api.TestCase{{Name: "a", ID: "a"}, {Name: "b", Needs: []string{}}},

@@ -85,7 +85,7 @@ type Common struct {
 type TestCase struct {
 	Name       string     `json:"name"`                                         // Descriptive name for the testcase (Required)
 	ID         string     `json:"id,omitempty"`                                 // Unique identifier for the testcase (Optional)
-	Needs      []string   `json:"needs,omitempty"      jsonschema:"minItems=1"` // IDs of the testcases listed before this one that it depends on (Optional)
+	Needs      []string   `json:"needs,omitempty"      jsonschema:"minItems=1"` // IDs of the testcases that this one depends on (Optional)
 	Inputs     Inputs     `json:"inputs,omitempty"`                             // Inputs of a testcase (Required unless specified in the common inputs)
 	Patches    Patches    `json:"patches,omitempty"`                            // XR patching configuration (Optional)
 	Hooks      Hooks      `json:"hooks,omitempty"`                              // Execution hooks (Optional)

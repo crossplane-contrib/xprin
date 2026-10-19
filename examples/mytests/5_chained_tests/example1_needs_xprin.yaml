@@ -9,11 +9,19 @@ common:
     - ../../aws/crossplane.yaml
 
 tests:
+# Listed first, but it needs the second one, which is listed after it: it runs last
+- name: "Third reconciliation loop"
+  needs:
+  - aws_second
+  inputs:
+    xr: ../../aws/xr.yaml
+    observed-resources: ../../aws/observed
 - name: "Initial reconciliation loop"
   id: aws_first
   inputs:
     xr: ../../aws/xr.yaml
 - name: "Second reconciliation loop"
+  id: aws_second
   needs:
   - aws_first
   inputs:

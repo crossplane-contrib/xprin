@@ -22,17 +22,26 @@ tests:
     xr: '{{ .Tests.first.Outputs.XR }}'
     observed-resources: ../../aws/observed
 
-- name: "Third loop, needs a test case that is listed below it"
-  needs:
-  - last
-  inputs:
-    xr: '{{ .Tests.last.Outputs.XR }}'
-    observed-resources: ../../aws/observed
-
-- name: "Fourth loop, needs itself"
-  id: fourth
+- name: "Third loop, needs the fourth"
+  id: third
   needs:
   - fourth
+  inputs:
+    xr: '{{ .Tests.fourth.Outputs.XR }}'
+    observed-resources: ../../aws/observed
+
+- name: "Fourth loop, needs the third: they need each other"
+  id: fourth
+  needs:
+  - third
+  inputs:
+    xr: '{{ .Tests.third.Outputs.XR }}'
+    observed-resources: ../../aws/observed
+
+- name: "Fifth loop, needs itself"
+  id: fifth
+  needs:
+  - fifth
   inputs:
     xr: '{{ .Tests.second.Outputs.XR }}'
     observed-resources: ../../aws/observed

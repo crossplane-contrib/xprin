@@ -306,6 +306,60 @@ func TestLoad(t *testing.T) {
 		assert.Contains(t, out, "FAIL\t/a_xprin.yaml\t[invalid testsuite file]")
 	})
 
+	t.Run("needs can point to a test case listed after it", func(t *testing.T) {
+		spec, err := Load(write(t, "tests:\n- name: one\n  needs:\n  - two\n- name: two\n  id: two\n"), "/a_xprin.yaml", Options{})
+
+		require.NoError(t, err)
+		require.NotNil(t, spec)
+	})
+
+	t.Run("test cases that need each other are reported as an error, with the cycle", func(t *testing.T) {
+		tests := map[string]struct {
+			content string
+			want    string
+		}{
+			"itself": {
+				content: "tests:\n- name: one\n  id: one\n  needs:\n  - one\n",
+				want:    "- needs cycle: one -> one",
+			},
+			"each other": {
+				content: "tests:\n- name: one\n  id: one\n  needs:\n  - two\n- name: two\n  id: two\n  needs:\n  - one\n",
+				want:    "- needs cycle: one -> two -> one",
+			},
+		}
+
+		for name, tc := range tests {
+			t.Run(name, func(t *testing.T) {
+				var (
+					spec *api.TestSuiteSpec
+					err  error
+				)
+
+				out := unittestsUtils.CaptureStderr(func() {
+					spec, err = Load(write(t, tc.content), "/a_xprin.yaml", Options{})
+				})
+
+				require.Error(t, err)
+				assert.Nil(t, spec)
+				assert.Contains(t, out, "invalid testsuite file:")
+				assert.Contains(t, out, tc.want)
+				assert.Contains(t, out, "FAIL\t/a_xprin.yaml\t[invalid testsuite file]")
+			})
+		}
+	})
+
+	t.Run("a cycle is reported together with the other problems of the file", func(t *testing.T) {
+		var err error
+
+		out := unittestsUtils.CaptureStderr(func() {
+			_, err = Load(write(t, "tests:\n- name: one\n  id: one\n  needs:\n  - two\n  - nope\n- name: two\n  id: two\n  needs:\n  - one\n"), "/a_xprin.yaml", Options{})
+		})
+
+		require.Error(t, err)
+		assert.Contains(t, out, `needs "nope", but no test case has that ID`)
+		assert.Contains(t, out, "needs cycle: one -> two -> one")
+	})
+
 	t.Run("duplicate IDs are reported as an error", func(t *testing.T) {
 		var err error
 
