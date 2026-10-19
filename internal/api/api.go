@@ -188,6 +188,11 @@ func (ts *TestSuiteSpec) PositionOf(id string) int {
 	return -1
 }
 
+// HasID tells if some test case has this ID.
+func (ts *TestSuiteSpec) HasID(id string) bool {
+	return ts.PositionOf(id) >= 0
+}
+
 // IsValidID tells if an ID is made only of alphanumeric characters, underscores, and hyphens, and is not empty.
 func IsValidID(id string) bool {
 	if len(id) == 0 {

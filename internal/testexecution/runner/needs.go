@@ -73,10 +73,8 @@ func (r *Runner) explainMissingNeeds(err error) error {
 
 	id := match[1] + match[2] // one of them is set, depending on how the test case is used
 
-	for _, testCase := range r.testSuiteSpec.Tests {
-		if testCase.ID == id {
-			return errors.New("one or more test cases are used but are not listed in needs")
-		}
+	if r.testSuiteSpec.HasID(id) {
+		return errors.New("one or more test cases are used but are not listed in needs")
 	}
 
 	return err

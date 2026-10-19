@@ -1816,6 +1816,14 @@ func TestTestSuiteSpec_PositionOf(t *testing.T) {
 	assert.Equal(t, -1, (&TestSuiteSpec{}).PositionOf("first"))
 }
 
+func TestTestSuiteSpec_HasID(t *testing.T) {
+	spec := &TestSuiteSpec{Tests: []TestCase{{Name: "First", ID: "first"}, {Name: "Second"}}}
+
+	assert.True(t, spec.HasID("first"))
+	assert.False(t, spec.HasID("nope"))
+	assert.False(t, spec.HasID(""), "the test case without an ID doesn't make an empty one")
+}
+
 func TestIsValidID(t *testing.T) {
 	for _, id := range []string{"a", "A", "0", "a-b", "a_b", "Mixed-Case_123"} {
 		assert.True(t, IsValidID(id), id)
