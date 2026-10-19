@@ -196,3 +196,41 @@ func TestOrder_ADependencyUnlocksTheOnesThatWaitForIt(t *testing.T) {
 
 	assert.Equal(t, []int{2, 3, 1, 0}, order(t, spec))
 }
+
+func TestCheckCycles(t *testing.T) {
+	tests := map[string]struct {
+		tests []api.TestCase
+		want  []string
+	}{
+		"none": {
+			tests: []api.TestCase{testCase("a", "a"), testCase("b", "b", "a")},
+		},
+		"none, with a testcase listed after the one that needs it": {
+			tests: []api.TestCase{testCase("a", "a", "b"), testCase("b", "b")},
+		},
+		"itself": {
+			tests: []api.TestCase{testCase("a", "a", "a")},
+			want:  []string{"needs cycle: a -> a"},
+		},
+		"two that need each other": {
+			tests: []api.TestCase{testCase("a", "a", "b"), testCase("b", "b", "a")},
+			want:  []string{"needs cycle: a -> b -> a"},
+		},
+		"every cycle, in the order they are listed": {
+			tests: []api.TestCase{
+				testCase("ok", "ok"),
+				testCase("self", "self", "self"),
+				testCase("a", "a", "b"),
+				testCase("b", "b", "a"),
+				testCase("downstream", "downstream", "a", "ok"),
+			},
+			want: []string{"needs cycle: self -> self", "needs cycle: a -> b -> a"},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, Build(&api.TestSuiteSpec{Tests: tc.tests}).CheckCycles())
+		})
+	}
+}
