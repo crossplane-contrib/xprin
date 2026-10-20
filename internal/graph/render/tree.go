@@ -14,26 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package graph
+// Package render writes the dependency graph of a test suite, in the formats that xprin graph can show.
+package render
 
 import (
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 )
 
-// WriteTree writes g to w as a tree, like tree(1), headed by title. Testcases that need nothing
-// are at the top level; the others are listed under every testcase they need, expanded the
-// first time and marked (*) afterwards.
-func WriteTree(w io.Writer, title string, spec *api.TestSuiteSpec, g *Graph) error {
+// Tree writes the dependency graph of the test suite to w as a tree, like tree(1), headed by the file of the
+// test suite. Testcases that need nothing are at the top level; the others are listed under every testcase
+// they need, expanded the first time and marked (*) afterwards.
+func Tree(w io.Writer, testSuite *testsuite.TestSuite) error {
+	spec := testSuite.Spec
 	children := make([][]int, len(spec.Tests))
 
 	var roots []int
 
 	for i := range spec.Tests {
-		needs := g.deps[i]
+		needs := testSuite.Graph.DependenciesOf(i)
 		if len(needs) == 0 {
 			roots = append(roots, i)
 		}
@@ -50,7 +52,7 @@ func WriteTree(w io.Writer, title string, spec *api.TestSuiteSpec, g *Graph) err
 		write    func(nodes []int, prefix string)
 	)
 
-	fmt.Fprintln(&b, title)
+	fmt.Fprintln(&b, testSuite.File)
 
 	write = func(nodes []int, prefix string) {
 		for k, i := range nodes {

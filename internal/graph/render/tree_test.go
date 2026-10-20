@@ -14,30 +14,62 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package graph
+package render
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 	"sigs.k8s.io/yaml"
 )
 
+// chainedSuite is the testsuite file of examples/mytests/5_chained_tests/example5_xprin.yaml, reduced to what the graph looks at.
+const chainedSuite = `tests:
+- name: "Base layer final loop"
+  id: base_final
+- name: "GCP layer first loop"
+  id: gcp_first
+  needs:
+  - base_final
+- name: "GCP layer second loop"
+  id: gcp_second
+  needs:
+  - gcp_first
+- name: "GCP layer third loop"
+  needs:
+  - gcp_second
+- name: "AWS layer first loop"
+  id: aws_first
+  needs:
+  - base_final
+- name: "AWS layer second loop"
+  id: aws_second
+  needs:
+  - aws_first
+- name: "AWS layer third loop"
+  needs:
+  - aws_second
+`
+
+// testCase returns a test case with the given name, ID and needs.
+func testCase(name, id string, needs ...string) api.TestCase {
+	return api.TestCase{Name: name, ID: id, Needs: needs}
+}
+
 func tree(t *testing.T, spec *api.TestSuiteSpec) string {
 	t.Helper()
 
-	g := Build(spec)
-
 	var b strings.Builder
-	require.NoError(t, WriteTree(&b, "suite_xprin.yaml", spec, g))
+	require.NoError(t, Tree(&b, testsuite.New("suite_xprin.yaml", spec)))
 
 	return b.String()
 }
 
-func TestWriteTree_ChainedSuite(t *testing.T) {
+func TestTree_ChainedSuite(t *testing.T) {
 	var spec api.TestSuiteSpec
 	require.NoError(t, yaml.Unmarshal([]byte(chainedSuite), &spec))
 
@@ -54,7 +86,7 @@ func TestWriteTree_ChainedSuite(t *testing.T) {
 	assert.Equal(t, want, tree(t, &spec))
 }
 
-func TestWriteTree_IndependentTestCasesAreAllAtTheTopLevel(t *testing.T) {
+func TestTree_IndependentTestCasesAreAllAtTheTopLevel(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
 		testCase("one", ""),
 		testCase("two", "two"),
@@ -70,7 +102,7 @@ func TestWriteTree_IndependentTestCasesAreAllAtTheTopLevel(t *testing.T) {
 	assert.Equal(t, want, tree(t, spec))
 }
 
-func TestWriteTree_TestCaseWaitingForSeveralIsExpandedOnce(t *testing.T) {
+func TestTree_TestCaseWaitingForSeveralIsExpandedOnce(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
 		testCase("a", "a"),
 		testCase("b", "b"),
@@ -91,7 +123,7 @@ func TestWriteTree_TestCaseWaitingForSeveralIsExpandedOnce(t *testing.T) {
 	assert.Equal(t, want, tree(t, spec))
 }
 
-func TestWriteTree_ATestCaseCanNeedOneListedAfterIt(t *testing.T) {
+func TestTree_ATestCaseCanNeedOneListedAfterIt(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
 		testCase("needs the last", "", "base"),
 		testCase("alone", ""),
