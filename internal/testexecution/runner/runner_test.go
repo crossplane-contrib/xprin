@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/crossplane-contrib/xprin/internal/xpcli"
@@ -56,7 +56,7 @@ func createTestCaseResult(name string, verbose bool, err error) *engine.TestCase
 }
 
 // newMockRunner creates a test-specific Runner with mocked functions.
-func newMockRunner(options *testexecutionUtils.Options, mocks ...func(*Runner)) *Runner {
+func newMockRunner(options *testexecutionOptions.Options, mocks ...func(*Runner)) *Runner {
 	// Use default test suite file and spec for tests that don't need specific values
 	testSuiteSpec := &api.TestSuiteSpec{Tests: []api.TestCase{}}
 	r := NewRunner(options, testsuite.New(testSuiteFile, testSuiteSpec))
@@ -75,7 +75,7 @@ func newMockRunner(options *testexecutionUtils.Options, mocks ...func(*Runner)) 
 }
 
 // makeOptions is a helper to create Options from a config and allow overrides for tests.
-func makeOptions(cfg *config.Config, render, validate []string, overrides ...func(*testexecutionUtils.Options)) *testexecutionUtils.Options {
+func makeOptions(cfg *config.Config, render, validate []string, overrides ...func(*testexecutionOptions.Options)) *testexecutionOptions.Options {
 	// If render/validate are nil, extract from cfg.Subcommands (if present)
 	if render == nil && cfg.Subcommands != nil && cfg.Subcommands.Render != "" {
 		render = strings.Fields(cfg.Subcommands.Render)
@@ -93,7 +93,7 @@ func makeOptions(cfg *config.Config, render, validate []string, overrides ...fun
 		validate = strings.Fields(config.ValidateSubcommand + " " + config.ValidateFlags)
 	}
 
-	opt := &testexecutionUtils.Options{
+	opt := &testexecutionOptions.Options{
 		Dependencies: cfg.Dependencies,
 		Render:       render,
 		Validate:     validate,
@@ -126,7 +126,7 @@ func TestNewRunner(t *testing.T) {
 		},
 	}
 	// Simulate config-to-options conversion (string to []string)
-	options := makeOptions(cfg, nil, nil, func(o *testexecutionUtils.Options) {
+	options := makeOptions(cfg, nil, nil, func(o *testexecutionOptions.Options) {
 		o.Debug = true
 	})
 	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
@@ -173,7 +173,7 @@ func TestNewRunner_SetsWorkingDirectory(t *testing.T) {
 	testSuiteFile := "/path/to/test/suite_xprin.yaml"
 	expectedDir := "/path/to/test"
 
-	options := &testexecutionUtils.Options{}
+	options := &testexecutionOptions.Options{}
 	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
 	// Verify testSuiteFileDir is set correctly
@@ -241,7 +241,7 @@ func TestNewTemplateContext(t *testing.T) {
 }
 
 func TestRunTests(t *testing.T) {
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		ShowRender:   false,
 		ShowValidate: false,
 		Verbose:      false,
@@ -330,7 +330,7 @@ func TestRunTests(t *testing.T) {
 }
 
 func TestRunTestsIntegration(t *testing.T) {
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		ShowRender:   false,
 		ShowValidate: false,
 		Verbose:      false,
@@ -492,7 +492,7 @@ func TestRunTestsIntegration(t *testing.T) {
 	t.Run("multiple tests mixed pass/fail, verbose output check", func(t *testing.T) {
 		var buf bytes.Buffer
 
-		options := &testexecutionUtils.Options{
+		options := &testexecutionOptions.Options{
 			ShowRender:   false,
 			ShowValidate: false,
 			Verbose:      true,
@@ -542,7 +542,7 @@ func TestRunTestsIntegration(t *testing.T) {
 	t.Run("multiple groups mixed pass/fail, non-verbose output check", func(t *testing.T) {
 		var buf bytes.Buffer
 
-		options := &testexecutionUtils.Options{
+		options := &testexecutionOptions.Options{
 			ShowRender:   false,
 			ShowValidate: false,
 			Verbose:      false,
@@ -603,7 +603,7 @@ func TestRunTestCase(t *testing.T) {
 			"crossplane": config.CrossplaneCmd,
 		},
 	}
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		Dependencies: cfg.Dependencies,
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		Validate:     []string{config.ValidateSubcommand},
@@ -1748,7 +1748,7 @@ func TestRunTestCase_CommonPathExpansionAndVerification(t *testing.T) {
 			"crossplane": config.CrossplaneCmd,
 		},
 	}
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		Dependencies: cfg.Dependencies,
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		Validate:     []string{config.ValidateSubcommand},
@@ -2221,7 +2221,7 @@ func TestRunTestCase_LocalPathExpansionAndVerification(t *testing.T) {
 			"crossplane": config.CrossplaneCmd,
 		},
 	}
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		Dependencies: cfg.Dependencies,
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		Validate:     []string{config.ValidateSubcommand},
@@ -2713,7 +2713,7 @@ func TestRunTestCase_MergeCommon(t *testing.T) {
 			"crossplane": config.CrossplaneCmd,
 		},
 	}
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		Dependencies: cfg.Dependencies,
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		Validate:     []string{config.ValidateSubcommand},
@@ -3072,7 +3072,7 @@ func TestRunTestCase_MergeCommon(t *testing.T) {
 }
 
 func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		Validate:     []string{config.ValidateSubcommand},
 		ShowRender:   true,
@@ -3120,7 +3120,7 @@ func TestRunTestCase_SkipsValidateWhenNoCRDs(t *testing.T) {
 			"crossplane": config.CrossplaneCmd,
 		},
 	}
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		Dependencies: cfg.Dependencies,
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		Validate:     []string{config.ValidateSubcommand},
@@ -3166,7 +3166,7 @@ func TestRunTestCase_SkipsValidateWhenNoCRDs(t *testing.T) {
 }
 
 func TestRunTestsFileResults(t *testing.T) {
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		ShowRender:   false,
 		ShowValidate: false,
 		Debug:        false,
@@ -3567,7 +3567,7 @@ func TestProcessTemplateVariables(t *testing.T) {
 
 	// Create runner with repositories
 	runner := &Runner{
-		Options: &testexecutionUtils.Options{
+		Options: &testexecutionOptions.Options{
 			Repositories: map[string]string{
 				"myrepo": "/path/to/myrepo",
 			},
@@ -3619,7 +3619,7 @@ metadata:
 
 	// Create runner
 	runner := &Runner{
-		Options: &testexecutionUtils.Options{
+		Options: &testexecutionOptions.Options{
 			Repositories: map[string]string{
 				"myrepo": "/path/to/myrepo",
 			},
@@ -3653,7 +3653,7 @@ func TestProcessTemplateVariables_LeavesTheHooksToTheStepsThatRunThem(t *testing
 		},
 	}
 
-	runner := &Runner{Options: &testexecutionUtils.Options{Repositories: map[string]string{"myrepo": "/path/to/myrepo"}}}
+	runner := &Runner{Options: &testexecutionOptions.Options{Repositories: map[string]string{"myrepo": "/path/to/myrepo"}}}
 
 	require.NoError(t, runner.processTemplateVariables(&testCase, nil))
 
@@ -3740,7 +3740,7 @@ metadata:
 			"crossplane": config.CrossplaneCmd,
 		},
 	}
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		Dependencies: cfg.Dependencies,
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		Validate:     []string{config.ValidateSubcommand},
@@ -3858,7 +3858,7 @@ metadata:
 func TestArtifactsDirectory(t *testing.T) {
 	t.Run("creates artifacts directory in runTests", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		options := &testexecutionUtils.Options{
+		options := &testexecutionOptions.Options{
 			Debug: false,
 		}
 
@@ -3917,7 +3917,7 @@ metadata:
 				"crossplane": config.CrossplaneCmd,
 			},
 		}
-		options := &testexecutionUtils.Options{
+		options := &testexecutionOptions.Options{
 			Dependencies: cfg.Dependencies,
 			Render:       []string{config.RenderSubcommand, config.RenderFlags},
 			Validate:     []string{config.ValidateSubcommand},
@@ -4057,7 +4057,7 @@ metadata:
 
 	t.Run("does not copy outputs when testCase.ID is empty", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		options := &testexecutionUtils.Options{
+		options := &testexecutionOptions.Options{
 			Debug: false,
 		}
 		runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
@@ -4096,7 +4096,7 @@ metadata:
 	})
 
 	t.Run("supports cross-test references via GetCompletedTests", func(t *testing.T) {
-		options := &testexecutionUtils.Options{
+		options := &testexecutionOptions.Options{
 			Debug: false,
 		}
 		runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))

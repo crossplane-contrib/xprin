@@ -23,8 +23,8 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/discovery"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/runner"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/spf13/afero"
 )
@@ -38,7 +38,7 @@ type runnerInterface interface {
 //
 //nolint:gochecknoglobals // Global variables for dependency injection in tests
 var (
-	newRunnerFunc = func(options *testexecutionUtils.Options, testSuite *testsuite.TestSuite) runnerInterface {
+	newRunnerFunc = func(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
 		return runner.NewRunner(options, testSuite)
 	}
 	newCoordinatorFunc = func() (*containers.Coordinator, error) {
@@ -52,7 +52,7 @@ var (
 )
 
 // ProcessTargets processes the targets and runs the tests.
-func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionUtils.Options) error {
+func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions.Options) error {
 	// Containers tracks reuse of Docker containers for composition functions for this whole
 	// invocation. Initialized here rather than required of callers, so every entry point into
 	// test execution gets reuse enabled for free, unless the user opted out via
@@ -74,12 +74,12 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionUtils.O
 }
 
 // discoveryOptions returns what the discovery package needs to know from the options.
-func discoveryOptions(options *testexecutionUtils.Options) discovery.Options {
+func discoveryOptions(options *testexecutionOptions.Options) discovery.Options {
 	return discovery.Options{Quiet: options.Quiet, Debug: options.Debug}
 }
 
 // processTestSuiteFile processes a single test file, loading the configuration and running tests if applicable.
-func processTestSuiteFile(fs afero.Fs, testSuiteFile string, options *testexecutionUtils.Options) error {
+func processTestSuiteFile(fs afero.Fs, testSuiteFile string, options *testexecutionOptions.Options) error {
 	testSuite, err := discovery.Load(fs, testSuiteFile, discoveryOptions(options))
 	if err != nil || testSuite == nil {
 		return err

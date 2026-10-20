@@ -24,8 +24,8 @@ import (
 
 	"github.com/alecthomas/kong"
 	internalcfg "github.com/crossplane-contrib/xprin/internal/config"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/processor"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/gonvenience/bunt"
 	"github.com/spf13/afero"
 )
@@ -72,8 +72,8 @@ func (c *Cmd) Run(_ *kong.Context) error {
 	return processor.ProcessTargets(c.fs, c.Targets, c.newOptions(c.Config))
 }
 
-// newOptions creates a testexecutionUtils.Options struct from the command and config.
-func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionUtils.Options {
+// newOptions creates a testexecutionOptions.Options struct from the command and config.
+func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionOptions.Options {
 	var render, validate []string
 
 	if cfg.Subcommands != nil {
@@ -81,7 +81,7 @@ func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionUtils.Options {
 		validate = strings.Fields(cfg.Subcommands.Validate)
 	}
 
-	return &testexecutionUtils.Options{
+	return &testexecutionOptions.Options{
 		Dependencies:      cfg.Dependencies,
 		Repositories:      cfg.Repositories,
 		Verbose:           c.Verbose,

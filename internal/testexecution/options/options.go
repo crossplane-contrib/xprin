@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package utils provides shared utilities for test execution including options, path expansion, and template processing.
-package utils
+// Package options has the options of a test run, which the commands fill in and the test execution reads.
+package options
 
 import (
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"

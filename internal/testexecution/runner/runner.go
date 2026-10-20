@@ -32,6 +32,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/legacy05"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
@@ -43,7 +44,7 @@ import (
 
 // Runner handles test execution.
 type Runner struct {
-	*testexecutionUtils.Options
+	*testexecutionOptions.Options
 
 	fs                    afero.Fs
 	testSuiteSpec         *api.TestSuiteSpec
@@ -86,7 +87,7 @@ type templateContext struct {
 }
 
 // NewRunner creates a new test runner.
-func NewRunner(options *testexecutionUtils.Options, testSuite *testsuite.TestSuite) *Runner {
+func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite) *Runner {
 	testSuiteFileDir := filepath.Dir(testSuite.File)
 
 	return &Runner{

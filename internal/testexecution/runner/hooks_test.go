@@ -28,7 +28,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
@@ -473,7 +473,7 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 	require.NoError(t, afero.WriteFile(fs, testSuiteFile, []byte("tests: []"), 0o644))
 
 	// Create a runner with the testsuite file path
-	options := &testexecutionUtils.Options{}
+	options := &testexecutionOptions.Options{}
 	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
 	// Verify that testSuiteFileDir is computed correctly
