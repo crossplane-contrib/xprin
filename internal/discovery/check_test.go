@@ -20,9 +20,15 @@ import (
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
+
+// check is checkTestSuiteFile, with the graph that Load builds.
+func check(spec *api.TestSuiteSpec) error {
+	return checkTestSuiteFile(spec, graph.Build(spec))
+}
 
 func TestCheckTestSuiteFile(t *testing.T) {
 	tests := []struct {
@@ -111,7 +117,7 @@ func TestCheckTestSuiteFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := checkTestSuiteFile(tt.spec)
+			err := checkTestSuiteFile(tt.spec, graph.Build(tt.spec))
 			if tt.wantErr {
 				require.Error(t, err)
 
@@ -169,7 +175,7 @@ func TestCheckTestSuiteFile_Needs(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := checkTestSuiteFile(&api.TestSuiteSpec{Tests: tc.tests})
+			err := check(&api.TestSuiteSpec{Tests: tc.tests})
 
 			if tc.wantErr == "" {
 				require.NoError(t, err)
@@ -182,7 +188,7 @@ func TestCheckTestSuiteFile_Needs(t *testing.T) {
 	}
 
 	t.Run("every problem is reported", func(t *testing.T) {
-		err := checkTestSuiteFile(&api.TestSuiteSpec{Tests: []api.TestCase{{Name: "a", Needs: []string{"x", "y"}}}})
+		err := check(&api.TestSuiteSpec{Tests: []api.TestCase{{Name: "a", Needs: []string{"x", "y"}}}})
 
 		require.ErrorContains(t, err, `needs "x"`)
 		require.ErrorContains(t, err, `needs "y"`)

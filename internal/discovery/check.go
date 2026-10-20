@@ -29,8 +29,8 @@ import (
 // - if test case names are non-empty
 // - if test case IDs are valid, and unique (only for tests that have IDs)
 // - if the `needs` of the test cases are right (see checkNeeds).
-func checkTestSuiteFile(spec *api.TestSuiteSpec) error {
-	problems := slices.Concat(checkNamesAndIDs(spec), checkNeeds(spec))
+func checkTestSuiteFile(spec *api.TestSuiteSpec, g *graph.Graph) error {
+	problems := slices.Concat(checkNamesAndIDs(spec), checkNeeds(spec, g))
 	if len(problems) == 0 {
 		return nil
 	}
@@ -71,7 +71,7 @@ func checkNamesAndIDs(spec *api.TestSuiteSpec) []string {
 // - an ID that doesn't exist
 // - an empty list
 // - a cycle: test cases that need each other (directly or not), or themselves.
-func checkNeeds(spec *api.TestSuiteSpec) []string {
+func checkNeeds(spec *api.TestSuiteSpec, g *graph.Graph) []string {
 	var problems []string
 
 	for _, test := range spec.Tests {
@@ -86,5 +86,5 @@ func checkNeeds(spec *api.TestSuiteSpec) []string {
 		}
 	}
 
-	return append(problems, graph.Build(spec).CheckCycles()...)
+	return append(problems, g.CheckCycles()...)
 }

@@ -31,6 +31,8 @@ type Graph struct {
 	deps [][]int
 	// ids[i] is the ID of the testcase at position i of the file, empty when it has none.
 	ids []string
+	// order is the positions of the testcases in the order they run. CheckCycles sets it, when it finds no cycles
+	order []int
 }
 
 // Build returns the dependency graph of the testcases in spec: a testcase depends on the testcases
@@ -57,16 +59,22 @@ func Build(spec *api.TestSuiteSpec) *Graph {
 	return g
 }
 
-// Order returns the positions of the testcases in the order they run: each one after the testcases it
+// GetOrder returns the positions of the testcases in the order they run: each one after the testcases it
 // needs. Whenever several can run, the one listed first in the file does, so the order depends only
 // on the file and the dependencies (never on the order of the IDs in a `needs`), and a file without
-// dependencies runs in the order it is written. It is the same for every command that uses it.
+// dependencies runs in the order it is written.
 // Testcases that need each other, directly or not, have no order and are left out: CheckCycles reports them,
 // and a testsuite file that has any is rejected when it is loaded.
-func (g *Graph) Order() []int {
-	order, _ := g.sortByDependencies(nil)
+func (g *Graph) GetOrder() []int {
+	// CheckCycles keeps the order when it finds no cycles. A graph that was not checked sorts now, so that its
+	// order is never missing.
+	if g.order == nil {
+		order, _ := g.sortByDependencies(nil)
 
-	return order
+		return order
+	}
+
+	return g.order
 }
 
 // CheckCycles describes each cycle of testcases that need each other, one message for each, like
@@ -82,6 +90,11 @@ func (g *Graph) CheckCycles() []string {
 		order, waiting := g.sortByDependencies(done)
 
 		if g.noCyclesLeft(order, done) {
+			// No cycle at all: this sort is the order of the testcases, keep it for GetOrder
+			if len(cycles) == 0 {
+				g.order = order
+			}
+
 			return cycles
 		}
 

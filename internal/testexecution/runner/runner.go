@@ -27,6 +27,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/templates"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
@@ -45,7 +46,8 @@ type Runner struct {
 
 	fs                    afero.Fs
 	testSuiteSpec         *api.TestSuiteSpec
-	legacy05              bool // the file is in the format of xprin up to 0.5 (see legacy05.IsTestSuite)
+	legacy05              bool         // the file is in the format of xprin up to 0.5 (see legacy05.IsTestSuite)
+	testSuiteGraph        *graph.Graph // the dependencies of the test cases, from the loader; built when it is not given
 	testSuiteFile         string
 	testSuiteFileDir      string
 	output                io.Writer

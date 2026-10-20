@@ -26,6 +26,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
@@ -92,8 +93,7 @@ func TestRunTests_Needs(t *testing.T) {
 }
 
 func TestRunTests_Order(t *testing.T) {
-	// "a" is listed first, but needs "c" and "b", which are listed after it: that is not allowed in a
-	// testsuite file yet, but it is what the order is for
+	// "a" is listed first, but needs "c" and "b", which are listed after it
 	tests := []api.TestCase{
 		{Name: "A", ID: "a", Needs: []string{"c", "b"}},
 		{Name: "B", ID: "b"},
@@ -111,6 +111,18 @@ func TestRunTests_Order(t *testing.T) {
 		_, ran := runWithResults(t, legacySpec())
 
 		assert.Equal(t, []string{"a", "b", "c"}, ran)
+	})
+
+	t.Run("it uses the graph it is given, and builds one when it has none", func(t *testing.T) {
+		// "a" needs "b": the order is [b, a], and it is only in the graph, the spec of the runner has no needs
+		given := graph.Build(&api.TestSuiteSpec{Tests: []api.TestCase{{Name: "A", ID: "a", Needs: []string{"b"}}, {Name: "B", ID: "b"}}})
+		r := NewRunner(&testexecutionUtils.Options{}, "/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "A", ID: "a"}, {Name: "B", ID: "b"}}})
+
+		assert.Equal(t, []int{0, 1}, r.runOrder(), "the graph that it builds from its own spec")
+
+		r.SetTestSuiteGraph(given)
+
+		assert.Equal(t, []int{1, 0}, r.runOrder(), "the graph that it is given")
 	})
 
 	t.Run("a test case that needs one listed after it is skipped when that one fails", func(t *testing.T) {

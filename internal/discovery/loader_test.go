@@ -27,6 +27,16 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
+// loadSpec is Load, returning only the spec (nil when there is no test suite).
+func loadSpec(fs afero.Fs, path string, options Options) (*api.TestSuiteSpec, error) {
+	testSuite, err := Load(fs, path, options)
+	if testSuite == nil {
+		return nil, err
+	}
+
+	return testSuite.Spec, err
+}
+
 func TestLoad_Parse(t *testing.T) {
 	fs := afero.NewMemMapFs()
 
@@ -38,7 +48,7 @@ func TestLoad_Parse(t *testing.T) {
 		)
 
 		unittestsUtils.CaptureStderr(func() {
-			spec, err = Load(fs, path, Options{})
+			spec, err = loadSpec(fs, path, Options{})
 		})
 
 		return spec, err
@@ -253,14 +263,14 @@ func TestLoad(t *testing.T) {
 	}
 
 	t.Run("a valid file", func(t *testing.T) {
-		spec, err := Load(write(t, "tests:\n- name: one\n  id: one\n"), "/a_xprin.yaml", Options{})
+		spec, err := loadSpec(write(t, "tests:\n- name: one\n  id: one\n"), "/a_xprin.yaml", Options{})
 		require.NoError(t, err)
 		require.NotNil(t, spec)
 		assert.Equal(t, "one", spec.Tests[0].Name)
 	})
 
 	t.Run("needs in the common configuration is ignored: it is only for test cases", func(t *testing.T) {
-		spec, err := Load(write(t, "common:\n  needs:\n  - one\ntests:\n- name: one\n  id: one\n- name: two\n"), "/a_xprin.yaml", Options{})
+		spec, err := loadSpec(write(t, "common:\n  needs:\n  - one\ntests:\n- name: one\n  id: one\n- name: two\n"), "/a_xprin.yaml", Options{})
 		require.NoError(t, err)
 		require.NotNil(t, spec)
 
@@ -276,7 +286,7 @@ func TestLoad(t *testing.T) {
 		)
 
 		out := unittestsUtils.CaptureStderr(func() {
-			spec, err = Load(write(t, "tests: []\n"), "/a_xprin.yaml", Options{})
+			spec, err = loadSpec(write(t, "tests: []\n"), "/a_xprin.yaml", Options{})
 		})
 
 		require.NoError(t, err)
@@ -288,7 +298,7 @@ func TestLoad(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			_, err = Load(write(t, "tests: []\n"), "/a_xprin.yaml", Options{Quiet: true})
+			_, err = loadSpec(write(t, "tests: []\n"), "/a_xprin.yaml", Options{Quiet: true})
 		})
 
 		require.NoError(t, err)
@@ -299,18 +309,20 @@ func TestLoad(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			_, err = Load(write(t, "tests: [unclosed"), "/a_xprin.yaml", Options{})
+			_, err = loadSpec(write(t, "tests: [unclosed"), "/a_xprin.yaml", Options{})
 		})
 
 		require.Error(t, err)
 		assert.Contains(t, out, "FAIL\t/a_xprin.yaml\t[invalid testsuite file]")
 	})
 
-	t.Run("needs can point to a test case listed after it", func(t *testing.T) {
-		spec, err := Load(write(t, "tests:\n- name: one\n  needs:\n  - two\n- name: two\n  id: two\n"), "/a_xprin.yaml", Options{})
+	t.Run("needs can point to a test case listed after it, and the graph that is returned orders them", func(t *testing.T) {
+		testSuite, err := Load(write(t, "tests:\n- name: one\n  needs:\n  - two\n- name: two\n  id: two\n"), "/a_xprin.yaml", Options{})
 
 		require.NoError(t, err)
-		require.NotNil(t, spec)
+		require.NotNil(t, testSuite)
+		assert.Len(t, testSuite.Spec.Tests, 2)
+		assert.Equal(t, []int{1, 0}, testSuite.Graph.GetOrder(), "two runs first, one needs it")
 	})
 
 	t.Run("test cases that need each other are reported as an error, with the cycle", func(t *testing.T) {
@@ -336,7 +348,7 @@ func TestLoad(t *testing.T) {
 				)
 
 				out := unittestsUtils.CaptureStderr(func() {
-					spec, err = Load(write(t, tc.content), "/a_xprin.yaml", Options{})
+					spec, err = loadSpec(write(t, tc.content), "/a_xprin.yaml", Options{})
 				})
 
 				require.Error(t, err)
@@ -352,7 +364,7 @@ func TestLoad(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			_, err = Load(write(t, "tests:\n- name: one\n  id: one\n  needs:\n  - two\n  - nope\n- name: two\n  id: two\n  needs:\n  - one\n"), "/a_xprin.yaml", Options{})
+			_, err = loadSpec(write(t, "tests:\n- name: one\n  id: one\n  needs:\n  - two\n  - nope\n- name: two\n  id: two\n  needs:\n  - one\n"), "/a_xprin.yaml", Options{})
 		})
 
 		require.Error(t, err)
@@ -364,7 +376,7 @@ func TestLoad(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			_, err = Load(write(t, "tests:\n- name: one\n  id: same\n- name: two\n  id: same\n"), "/a_xprin.yaml", Options{})
+			_, err = loadSpec(write(t, "tests:\n- name: one\n  id: same\n- name: two\n  id: same\n"), "/a_xprin.yaml", Options{})
 		})
 
 		require.ErrorContains(t, err, "duplicate test case ID")
