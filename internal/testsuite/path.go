@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+package testsuite
 
 import (
 	"errors"
@@ -24,11 +24,11 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/utils"
 )
 
-// ExpandPathRelativeToTestSuiteFile expands a path relative to the directory of the given testsuite file.
+// ExpandPath expands a path that a testsuite file refers to, relative to the directory of that file.
 // If the path is absolute, it is returned as an absolute path (with tilde expanded if present).
 // If the path starts with ~, it is expanded to the user's home directory.
 // Otherwise, the path is joined with the directory of the testsuite file and made absolute.
-func ExpandPathRelativeToTestSuiteFile(testSuiteFile, path string) (string, error) {
+func ExpandPath(testSuiteFile, path string) (string, error) {
 	if path == "" {
 		return "", errors.New("empty path")
 	}

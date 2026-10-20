@@ -33,7 +33,6 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/legacy05"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/gertd/go-pluralize"
@@ -101,7 +100,7 @@ func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestS
 		legacy05:         legacy05.IsTestSuite(testSuite.Spec),
 		// Initialize mockable function fields with default implementations
 		runTestCaseFunc:                   nil, // will set default below
-		expandPathRelativeToTestSuiteFile: testexecutionUtils.ExpandPathRelativeToTestSuiteFile,
+		expandPathRelativeToTestSuiteFile: testsuite.ExpandPath,
 		verifyPathExists:                  utils.VerifyPathExists,
 		runCommand: func(name string, args ...string) ([]byte, error) {
 			cmd := exec.Command(name, args...) //nolint:gosec // G204 - Used for Crossplane CLI and hooks, caller is trusted
