@@ -4175,3 +4175,53 @@ metadata:
 		require.NoError(t, result2.Error)
 	})
 }
+
+func TestExportOutputs(t *testing.T) {
+	newRunner := func() (*Runner, *[]string) {
+		r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/suite_xprin.yaml", &api.TestSuiteSpec{}))
+		r.testSuiteArtifactsDir = "/artifacts"
+
+		var copied []string
+
+		r.copy = func(src, dest string, _ ...cp.Options) error {
+			copied = append(copied, src+" -> "+dest)
+
+			return nil
+		}
+
+		return r, &copied
+	}
+
+	t.Run("a test case with an ID: the outputs are copied, and point to the artifacts", func(t *testing.T) {
+		r, copied := newRunner()
+		validate, assertions := "/tmp/outputs/validate.txt", "/tmp/outputs/assertions.txt"
+		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
+		result.Outputs = engine.Outputs{
+			Render:     "/tmp/outputs/rendered.yaml",
+			XR:         "/tmp/outputs/xr.yaml",
+			Validate:   &validate,
+			Assertions: &assertions,
+			Rendered:   map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"},
+		}
+
+		require.NoError(t, r.exportOutputs(api.TestCase{ID: "a"}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
+
+		assert.Equal(t, []string{"/tmp/outputs -> /artifacts/a"}, *copied)
+		assert.Equal(t, "/artifacts/a/rendered.yaml", result.Outputs.Render)
+		assert.Equal(t, "/artifacts/a/xr.yaml", result.Outputs.XR)
+		assert.Equal(t, "/artifacts/a/validate.txt", *result.Outputs.Validate)
+		assert.Equal(t, "/artifacts/a/assertions.txt", *result.Outputs.Assertions)
+		assert.Equal(t, "/artifacts/a/Kind-name.yaml", result.Outputs.Rendered["Kind/name"])
+	})
+
+	t.Run("a test case without an ID: nothing is copied", func(t *testing.T) {
+		r, copied := newRunner()
+		result := engine.NewTestCaseResult("a", "", false, false, false, false, false)
+		result.Outputs.XR = "/tmp/outputs/xr.yaml"
+
+		require.NoError(t, r.exportOutputs(api.TestCase{}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
+
+		assert.Empty(t, *copied)
+		assert.Equal(t, "/tmp/outputs/xr.yaml", result.Outputs.XR)
+	})
+}

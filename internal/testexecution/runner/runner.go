@@ -212,9 +212,7 @@ func (r *Runner) RunTests() error {
 	return nil
 }
 
-// runTestCase executes a single test case and returns a complete TestCaseResult
-//
-//nolint:gocognit // Complex test case execution with multiple validation and execution phases
+// runTestCase executes a single test case and returns a complete TestCaseResult.
 func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
 	if r.Debug {
 		utils.DebugPrintf("Starting test case '%s'\n", testCase.Name)
@@ -288,6 +286,67 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	if r.Debug {
 		r.debugPrintTestCase(testCase, "Test specification:")
 	}
+
+	if failed := r.expandInputPaths(&testCase, result); failed != nil {
+		return failed
+	}
+
+	if failed := r.copyInputs(env, &testCase, result); failed != nil {
+		return failed
+	}
+
+	if failed := r.runPreTestHooks(testCase, needsResults, result); failed != nil {
+		return failed
+	}
+
+	if failed := r.renderTestCase(env, testCase, result); failed != nil {
+		return failed
+	}
+
+	if r.UpdateGoldens {
+		return r.runUpdateGoldens(testCase, result)
+	}
+
+	var finalError []string
+
+	if failed := r.validateTestCase(env, testCase, result); failed != nil {
+		return failed
+	}
+
+	if failed := r.runAssertions(env, testCase, result); failed != nil {
+		return failed
+	}
+
+	r.runPostTestHooks(testCase, needsResults, result)
+
+	if err := r.exportOutputs(testCase, env, result); err != nil {
+		return result.Fail(err)
+	}
+
+	// Fail with infrastructure/non-section errors if any; otherwise fail with nil when pipeline failed
+	if len(finalError) > 0 {
+		return result.Fail(fmt.Errorf("%s", strings.Join(finalError, "\n")))
+	}
+
+	if result.HasPipelineFailure() {
+		return result.Fail(nil)
+	}
+
+	// Complete the test case result
+	if r.Debug {
+		utils.DebugPrintf("Test case '%s' completed with status: %s\n", testCase.Name, result.Status.String())
+	}
+
+	return result.Complete()
+}
+
+// expandInputPaths makes the paths of the inputs of the test case (and its XRD patch) absolute, relative to the
+// testsuite file, and checks that they exist. It returns the failed result when they don't, to end the run of the
+// test case, and nil to go on.
+//
+//nolint:gocognit // Every path of the test case is expanded and verified the same way, one after the other
+func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
+	var err error
 
 	// Always resolve compositionPath, functionPath and all the crdPaths relative to the testsuite file and verify they exist
 	// Only resolve Claim or XR path based on which input type is being used
@@ -453,8 +512,17 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	}
 
 	if r.Debug && anyPathExpanded {
-		r.debugPrintTestCase(testCase, "Test specification with expanded input paths:")
+		r.debugPrintTestCase(*testCase, "Test specification with expanded input paths:")
 	}
+
+	return nil
+}
+
+// copyInputs copies the inputs of the test case to the inputs directory of its environment, and points the test
+// case to the copies. It returns the failed result when one can't be copied, to end the run of the test case, and
+// nil to go on.
+func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
+	var err error
 
 	// Copy all inputs to the temporary inputs directory
 	if testCase.HasXR() {
@@ -532,9 +600,16 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		}
 	}
 
-	// Execute pre-test hooks
+	return nil
+}
+
+// runPreTestHooks runs the pre-test hooks of the test case, if it has any. It returns the failed result when one
+// fails, to end the run of the test case, and nil to go on.
+func (r *Runner) runPreTestHooks(testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
 	if testCase.HasPreTestHooks() {
 		hookExecutor := newHookExecutor(r.Repositories, r.Debug, r.runCommand, r.renderTemplate)
+
+		var err error
 
 		result.PreTestHooksResults, err = hookExecutor.executeHooks(testCase.Hooks.PreTest, "pre-test", testCase.Inputs, nil, needsResults)
 		result.ProcessPreTestHooksOutput()
@@ -543,6 +618,17 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			return result.Fail(nil)
 		}
 	}
+
+	return nil
+}
+
+// renderTestCase turns the test case into the XR to render (converting its Claim, or taking its XR, and patching it),
+// renders it, and writes the rendered resources to the outputs directory of its environment. It returns the
+// failed result when any of that fails, to end the run of the test case, and nil to go on.
+//
+//nolint:gocognit // The steps of the conversion, the patching and the render, one after the other
+func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
+	var err error
 
 	// Handle XR input - either convert Claim to XR or use provided XR file
 	var inputXR string
@@ -703,11 +789,15 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		result.Outputs.Rendered[fmt.Sprintf("%s/%s", kind, name)] = filepath
 	}
 
-	if r.UpdateGoldens {
-		return r.runUpdateGoldens(testCase, result)
-	}
+	return nil
+}
 
-	var finalError []string
+// validateTestCase validates the rendered resources of the test case against its CRDs, if it has any, and writes
+// the output to the outputs directory of its environment. A failed validation is in the result, and does not
+// end the run of the test case: only a failure to write the output does, and the failed result is returned then.
+// It returns nil to go on.
+func (r *Runner) validateTestCase(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
+	var err error
 
 	if len(testCase.Inputs.CRDs) >= 1 {
 		validateArgs := make([]string, 0, len(r.Validate)+4)
@@ -747,6 +837,13 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		}
 	}
 
+	return nil
+}
+
+// runAssertions runs the assertions of the test case, if it has any, and writes the output to the outputs
+// directory of its environment. A failed assertion is in the result, and does not end the run of the test case:
+// only a failure to write the output does, and the failed result is returned then. It returns nil to go on.
+func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
 	// Execute assertions if any are defined (collect errors but don't fail immediately)
 	if testCase.HasAssertions() {
 		exec := newAssertionExecutor(
@@ -808,7 +905,12 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		}
 	}
 
-	// Execute post-test hooks (after assertions)
+	return nil
+}
+
+// runPostTestHooks runs the post-test hooks of the test case, if it has any, after its assertions. A failed hook
+// does not end the run of the test case: it is in the result.
+func (r *Runner) runPostTestHooks(testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) {
 	if testCase.HasPostTestHooks() {
 		hookExecutor := newHookExecutor(r.Repositories, r.Debug, r.runCommand, r.renderTemplate)
 
@@ -816,52 +918,44 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		result.ProcessPostTestHooksOutput()
 		// On post-test hook failure, section shows failed hooks; HasPipelineFailure() is true from results
 	}
+}
 
-	// Copy outputs to testsuite artifacts directory
-	if testCase.ID != "" {
-		artifactsDir := filepath.Join(r.testSuiteArtifactsDir, testCase.ID)
-		if err := r.copy(env.outputsDir, artifactsDir); err != nil {
-			return result.Fail(fmt.Errorf("failed to copy outputs to testsuite artifacts directory: %w", err))
-		}
-
-		if r.Debug {
-			utils.DebugPrintf("Copied outputs to testsuite artifacts directory: %s\n", artifactsDir)
-		}
-
-		// Update Outputs paths to point to artifact paths for cross-test references
-		result.Outputs.Render = filepath.Join(artifactsDir, "rendered.yaml")
-
-		result.Outputs.XR = filepath.Join(artifactsDir, "xr.yaml")
-		if result.Outputs.Validate != nil {
-			*result.Outputs.Validate = filepath.Join(artifactsDir, "validate.txt")
-		}
-
-		if result.Outputs.Assertions != nil {
-			*result.Outputs.Assertions = filepath.Join(artifactsDir, "assertions.txt")
-		}
-
-		// Update Rendered map paths to point to artifact paths
-		for key, path := range result.Outputs.Rendered {
-			filename := filepath.Base(path)
-			result.Outputs.Rendered[key] = filepath.Join(artifactsDir, filename)
-		}
+// exportOutputs copies the outputs of a test case that has an ID to the testsuite artifacts directory, and
+// points its Outputs there, so that the test cases that use them (`.Tests`) find them after the temporary
+// directory of this one is removed.
+func (r *Runner) exportOutputs(testCase api.TestCase, env *testCaseEnv, result *engine.TestCaseResult) error {
+	if testCase.ID == "" {
+		return nil
 	}
 
-	// Fail with infrastructure/non-section errors if any; otherwise fail with nil when pipeline failed
-	if len(finalError) > 0 {
-		return result.Fail(fmt.Errorf("%s", strings.Join(finalError, "\n")))
+	artifactsDir := filepath.Join(r.testSuiteArtifactsDir, testCase.ID)
+	if err := r.copy(env.outputsDir, artifactsDir); err != nil {
+		return fmt.Errorf("failed to copy outputs to testsuite artifacts directory: %w", err)
 	}
 
-	if result.HasPipelineFailure() {
-		return result.Fail(nil)
-	}
-
-	// Complete the test case result
 	if r.Debug {
-		utils.DebugPrintf("Test case '%s' completed with status: %s\n", testCase.Name, result.Status.String())
+		utils.DebugPrintf("Copied outputs to testsuite artifacts directory: %s\n", artifactsDir)
 	}
 
-	return result.Complete()
+	// Update Outputs paths to point to artifact paths for cross-test references
+	result.Outputs.Render = filepath.Join(artifactsDir, "rendered.yaml")
+
+	result.Outputs.XR = filepath.Join(artifactsDir, "xr.yaml")
+	if result.Outputs.Validate != nil {
+		*result.Outputs.Validate = filepath.Join(artifactsDir, "validate.txt")
+	}
+
+	if result.Outputs.Assertions != nil {
+		*result.Outputs.Assertions = filepath.Join(artifactsDir, "assertions.txt")
+	}
+
+	// Update Rendered map paths to point to artifact paths
+	for key, path := range result.Outputs.Rendered {
+		filename := filepath.Base(path)
+		result.Outputs.Rendered[key] = filepath.Join(artifactsDir, filename)
+	}
+
+	return nil
 }
 
 // renderTemplate renders Go template syntax with the given context.
