@@ -476,8 +476,8 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 	options := &testexecutionOptions.Options{}
 	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
-	// Verify that testSuiteFileDir is computed correctly
-	assert.Equal(t, testSuiteDir, runner.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")
+	// Verify that the directory of the test suite is computed correctly
+	assert.Equal(t, testSuiteDir, runner.testSuite.GetDir(), "the directory should be computed from the file of the test suite")
 
 	// Verify that the working directory is set correctly by capturing cmd.Dir
 	// We don't need to actually run the command - just verify cmd.Dir is set
@@ -486,7 +486,7 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 	runner.runCommand = func(name string, args ...string) ([]byte, error) {
 		cmd := exec.Command(name, args...)
 		// Set Dir the same way the original does
-		cmd.Dir = runner.testSuiteFileDir
+		cmd.Dir = runner.testSuite.GetDir()
 		capturedDir = cmd.Dir
 		// Return without running to avoid filesystem I/O
 		return []byte{}, nil

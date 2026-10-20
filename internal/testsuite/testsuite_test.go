@@ -45,3 +45,8 @@ func TestNew(t *testing.T) {
 		assert.Nil(t, testSuite.Graph)
 	})
 }
+
+func TestTestSuite_GetDir(t *testing.T) {
+	assert.Equal(t, "/tests/aws", New("/tests/aws/a_xprin.yaml", nil).GetDir())
+	assert.Equal(t, ".", New("a_xprin.yaml", nil).GetDir(), "a file in the current directory")
+}

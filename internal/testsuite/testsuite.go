@@ -19,6 +19,8 @@ limitations under the License.
 package testsuite
 
 import (
+	"path/filepath"
+
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/graph"
 )
@@ -31,15 +33,23 @@ type TestSuite struct {
 	Spec *api.TestSuiteSpec
 	// Graph is the dependencies between the test cases of Spec. It is nil when there is no Spec.
 	Graph *graph.Graph
+
+	// dir is the directory of File, worked out by New. Make a test suite with New.
+	dir string
 }
 
 // New returns the test suite of a file and its spec, with the dependency graph of the spec.
 func New(file string, spec *api.TestSuiteSpec) *TestSuite {
-	testSuite := &TestSuite{File: file, Spec: spec}
+	testSuite := &TestSuite{File: file, Spec: spec, dir: filepath.Dir(file)}
 
 	if spec != nil {
 		testSuite.Graph = graph.Build(spec)
 	}
 
 	return testSuite
+}
+
+// GetDir returns the directory of the testsuite file.
+func (ts *TestSuite) GetDir() string {
+	return ts.dir
 }

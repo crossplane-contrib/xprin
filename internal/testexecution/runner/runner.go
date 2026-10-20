@@ -27,7 +27,6 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/templates"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
@@ -46,11 +45,8 @@ type Runner struct {
 	*testexecutionOptions.Options
 
 	fs                    afero.Fs
-	testSuiteSpec         *api.TestSuiteSpec
-	legacy05              bool         // the file is in the format of xprin up to 0.5 (see legacy05.IsTestSuite)
-	testSuiteGraph        *graph.Graph // the dependencies of the test cases, from the loader; built when it is not given
-	testSuiteFile         string
-	testSuiteFileDir      string
+	testSuite             *testsuite.TestSuite // the test suite that is run: its file, its spec and its dependency graph
+	legacy05              bool                 // the file is in the format of xprin up to 0.5 (see legacy05.IsTestSuite)
 	output                io.Writer
 	testSuiteArtifactsDir string
 	totalTestCases        int
@@ -87,24 +83,19 @@ type templateContext struct {
 
 // NewRunner creates a new test runner.
 func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite) *Runner {
-	testSuiteFileDir := filepath.Dir(testSuite.File)
-
 	return &Runner{
-		fs:               afero.NewOsFs(),
-		output:           os.Stdout, // Default output to stdout
-		Options:          options,
-		testSuiteFile:    testSuite.File,
-		testSuiteFileDir: testSuiteFileDir,
-		testSuiteSpec:    testSuite.Spec,
-		testSuiteGraph:   testSuite.Graph,
-		legacy05:         legacy05.IsTestSuite(testSuite.Spec),
+		fs:        afero.NewOsFs(),
+		output:    os.Stdout, // Default output to stdout
+		Options:   options,
+		testSuite: testSuite,
+		legacy05:  legacy05.IsTestSuite(testSuite.Spec),
 		// Initialize mockable function fields with default implementations
 		runTestCaseFunc:                   nil, // will set default below
 		expandPathRelativeToTestSuiteFile: testsuite.ExpandPath,
 		verifyPathExists:                  utils.VerifyPathExists,
 		runCommand: func(name string, args ...string) ([]byte, error) {
 			cmd := exec.Command(name, args...) //nolint:gosec // G204 - Used for Crossplane CLI and hooks, caller is trusted
-			cmd.Dir = testSuiteFileDir
+			cmd.Dir = testSuite.GetDir()
 
 			var combined bytes.Buffer
 
@@ -141,16 +132,16 @@ func (r *Runner) RunTests() error {
 	}
 
 	// Validate that testSuiteFile and testSuiteSpec are set (they should be set in NewRunner)
-	if r.testSuiteFile == "" {
+	if r.testSuite.File == "" {
 		return fmt.Errorf("testsuite file path is required")
 	}
 
-	if r.testSuiteSpec == nil {
+	if r.testSuite.Spec == nil {
 		return fmt.Errorf("testsuite specification is required")
 	}
 
 	if r.legacy05 {
-		utils.WarningPrintf("%s\n", legacy05.Warning(r.testSuiteFile))
+		utils.WarningPrintf("%s\n", legacy05.Warning(r.testSuite.File))
 	}
 
 	// Create testsuite artifacts directory (always created, cleaned up when testsuite finishes)
@@ -170,23 +161,22 @@ func (r *Runner) RunTests() error {
 	}
 
 	if r.Debug {
-		testSuiteFileDir := filepath.Dir(r.testSuiteFile)
-		utils.DebugPrintf("Using testsuite file directory for relative path resolution: %s\n", testSuiteFileDir)
+		utils.DebugPrintf("Using testsuite file directory for relative path resolution: %s\n", r.testSuite.GetDir())
 
 		// We do not expand or verify common fields here. They will be expanded and verified by the individual test cases that do not override them.
-		if r.testSuiteSpec.HasCommon() {
-			r.debugPrintCommon(r.testSuiteSpec.Common, "Found common configuration:")
+		if r.testSuite.Spec.HasCommon() {
+			r.debugPrintCommon(r.testSuite.Spec.Common, "Found common configuration:")
 		}
 
 		plural := pluralize.NewClient()
-		utils.DebugPrintf("Found %s\n", plural.Pluralize("test case", len(r.testSuiteSpec.Tests), true))
+		utils.DebugPrintf("Found %s\n", plural.Pluralize("test case", len(r.testSuite.Spec.Tests), true))
 	}
 
 	// Create test suite result
-	testSuiteResult := engine.NewTestSuiteResult(r.testSuiteFile, r.Verbose)
+	testSuiteResult := engine.NewTestSuiteResult(r.testSuite.File, r.Verbose)
 	testSuiteResult.WorkingDir = r.WorkingDir
 
-	r.totalTestCases = len(r.testSuiteSpec.Tests)
+	r.totalTestCases = len(r.testSuite.Spec.Tests)
 	if r.ArtifactsBaseDir != "" && r.totalTestCases > 0 {
 		if err := r.initArtifactsRunDir(); err != nil {
 			return err
@@ -195,7 +185,7 @@ func (r *Runner) RunTests() error {
 
 	// Loop through all test cases, in the order of their dependencies, and run them directly
 	for positionInOrder, positionInTestSuite := range r.runOrder() {
-		testCase := r.testSuiteSpec.Tests[positionInTestSuite]
+		testCase := r.testSuite.Spec.Tests[positionInTestSuite]
 
 		// Run the test and let the engine handle everything
 		testCaseResult := r.runTestCase(testCase, positionInOrder+1, testSuiteResult)
@@ -210,13 +200,13 @@ func (r *Runner) RunTests() error {
 	testSuiteResult.Print(r.output)
 
 	if r.ArtifactsRunDir != "" {
-		suiteArtifactsPath := filepath.Join(r.ArtifactsRunDir, artifactsRelPath(r.testSuiteFile, r.WorkingDir))
+		suiteArtifactsPath := filepath.Join(r.ArtifactsRunDir, artifactsRelPath(r.testSuite.File, r.WorkingDir))
 		fmt.Fprintf(os.Stderr, "artifacts: %s\n", suiteArtifactsPath)
 	}
 
 	// Return error if any tests failed
 	if testSuiteResult.HasFailures() {
-		return fmt.Errorf("tests failed in testsuite %s", filepath.Base(r.testSuiteFile))
+		return fmt.Errorf("tests failed in testsuite %s", filepath.Base(r.testSuite.File))
 	}
 
 	return nil
@@ -282,8 +272,8 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		utils.DebugPrintf("- Outputs: %s\n", env.outputsDir)
 	}
 
-	if r.testSuiteSpec.HasCommon() {
-		testCase.MergeCommon(r.testSuiteSpec.Common)
+	if r.testSuite.Spec.HasCommon() {
+		testCase.MergeCommon(r.testSuite.Spec.Common)
 	}
 
 	// Process template variables for this test case
@@ -314,7 +304,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.XR, err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, testCase.Inputs.XR)
+		testCase.Inputs.XR, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.XR)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand XR path: %v", err))
 		}
@@ -327,7 +317,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.Claim, err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, testCase.Inputs.Claim)
+		testCase.Inputs.Claim, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.Claim)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand Claim path: %v", err))
 		}
@@ -341,7 +331,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		anyPathExpanded = true
 	}
 
-	testCase.Inputs.Composition, err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, testCase.Inputs.Composition)
+	testCase.Inputs.Composition, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.Composition)
 	if err != nil {
 		failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand composition path: %v", err))
 	}
@@ -354,7 +344,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		anyPathExpanded = true
 	}
 
-	testCase.Inputs.Functions, err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, testCase.Inputs.Functions)
+	testCase.Inputs.Functions, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.Functions)
 	if err != nil {
 		failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand functions path: %v", err))
 	}
@@ -368,7 +358,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.CRDs[i], err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, originalCRDPath)
+		testCase.Inputs.CRDs[i], err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, originalCRDPath)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand CRD path %s: %v", originalCRDPath, err))
 			continue
@@ -385,7 +375,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.ContextFiles[key], err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, originalContextFilePath)
+		testCase.Inputs.ContextFiles[key], err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, originalContextFilePath)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand context file path for key '%s': %v", key, err))
 			continue
@@ -402,7 +392,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.ObservedResources, err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, testCase.Inputs.ObservedResources)
+		testCase.Inputs.ObservedResources, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.ObservedResources)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand observed resources path: %v", err))
 		}
@@ -417,7 +407,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.ExtraResources, err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, testCase.Inputs.ExtraResources)
+		testCase.Inputs.ExtraResources, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.ExtraResources)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand extra resources path: %v", err))
 		}
@@ -432,7 +422,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.FunctionCredentials, err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, testCase.Inputs.FunctionCredentials)
+		testCase.Inputs.FunctionCredentials, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.FunctionCredentials)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand function credentials path: %v", err))
 		}
@@ -447,7 +437,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			anyPathExpanded = true
 		}
 
-		testCase.Patches.XRD, err = r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, testCase.Patches.XRD)
+		testCase.Patches.XRD, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Patches.XRD)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand XRD path: %v", err))
 		}
@@ -568,7 +558,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		goldenPath := ""
 
 		if rel := firstFullRenderGolden(testCase.Assertions); rel != "" {
-			if expanded, expandErr := r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, rel); expandErr == nil {
+			if expanded, expandErr := r.expandPathRelativeToTestSuiteFile(r.testSuite.File, rel); expandErr == nil {
 				goldenPath = expanded
 			}
 		}
@@ -763,7 +753,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 			r.fs,
 			&result.Outputs,
 			r.Debug,
-			r.testSuiteFile,
+			r.testSuite.File,
 			r.expandPathRelativeToTestSuiteFile,
 			r.Color,
 		)

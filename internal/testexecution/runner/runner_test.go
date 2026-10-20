@@ -133,7 +133,7 @@ func TestNewRunner(t *testing.T) {
 
 	// Check the runner was created with the right settings
 	assert.Equal(t, options, runner.Options)
-	assert.Equal(t, testSuiteFile, runner.testSuiteFile)
+	assert.Equal(t, testSuiteFile, runner.testSuite.File)
 	assert.True(t, runner.ShowRender)
 	assert.True(t, runner.ShowValidate)
 	assert.True(t, runner.ShowHooks)
@@ -169,24 +169,24 @@ func TestNewRunner_DefaultsIfNotSpecified(t *testing.T) {
 }
 
 func TestNewRunner_SetsWorkingDirectory(t *testing.T) {
-	// Test that NewRunner sets testSuiteFileDir correctly and that runCommand uses it
+	// Test that the runner takes the directory of its test suite, and that runCommand uses it
 	testSuiteFile := "/path/to/test/suite_xprin.yaml"
 	expectedDir := "/path/to/test"
 
 	options := &testexecutionOptions.Options{}
 	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
-	// Verify testSuiteFileDir is set correctly
-	assert.Equal(t, expectedDir, runner.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")
+	// Verify the directory of the test suite is right
+	assert.Equal(t, expectedDir, runner.testSuite.GetDir(), "the directory should be computed from the file of the test suite")
 
 	// Verify that runCommand sets cmd.Dir correctly by capturing it
 	var capturedDir string
 
 	runner.runCommand = func(name string, args ...string) ([]byte, error) {
 		cmd := exec.Command(name, args...)
-		// The original runCommand sets cmd.Dir = testSuiteFileDir (captured in closure)
+		// The original runCommand sets cmd.Dir to the directory of the test suite (captured in closure)
 		// We verify this by checking that the closure has access to the correct value
-		cmd.Dir = runner.testSuiteFileDir
+		cmd.Dir = runner.testSuite.GetDir()
 		capturedDir = cmd.Dir
 
 		return []byte{}, nil
@@ -201,7 +201,7 @@ func TestNewRunner_SetsWorkingDirectory(t *testing.T) {
 	testSuiteFile2 := "/another/path/test_xprin.yaml"
 	expectedDir2 := "/another/path"
 	runner2 := NewRunner(options, testsuite.New(testSuiteFile2, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
-	assert.Equal(t, expectedDir2, runner2.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")
+	assert.Equal(t, expectedDir2, runner2.testSuite.GetDir(), "the directory should be computed from the file of the test suite")
 }
 
 func TestNewTemplateContext(t *testing.T) {
@@ -1661,7 +1661,7 @@ func TestRunTestCase(t *testing.T) {
 			// Create a new test runner for each test case
 			testRunner := newMockRunner(options)
 			testRunner.fs = fs // Use in-memory filesystem
-			testRunner.testSuiteSpec = &api.TestSuiteSpec{}
+			testRunner.testSuite = testsuite.New(testRunner.testSuite.File, &api.TestSuiteSpec{})
 
 			// Apply any custom mocks from the test case setup
 			if tc.setup != nil {
@@ -2187,9 +2187,9 @@ func TestRunTestCase_CommonPathExpansionAndVerification(t *testing.T) {
 			// Create a new mock runner for each test case
 			testRunner := newMockRunner(options)
 			testRunner.fs = fs // Use in-memory filesystem
-			testRunner.testSuiteSpec = &api.TestSuiteSpec{
+			testRunner.testSuite = testsuite.New(testRunner.testSuite.File, &api.TestSuiteSpec{
 				Common: tc.common,
-			}
+			})
 
 			// Apply the test-specific mocks
 			if tc.setup != nil {
@@ -2681,7 +2681,7 @@ func TestRunTestCase_LocalPathExpansionAndVerification(t *testing.T) {
 			// Create a new mock runner for each test case
 			testRunner := newMockRunner(options)
 			testRunner.fs = fs // Use in-memory filesystem
-			testRunner.testSuiteSpec = &api.TestSuiteSpec{}
+			testRunner.testSuite = testsuite.New(testRunner.testSuite.File, &api.TestSuiteSpec{})
 
 			// Apply the test-specific mocks
 			if tc.setup != nil {
@@ -3047,9 +3047,9 @@ func TestRunTestCase_MergeCommon(t *testing.T) {
 			// Create a new mock runner for each test case
 			testRunner := newMockRunner(options)
 			testRunner.fs = fs // Use in-memory filesystem
-			testRunner.testSuiteSpec = &api.TestSuiteSpec{
+			testRunner.testSuite = testsuite.New(testRunner.testSuite.File, &api.TestSuiteSpec{
 				Common: tc.common,
-			}
+			})
 
 			// Apply the test-specific mocks
 			if tc.setup != nil {
@@ -3081,7 +3081,7 @@ func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
 		Debug:        false,
 	}
 	runner := newMockRunner(options)
-	runner.testSuiteSpec = &api.TestSuiteSpec{}
+	runner.testSuite = testsuite.New(runner.testSuite.File, &api.TestSuiteSpec{})
 
 	// Mock runCommand to return successful results
 	runner.runCommand = func(name string, args ...string) ([]byte, error) {
@@ -3131,14 +3131,14 @@ func TestRunTestCase_SkipsValidateWhenNoCRDs(t *testing.T) {
 	}
 
 	runner := newMockRunner(options)
-	runner.testSuiteSpec = &api.TestSuiteSpec{
+	runner.testSuite = testsuite.New(runner.testSuite.File, &api.TestSuiteSpec{
 		Common: api.Common{
 			Inputs: api.Inputs{
 				Functions: "functions.yaml",
 				CRDs:      []string{}, // No CRDs
 			},
 		},
-	}
+	})
 
 	// Mock runCommand to return successful results
 	runner.runCommand = func(name string, args ...string) ([]byte, error) {
@@ -3748,8 +3748,7 @@ metadata:
 	}
 	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 	runner.fs = fs // Use in-memory filesystem
-	runner.testSuiteFile = testSuiteFile
-	runner.testSuiteSpec = &api.TestSuiteSpec{}
+	runner.testSuite = testsuite.New(testSuiteFile, &api.TestSuiteSpec{})
 
 	// Mock path expansion and verification
 	runner.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) {
@@ -3925,8 +3924,7 @@ metadata:
 		}
 		runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 		runner.fs = fs // Use in-memory filesystem
-		runner.testSuiteFile = testSuiteFile
-		runner.testSuiteSpec = &api.TestSuiteSpec{}
+		runner.testSuite = testsuite.New(testSuiteFile, &api.TestSuiteSpec{})
 
 		// Set artifacts directory (simulating what runTests does)
 		artifactsBaseDir := "/artifacts-dir"
