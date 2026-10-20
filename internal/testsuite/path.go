@@ -43,5 +43,5 @@ func ExpandPath(testSuiteFile, path string) (string, error) {
 
 	baseDir := filepath.Dir(testSuiteFile)
 
-	return utils.ExpandAbs(filepath.Join(baseDir, path))
+	return filepath.Abs(filepath.Join(baseDir, path))
 }
