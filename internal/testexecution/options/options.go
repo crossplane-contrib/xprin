@@ -18,6 +18,9 @@ limitations under the License.
 package options
 
 import (
+	"strings"
+
+	"github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	"github.com/crossplane-contrib/xprin/internal/xpcli"
 )
@@ -59,4 +62,24 @@ type Options struct {
 	// instead of reusing one per function image across the invocation. ProcessTargets honors
 	// this by never initializing Containers.
 	NoContainerReuse bool
+}
+
+// FromConfig returns the options that the configuration decides: the dependencies, the repositories, the
+// subcommands to render and validate with (split into words), and the Crossplane CLI. The command that runs
+// fills in the rest, from its flags.
+func FromConfig(cfg *config.Config) *Options {
+	var render, validate []string
+
+	if cfg.Subcommands != nil {
+		render = strings.Fields(cfg.Subcommands.Render)
+		validate = strings.Fields(cfg.Subcommands.Validate)
+	}
+
+	return &Options{
+		Dependencies: cfg.Dependencies,
+		Repositories: cfg.Repositories,
+		Render:       render,
+		Validate:     validate,
+		XPCLI:        cfg.XPCLI,
+	}
 }

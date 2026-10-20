@@ -20,7 +20,6 @@ package updategoldens
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/alecthomas/kong"
 	internalcfg "github.com/crossplane-contrib/xprin/internal/config"
@@ -74,26 +73,15 @@ func (c *Cmd) Run(_ *kong.Context) error {
 
 // newOptions creates a testexecutionOptions.Options struct from the command and config.
 func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionOptions.Options {
-	var render, validate []string
+	opts := testexecutionOptions.FromConfig(cfg)
+	opts.Verbose = c.Verbose
+	opts.Quiet = c.Quiet
+	opts.Debug = c.Debug
+	opts.Color = bunt.UseColors()
+	opts.CrossplaneVersion = c.CrossplaneVersion
+	opts.NoContainerReuse = c.NoContainerReuse
+	opts.WorkingDir = c.cwd
+	opts.UpdateGoldens = true
 
-	if cfg.Subcommands != nil {
-		render = strings.Fields(cfg.Subcommands.Render)
-		validate = strings.Fields(cfg.Subcommands.Validate)
-	}
-
-	return &testexecutionOptions.Options{
-		Dependencies:      cfg.Dependencies,
-		Repositories:      cfg.Repositories,
-		Verbose:           c.Verbose,
-		Quiet:             c.Quiet,
-		Debug:             c.Debug,
-		Color:             bunt.UseColors(),
-		Render:            render,
-		Validate:          validate,
-		XPCLI:             cfg.XPCLI,
-		CrossplaneVersion: c.CrossplaneVersion,
-		NoContainerReuse:  c.NoContainerReuse,
-		WorkingDir:        c.cwd,
-		UpdateGoldens:     true,
-	}
+	return opts
 }
