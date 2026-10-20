@@ -27,8 +27,6 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/templates"
-	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/testsuite/legacy05"
@@ -36,7 +34,6 @@ import (
 	"github.com/gertd/go-pluralize"
 	cp "github.com/otiai10/copy"
 	"github.com/spf13/afero"
-	"sigs.k8s.io/yaml"
 )
 
 // Runner handles test execution.
@@ -68,18 +65,6 @@ type testCaseEnv struct {
 	index      int
 }
 
-// templateContext provides variables available in test suite templates.
-type templateContext struct {
-	// Repository variables (for compatibility with existing {{ .Repositories.name }} syntax)
-	Repositories map[string]string // Repository name to path mapping
-	// Input variables (available in hooks)
-	Inputs api.Inputs
-	// Output variables (available in post-test hooks)
-	Outputs *engine.Outputs
-	// Cross-test references (available in hooks)
-	Tests map[string]*engine.TestCaseResult // Test ID to test case result mapping
-}
-
 // NewRunner creates a new test runner.
 func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite) *Runner {
 	return &Runner{
@@ -107,20 +92,6 @@ func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestS
 		copy:                 cp.Copy,
 		convertClaimToXRFunc: (*Runner).convertClaimToXR,
 		patchXRFunc:          (*Runner).patchXR,
-	}
-}
-
-// newTemplateContext creates a new template context with the given parameters.
-func newTemplateContext(repositories map[string]string, inputs api.Inputs, outputs *engine.Outputs, tests map[string]*engine.TestCaseResult) *templateContext {
-	if repositories == nil {
-		repositories = make(map[string]string)
-	}
-
-	return &templateContext{
-		Repositories: repositories,
-		Inputs:       inputs,
-		Outputs:      outputs,
-		Tests:        tests,
 	}
 }
 
@@ -337,74 +308,4 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	}
 
 	return result.Complete()
-}
-
-// renderTemplate renders Go template syntax with the given context.
-func (r *Runner) renderTemplate(content string, templateContext *templateContext, templateName string) (string, error) {
-	// Parse and execute template
-	tmpl, err := templates.Parse(templateName, content)
-	if err != nil {
-		return "", err
-	}
-
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, templateContext); err != nil {
-		return "", fmt.Errorf("failed to execute template: %w", r.explainMissingNeeds(err))
-	}
-
-	return buf.String(), nil
-}
-
-// processTemplateVariables processes template variables for a test case.
-func (r *Runner) processTemplateVariables(testCase *api.TestCase, needsResults map[string]*engine.TestCaseResult) error {
-	// Check if there are any template variables by converting to YAML temporarily
-	yamlData, err := yaml.Marshal(testCase)
-	if err != nil {
-		return fmt.Errorf("failed to marshal test case to YAML: %w", err)
-	}
-
-	content := string(yamlData)
-
-	// Check if there are any template variables
-	if !strings.Contains(content, placeholder.Open) {
-		return nil // No template variables to process
-	}
-
-	// The hooks are rendered when they run, not with the rest of the testcase
-	originalHooks := testCase.Hooks
-
-	withoutHooks, err := templates.MarshalWithoutHooks(*testCase)
-	if err != nil {
-		return fmt.Errorf("failed to remove hooks from YAML: %w", err)
-	}
-
-	content = placeholder.Restore(string(withoutHooks))
-
-	// Render template
-	templateContext := newTemplateContext(r.Repositories, testCase.Inputs, nil, needsResults)
-
-	content, err = r.renderTemplate(content, templateContext, "testcase")
-	if err != nil {
-		return fmt.Errorf("failed to render template: %w", err)
-	}
-
-	// Parse the processed YAML back to test case and restore hooks
-	if err := r.restoreHooks(content, testCase, originalHooks); err != nil {
-		return fmt.Errorf("failed to restore hooks: %w", err)
-	}
-
-	return nil
-}
-
-// restoreHooks parses the processed YAML back to test case and restores hooks.
-func (r *Runner) restoreHooks(content string, testCase *api.TestCase, originalHooks api.Hooks) error {
-	// Parse the processed YAML back to test case
-	if err := yaml.Unmarshal([]byte(content), testCase); err != nil {
-		return fmt.Errorf("failed to parse processed YAML: %w", err)
-	}
-
-	// Restore hooks (they will be processed in executeHooks with the correct context)
-	testCase.Hooks = originalHooks
-
-	return nil
 }
