@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/legacy05"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/gertd/go-pluralize"
 	cp "github.com/otiai10/copy"
@@ -85,17 +86,18 @@ type templateContext struct {
 }
 
 // NewRunner creates a new test runner.
-func NewRunner(options *testexecutionUtils.Options, testSuiteFile string, testSuiteSpec *api.TestSuiteSpec) *Runner {
-	testSuiteFileDir := filepath.Dir(testSuiteFile)
+func NewRunner(options *testexecutionUtils.Options, testSuite *testsuite.TestSuite) *Runner {
+	testSuiteFileDir := filepath.Dir(testSuite.File)
 
 	return &Runner{
 		fs:               afero.NewOsFs(),
 		output:           os.Stdout, // Default output to stdout
 		Options:          options,
-		testSuiteFile:    testSuiteFile,
+		testSuiteFile:    testSuite.File,
 		testSuiteFileDir: testSuiteFileDir,
-		testSuiteSpec:    testSuiteSpec,
-		legacy05:         legacy05.IsTestSuite(testSuiteSpec),
+		testSuiteSpec:    testSuite.Spec,
+		testSuiteGraph:   testSuite.Graph,
+		legacy05:         legacy05.IsTestSuite(testSuite.Spec),
 		// Initialize mockable function fields with default implementations
 		runTestCaseFunc:                   nil, // will set default below
 		expandPathRelativeToTestSuiteFile: testexecutionUtils.ExpandPathRelativeToTestSuiteFile,

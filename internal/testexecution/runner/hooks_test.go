@@ -29,6 +29,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
@@ -473,7 +474,7 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 
 	// Create a runner with the testsuite file path
 	options := &testexecutionUtils.Options{}
-	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
 	// Verify that testSuiteFileDir is computed correctly
 	assert.Equal(t, testSuiteDir, runner.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")

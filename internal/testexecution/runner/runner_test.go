@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	cp "github.com/otiai10/copy"
@@ -58,7 +59,7 @@ func createTestCaseResult(name string, verbose bool, err error) *engine.TestCase
 func newMockRunner(options *testexecutionUtils.Options, mocks ...func(*Runner)) *Runner {
 	// Use default test suite file and spec for tests that don't need specific values
 	testSuiteSpec := &api.TestSuiteSpec{Tests: []api.TestCase{}}
-	r := NewRunner(options, testSuiteFile, testSuiteSpec)
+	r := NewRunner(options, testsuite.New(testSuiteFile, testSuiteSpec))
 
 	// Set up default mock functions for testing
 	r.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) { return path, nil }
@@ -128,7 +129,7 @@ func TestNewRunner(t *testing.T) {
 	options := makeOptions(cfg, nil, nil, func(o *testexecutionUtils.Options) {
 		o.Debug = true
 	})
-	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
 	// Check the runner was created with the right settings
 	assert.Equal(t, options, runner.Options)
@@ -157,7 +158,7 @@ func TestNewRunner_DefaultsIfNotSpecified(t *testing.T) {
 	}
 	// Simulate config-to-options conversion (empty means use defaults)
 	options := makeOptions(cfg, nil, nil)
-	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
 	// The runner should have the default Render/Validate commands (from runner or config loader)
 	assert.NotEmpty(t, runner.Render)
@@ -173,7 +174,7 @@ func TestNewRunner_SetsWorkingDirectory(t *testing.T) {
 	expectedDir := "/path/to/test"
 
 	options := &testexecutionUtils.Options{}
-	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
 	// Verify testSuiteFileDir is set correctly
 	assert.Equal(t, expectedDir, runner.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")
@@ -199,7 +200,7 @@ func TestNewRunner_SetsWorkingDirectory(t *testing.T) {
 	// Test with a different path to ensure it's computed correctly
 	testSuiteFile2 := "/another/path/test_xprin.yaml"
 	expectedDir2 := "/another/path"
-	runner2 := NewRunner(options, testSuiteFile2, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+	runner2 := NewRunner(options, testsuite.New(testSuiteFile2, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 	assert.Equal(t, expectedDir2, runner2.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")
 }
 
@@ -298,7 +299,7 @@ func TestRunTests(t *testing.T) {
 				Tests: tests,
 			}
 
-			runner := NewRunner(options, testSuiteFile, testSuiteSpec)
+			runner := NewRunner(options, testsuite.New(testSuiteFile, testSuiteSpec))
 			runner.output = &buf
 
 			// Mock the runTestCaseFunc to return controlled results
@@ -456,7 +457,7 @@ func TestRunTestsIntegration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
 
-			runner := NewRunner(options, testSuiteFile, tc.suite)
+			runner := NewRunner(options, testsuite.New(testSuiteFile, tc.suite))
 			runner.output = &buf
 			runner.runTestCaseFunc = tc.runFunc
 			runner.Verbose = tc.verbose // set per-test verbosity
@@ -514,7 +515,7 @@ func TestRunTestsIntegration(t *testing.T) {
 				}},
 			},
 		}
-		runner := NewRunner(options, testSuiteFile, suite)
+		runner := NewRunner(options, testsuite.New(testSuiteFile, suite))
 		runner.output = &buf
 
 		// test1: pass, test2: fail, test3: pass
@@ -564,7 +565,7 @@ func TestRunTestsIntegration(t *testing.T) {
 				}},
 			},
 		}
-		runner := NewRunner(options, testSuiteFile, suite)
+		runner := NewRunner(options, testsuite.New(testSuiteFile, suite))
 		runner.output = &buf
 
 		// group1: pass, group2: fail, group3: pass
@@ -3207,7 +3208,7 @@ func TestRunTestsFileResults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
 
-			runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+			runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 			runner.output = &buf
 			runner.Verbose = tc.verbose
 
@@ -3745,7 +3746,7 @@ metadata:
 		Validate:     []string{config.ValidateSubcommand},
 		Debug:        false,
 	}
-	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 	runner.fs = fs // Use in-memory filesystem
 	runner.testSuiteFile = testSuiteFile
 	runner.testSuiteSpec = &api.TestSuiteSpec{}
@@ -3867,7 +3868,7 @@ func TestArtifactsDirectory(t *testing.T) {
 			},
 		}
 
-		runner := NewRunner(options, testSuiteFile, testSuiteSpec)
+		runner := NewRunner(options, testsuite.New(testSuiteFile, testSuiteSpec))
 		runner.fs = fs // Use in-memory filesystem
 
 		// Mock runTestCase to avoid needing full test setup
@@ -3922,7 +3923,7 @@ metadata:
 			Validate:     []string{config.ValidateSubcommand},
 			Debug:        false,
 		}
-		runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+		runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 		runner.fs = fs // Use in-memory filesystem
 		runner.testSuiteFile = testSuiteFile
 		runner.testSuiteSpec = &api.TestSuiteSpec{}
@@ -4059,7 +4060,7 @@ metadata:
 		options := &testexecutionUtils.Options{
 			Debug: false,
 		}
-		runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+		runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 		runner.fs = fs // Use in-memory filesystem
 
 		var copyCallCount int
@@ -4098,7 +4099,7 @@ metadata:
 		options := &testexecutionUtils.Options{
 			Debug: false,
 		}
-		runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+		runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
 		var (
 			test1Result      *engine.TestCaseResult

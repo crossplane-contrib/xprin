@@ -66,6 +66,6 @@ func graphTargets(fs afero.Fs, out io.Writer, targets []string, quiet bool) erro
 
 		first = false
 
-		return graph.WriteTree(out, testSuiteFile, testSuite.Spec, testSuite.Graph)
+		return graph.WriteTree(out, testSuite.File, testSuite.Spec, testSuite.Graph)
 	})
 }

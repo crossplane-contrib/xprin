@@ -22,14 +22,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/graph"
 )
-
-// SetTestSuiteGraph sets the dependency graph of the test cases, the one that the loader built and checked.
-// Without it, the runner builds one when it needs it.
-func (r *Runner) SetTestSuiteGraph(g *graph.Graph) {
-	r.testSuiteGraph = g
-}
 
 // runOrder returns the positions of the test cases in the order they run: the order of the file in a legacy
 // testsuite file, which has no dependencies and doesn't need the graph, and the order of the dependency
@@ -42,10 +35,6 @@ func (r *Runner) runOrder() []int {
 		}
 
 		return order
-	}
-
-	if r.testSuiteGraph == nil {
-		r.testSuiteGraph = graph.Build(r.testSuiteSpec)
 	}
 
 	return r.testSuiteGraph.GetOrder()

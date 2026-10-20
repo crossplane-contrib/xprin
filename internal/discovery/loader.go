@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
-	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/yaml"
@@ -32,16 +32,9 @@ import (
 // failureInvalid is the failure reason reported for a testsuite file that can not be loaded.
 const failureInvalid = "invalid testsuite file"
 
-// TestSuite is a testsuite file that was loaded and checked: what it says, and the dependencies between
-// its test cases.
-type TestSuite struct {
-	Spec  *api.TestSuiteSpec
-	Graph *graph.Graph
-}
-
 // Load reads, parses and validates a testsuite file. The test suite is nil, without an error, when the
 // file has no test cases (which is reported, unless quiet). Other problems are reported and returned.
-func Load(fs afero.Fs, testSuiteFile string, options Options) (*TestSuite, error) {
+func Load(fs afero.Fs, testSuiteFile string, options Options) (*testsuite.TestSuite, error) {
 	if options.Debug {
 		utils.DebugPrintf("Processing testsuite file %s\n", testSuiteFile)
 	}
@@ -72,11 +65,11 @@ func Load(fs afero.Fs, testSuiteFile string, options Options) (*TestSuite, error
 
 	// Now that we know we have tests to run, find their dependencies (it works on any file, valid or not)
 	// and check for empty names, duplicate IDs, wrong needs and cycles
-	g := graph.Build(&testSuiteSpec)
+	testSuite := testsuite.New(testSuiteFile, &testSuiteSpec)
 
-	if err := checkTestSuiteFile(&testSuiteSpec, g); err != nil {
+	if err := checkTestSuiteFile(testSuite.Spec, testSuite.Graph); err != nil {
 		return nil, ReportTestSuiteError(testSuiteFile, err, failureInvalid)
 	}
 
-	return &TestSuite{Spec: &testSuiteSpec, Graph: g}, nil
+	return testSuite, nil
 }

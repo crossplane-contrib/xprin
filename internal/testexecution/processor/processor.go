@@ -21,27 +21,25 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/discovery"
-	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/runner"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/spf13/afero"
 )
 
 // runnerInterface allows dependency injection for test runners (for production and testing).
 type runnerInterface interface {
 	RunTests() error
-	SetTestSuiteGraph(g *graph.Graph)
 }
 
 // Mockable functions
 //
 //nolint:gochecknoglobals // Global variables for dependency injection in tests
 var (
-	newRunnerFunc = func(options *testexecutionUtils.Options, testSuiteFile string, testSuiteSpec *api.TestSuiteSpec) runnerInterface {
-		return runner.NewRunner(options, testSuiteFile, testSuiteSpec)
+	newRunnerFunc = func(options *testexecutionUtils.Options, testSuite *testsuite.TestSuite) runnerInterface {
+		return runner.NewRunner(options, testSuite)
 	}
 	newCoordinatorFunc = func() (*containers.Coordinator, error) {
 		docker, err := containers.NewDocker()
@@ -87,8 +85,7 @@ func processTestSuiteFile(fs afero.Fs, testSuiteFile string, options *testexecut
 		return err
 	}
 
-	testRunner := newRunnerFunc(options, testSuiteFile, testSuite.Spec)
-	testRunner.SetTestSuiteGraph(testSuite.Graph)
+	testRunner := newRunnerFunc(options, testSuite)
 
 	fileErr := testRunner.RunTests()
 	if fileErr != nil {
