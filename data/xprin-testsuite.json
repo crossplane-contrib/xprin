@@ -264,7 +264,7 @@
           "type": "string"
         },
         "needs": {
-          "description": "IDs of the testcases listed before this one that it depends on (Optional)",
+          "description": "IDs of the testcases that this one depends on (Optional)",
           "items": {
             "type": "string"
           },

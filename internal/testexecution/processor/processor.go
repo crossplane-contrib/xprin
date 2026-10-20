@@ -23,6 +23,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/discovery"
+	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/runner"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
@@ -32,6 +33,7 @@ import (
 // runnerInterface allows dependency injection for test runners (for production and testing).
 type runnerInterface interface {
 	RunTests() error
+	SetTestSuiteGraph(g *graph.Graph)
 }
 
 // Mockable functions
@@ -80,12 +82,13 @@ func discoveryOptions(options *testexecutionUtils.Options) discovery.Options {
 
 // processTestSuiteFile processes a single test file, loading the configuration and running tests if applicable.
 func processTestSuiteFile(fs afero.Fs, testSuiteFile string, options *testexecutionUtils.Options) error {
-	testSuiteSpec, err := discovery.Load(fs, testSuiteFile, discoveryOptions(options))
-	if err != nil || testSuiteSpec == nil {
+	testSuite, err := discovery.Load(fs, testSuiteFile, discoveryOptions(options))
+	if err != nil || testSuite == nil {
 		return err
 	}
 
-	testRunner := newRunnerFunc(options, testSuiteFile, testSuiteSpec)
+	testRunner := newRunnerFunc(options, testSuiteFile, testSuite.Spec)
+	testRunner.SetTestSuiteGraph(testSuite.Graph)
 
 	fileErr := testRunner.RunTests()
 	if fileErr != nil {

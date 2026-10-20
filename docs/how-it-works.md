@@ -480,7 +480,9 @@ tests:
     functions: functions.yaml
 ```
 
-- `needs` is a list of IDs of test cases listed **before** it in the same file, so only a test case with an `id` can be needed. An ID that doesn't exist, the test case itself, or a test case listed after it makes the file invalid. An empty list (`needs: []`) is not allowed either: list the IDs, or remove it.
+- `needs` is a list of IDs of test cases of the same file, listed before or after it, so only a test case with an `id` can be needed. An ID that doesn't exist makes the file invalid, and so does an empty list (`needs: []`): list the IDs, or remove it.
+- Test cases run in the order of their dependencies: each one after the test cases it needs. When several can run, the one listed first in the file does, so the order only depends on the file and its dependencies (never on the order of the IDs in a `needs`), and a file without dependencies runs in the order it is written. The results are printed in that order, and `xprin graph` shows the same dependencies.
+- Test cases can't need each other, directly or not, nor themselves: that makes the file invalid too, and the error names each cycle (`needs cycle: a -> b -> a`: a needs b, which needs a).
 - If a test case it needs failed or was skipped, the test case is **not run**: it is skipped (**SKIP**), and the reasons are printed under it, one per needed test case, even without `-v`:
 
   ```text

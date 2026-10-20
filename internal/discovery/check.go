@@ -22,14 +22,15 @@ import (
 	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/graph"
 )
 
 // checkTestSuiteFile checks a loaded testsuite file, and returns an error with all the problems it finds:
 // - if test case names are non-empty
 // - if test case IDs are valid, and unique (only for tests that have IDs)
 // - if the `needs` of the test cases are right (see checkNeeds).
-func checkTestSuiteFile(spec *api.TestSuiteSpec) error {
-	problems := slices.Concat(checkNamesAndIDs(spec), checkNeeds(spec))
+func checkTestSuiteFile(spec *api.TestSuiteSpec, g *graph.Graph) error {
+	problems := slices.Concat(checkNamesAndIDs(spec), checkNeeds(spec, g))
 	if len(problems) == 0 {
 		return nil
 	}
@@ -66,32 +67,24 @@ func checkNamesAndIDs(spec *api.TestSuiteSpec) []string {
 	return allErrors
 }
 
-// checkNeeds returns the problems with the `needs` of the testcases.
-// A testcase can only need the ones listed before it, thus the followings are errors:
+// checkNeeds returns the problems with the `needs` of the test cases:
 // - an ID that doesn't exist
-// - a testcase needs itself
-// - a testcase needs one listed afterwards.
-func checkNeeds(spec *api.TestSuiteSpec) []string {
+// - an empty list
+// - a cycle: test cases that need each other (directly or not), or themselves.
+func checkNeeds(spec *api.TestSuiteSpec, g *graph.Graph) []string {
 	var problems []string
 
-	for i, test := range spec.Tests {
+	for _, test := range spec.Tests {
 		if test.Needs != nil && len(test.Needs) == 0 {
 			problems = append(problems, fmt.Sprintf("test case %q has an empty `needs`: list the IDs of the test cases it needs, or remove it", test.Name))
 		}
 
 		for _, need := range test.Needs {
-			position := spec.PositionOf(need)
-
-			switch {
-			case position < 0:
+			if !spec.HasID(need) {
 				problems = append(problems, fmt.Sprintf("test case %q needs %q, but no test case has that ID", test.Name, need))
-			case position == i:
-				problems = append(problems, fmt.Sprintf("test case %q needs itself (%q)", test.Name, need))
-			case position > i:
-				problems = append(problems, fmt.Sprintf("test case %q needs %q, which is listed after it", test.Name, need))
 			}
 		}
 	}
 
-	return problems
+	return append(problems, g.CheckCycles()...)
 }

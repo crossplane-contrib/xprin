@@ -141,7 +141,7 @@ tests:
 |-------|----------|------|-------------|
 | `name` | ✅ | string | Test case name (alphanumeric, underscores, hyphens) |
 | `id` | ❌ | string | Optional unique test case ID (makes the test case available to `needs`, and enables cross-test references and artifact storage) |
-| `needs` | ❌ | list of strings | IDs of the test cases listed before this one whose outputs it uses; can't be empty, and the test case is skipped if one of them failed or was skipped (supported since xprin 0.6.0, and the only way from 0.7.0, see [Dependencies Between Test Cases](how-it-works.md#dependencies-between-test-cases-needs)) |
+| `needs` | ❌ | list of strings | IDs of the test cases this one depends on, listed before or after it (not itself, and not in a cycle); it runs after them, can use their outputs, and is skipped if one of them failed or was skipped. Can't be empty (supported since xprin 0.6.0, and the only way from 0.7.0, see [Dependencies Between Test Cases](how-it-works.md#dependencies-between-test-cases-needs)) |
 | `inputs` | ✅ | map | Inputs for the test case |
 | `patches` | ❌ | map | XR patching configuration |
 | `hooks` | ❌ | map | Hooks for the test case |

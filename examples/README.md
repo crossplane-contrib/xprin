@@ -617,13 +617,14 @@ The examples build up: first a dependency alone, then what happens when a test c
 
 **File**: [`mytests/5_chained_tests/example1_needs_xprin.yaml`](mytests/5_chained_tests/example1_needs_xprin.yaml)
 
-The simplest use of `needs`: the second test case depends on the first one, without using any of its outputs. This is useful when test cases share state, or when it only makes sense to run one once the other works.
+The simplest use of `needs`: a test case depends on another one, without using any of its outputs. This is useful when test cases share state, or when it only makes sense to run one once the other works. Here the second test case needs the first, and the third needs the second.
 
 **Key Points:**
-- The first test case has an `id` (`aws_first`), so that it can be needed
-- The second test case lists it in `needs`: it runs after the first one, and only if the first one passed
-- If the first one fails, the second is not run: it is shown as `SKIP`, with the reason printed under it (see [Dependencies Between Test Cases](../docs/how-it-works.md#dependencies-between-test-cases-needs))
-- `needs` can only list test cases that are listed before it in the file
+- A test case that is needed has an `id` (`aws_first`, `aws_second`)
+- A test case lists the ones it depends on in `needs`: it runs after them, and only if they passed
+- If one of them fails, the test case is not run: it is shown as `SKIP`, with the reason printed under it (see [Dependencies Between Test Cases](../docs/how-it-works.md#dependencies-between-test-cases-needs) and the next example)
+- `needs` can list any test case of the file, also one listed **after** it. In this file the "Third" test case is listed first, but it needs `aws_second`, so it runs last: test cases run in the order of their dependencies, and the ones that don't depend on each other keep the order of the file. Look at the order of the output, and use `xprin graph` to see the dependencies without running anything
+- Test cases that need each other (a cycle), or themselves, make the file invalid
 
 ```bash
 xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-render --show-validate
@@ -655,8 +656,19 @@ xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-
         [✓] rds.aws.upbound.io/v1beta1, Kind=Cluster, platform-aws-rds validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
+=== RUN   Third reconciliation loop
+--- PASS: Third reconciliation loop (1.35s)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        ├── Cluster/platform-aws-rds
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] rds.aws.upbound.io/v1beta1, Kind=Cluster, platform-aws-rds validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
 PASS
-ok	examples/mytests/5_chained_tests/example1_needs_xprin.yaml	2.668s
+ok	examples/mytests/5_chained_tests/example1_needs_xprin.yaml	4.021s
 ```
 
 </details>
@@ -854,7 +866,7 @@ The base layer comes first. The GCP and AWS chains each need it, but not each ot
 The files under [`mytests/0_e2e/`](mytests/0_e2e/) and [`mytests/5_chained_tests/`](mytests/5_chained_tests/) also act as the acceptance tests of `needs`:
 
 - [`failures_xprin.yaml`](mytests/0_e2e/failures_xprin.yaml) (the `Needs:` test cases at the end): more cases of skipped test cases (see Example 2). A test case that uses the outputs of another one without listing it fails with an error that says it has to be listed. A typo in the ID and a typo in the output fail too, with the error of the template.
-- [`broken_needs_xprin.yaml`](mytests/0_e2e/broken_needs_xprin.yaml): `needs` that make the file invalid: an ID that doesn't exist, a test case listed below, and itself.
+- [`broken_needs_xprin.yaml`](mytests/0_e2e/broken_needs_xprin.yaml): `needs` that make the file invalid: an ID that doesn't exist, test cases that need each other (a cycle), and a test case that needs itself. All the problems are reported together.
 - [`legacy_success_xprin.yaml`](mytests/5_chained_tests/legacy_success_xprin.yaml) and [`legacy_failure_xprin.yaml`](mytests/5_chained_tests/legacy_failure_xprin.yaml): the old way (deprecated), without `needs`: the dependency is detected from `.Tests`. It works and xprin prints a warning, but a typo in the ID, or a test case listed below, fail. These files are removed in xprin 0.7.0.
 
 ---

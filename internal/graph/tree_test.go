@@ -90,3 +90,19 @@ func TestWriteTree_TestCaseWaitingForSeveralIsExpandedOnce(t *testing.T) {
 
 	assert.Equal(t, want, tree(t, spec))
 }
+
+func TestWriteTree_ATestCaseCanNeedOneListedAfterIt(t *testing.T) {
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
+		testCase("needs the last", "", "base"),
+		testCase("alone", ""),
+		testCase("base", "base"),
+	}}
+
+	want := `suite_xprin.yaml
+├── alone
+└── base [base]
+    └── needs the last
+`
+
+	assert.Equal(t, want, tree(t, spec))
+}

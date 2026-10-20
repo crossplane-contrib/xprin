@@ -346,7 +346,7 @@ For complete documentation on all assertion types, examples, and usage, see [Ass
 
 ### Test Chaining
 
-Tests can depend on each other: a test case lists the IDs of the test cases it depends on in `needs`, and it runs after them, and only if they passed (otherwise it is skipped, with the reason printed under it). Only a test case with an `id` can be needed, and only if it is listed before.
+Tests can depend on each other: a test case lists the IDs of the test cases it depends on in `needs`, and it runs after them, and only if they passed (otherwise it is skipped, with the reason printed under it). Only a test case with an `id` can be needed, and it can be listed before or after: test cases run in the order of their dependencies.
 
 ```yaml
 tests:

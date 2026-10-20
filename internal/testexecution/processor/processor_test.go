@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
@@ -45,6 +46,11 @@ type mockRunner struct {
 	runTestsFunc func() error
 	output       io.Writer
 	options      *testexecutionUtils.Options
+	graph        *graph.Graph
+}
+
+func (m *mockRunner) SetTestSuiteGraph(g *graph.Graph) {
+	m.graph = g
 }
 
 func (m *mockRunner) RunTests() error {
@@ -53,6 +59,28 @@ func (m *mockRunner) RunTests() error {
 	}
 
 	return nil
+}
+
+func TestProcessTargets_GivesTheRunnerTheGraphOfTheFile(t *testing.T) {
+	originalNewRunnerFunc := newRunnerFunc
+
+	defer func() {
+		newRunnerFunc = originalNewRunnerFunc
+	}()
+
+	fs := afero.NewMemMapFs()
+	// "one" needs "two", which is listed after it
+	require.NoError(t, afero.WriteFile(fs, "/testdir/a_xprin.yaml", []byte("tests:\n- name: one\n  needs:\n  - two\n- name: two\n  id: two\n"), 0o644))
+
+	runner := &mockRunner{}
+	newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		return runner
+	}
+
+	require.NoError(t, ProcessTargets(fs, []string{"/testdir/a_xprin.yaml"}, &testexecutionUtils.Options{NoContainerReuse: true}))
+
+	require.NotNil(t, runner.graph, "the runner gets the graph that the loader built")
+	assert.Equal(t, []int{1, 0}, runner.graph.GetOrder())
 }
 
 func TestProcessTargets(t *testing.T) {

@@ -53,12 +53,10 @@ func graphTargets(fs afero.Fs, out io.Writer, targets []string, quiet bool) erro
 	first := true
 
 	return discovery.Walk(fs, targets, options, func(testSuiteFile string) error {
-		testSuiteSpec, err := discovery.Load(fs, testSuiteFile, options)
-		if err != nil || testSuiteSpec == nil {
+		testSuite, err := discovery.Load(fs, testSuiteFile, options)
+		if err != nil || testSuite == nil {
 			return err
 		}
-
-		g := graph.Build(testSuiteSpec)
 
 		if !first {
 			if _, err := fmt.Fprintln(out); err != nil {
@@ -68,6 +66,6 @@ func graphTargets(fs afero.Fs, out io.Writer, targets []string, quiet bool) erro
 
 		first = false
 
-		return graph.WriteTree(out, testSuiteFile, testSuiteSpec, g)
+		return graph.WriteTree(out, testSuiteFile, testSuite.Spec, testSuite.Graph)
 	})
 }

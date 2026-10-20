@@ -139,7 +139,7 @@ func TestBuild_ChainedSuite(t *testing.T) {
 func order(t *testing.T, spec *api.TestSuiteSpec) []int {
 	t.Helper()
 
-	return Build(spec).Order()
+	return Build(spec).GetOrder()
 }
 
 func TestOrder_WithoutDependenciesIsTheOrderOfTheFile(t *testing.T) {
@@ -195,4 +195,68 @@ func TestOrder_ADependencyUnlocksTheOnesThatWaitForIt(t *testing.T) {
 	}}
 
 	assert.Equal(t, []int{2, 3, 1, 0}, order(t, spec))
+}
+
+func TestCheckCycles(t *testing.T) {
+	tests := map[string]struct {
+		tests []api.TestCase
+		want  []string
+	}{
+		"none": {
+			tests: []api.TestCase{testCase("a", "a"), testCase("b", "b", "a")},
+		},
+		"none, with a testcase listed after the one that needs it": {
+			tests: []api.TestCase{testCase("a", "a", "b"), testCase("b", "b")},
+		},
+		"itself": {
+			tests: []api.TestCase{testCase("a", "a", "a")},
+			want:  []string{"needs cycle: a -> a"},
+		},
+		"two that need each other": {
+			tests: []api.TestCase{testCase("a", "a", "b"), testCase("b", "b", "a")},
+			want:  []string{"needs cycle: a -> b -> a"},
+		},
+		"every cycle, in the order they are listed": {
+			tests: []api.TestCase{
+				testCase("ok", "ok"),
+				testCase("self", "self", "self"),
+				testCase("a", "a", "b"),
+				testCase("b", "b", "a"),
+				testCase("downstream", "downstream", "a", "ok"),
+			},
+			want: []string{"needs cycle: self -> self", "needs cycle: a -> b -> a"},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, Build(&api.TestSuiteSpec{Tests: tc.tests}).CheckCycles())
+		})
+	}
+}
+
+func TestCheckCycles_KeepsTheOrderOnlyWhenThereAreNoCycles(t *testing.T) {
+	t.Run("no cycles: the order is kept, and GetOrder returns it", func(t *testing.T) {
+		// "a" is listed first, but needs "b"
+		g := Build(&api.TestSuiteSpec{Tests: []api.TestCase{testCase("a", "a", "b"), testCase("b", "b"), testCase("c", "c")}})
+
+		assert.Nil(t, g.order, "it is not sorted until the graph is checked")
+		assert.Empty(t, g.CheckCycles())
+		assert.Equal(t, []int{1, 0, 2}, g.order)
+		assert.Equal(t, []int{1, 0, 2}, g.GetOrder())
+	})
+
+	t.Run("a graph that was not checked sorts in GetOrder", func(t *testing.T) {
+		g := Build(&api.TestSuiteSpec{Tests: []api.TestCase{testCase("a", "a", "b"), testCase("b", "b")}})
+
+		assert.Equal(t, []int{1, 0}, g.GetOrder())
+		assert.Nil(t, g.order, "GetOrder doesn't keep what it sorts")
+	})
+
+	t.Run("cycles: nothing is kept, because what was sorted is only the part that is not in a cycle", func(t *testing.T) {
+		g := Build(&api.TestSuiteSpec{Tests: []api.TestCase{testCase("ok", "ok"), testCase("a", "a", "b"), testCase("b", "b", "a")}})
+
+		assert.Len(t, g.CheckCycles(), 1)
+		assert.Nil(t, g.order)
+	})
 }
