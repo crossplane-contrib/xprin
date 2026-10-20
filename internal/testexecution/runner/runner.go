@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
@@ -277,8 +276,6 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		return r.runUpdateGoldens(testCase, result)
 	}
 
-	var finalError []string
-
 	if failed := r.validateTestCase(env, testCase, result); failed != nil {
 		return failed
 	}
@@ -293,11 +290,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		return result.Fail(err)
 	}
 
-	// Fail with infrastructure/non-section errors if any; otherwise fail with nil when pipeline failed
-	if len(finalError) > 0 {
-		return result.Fail(fmt.Errorf("%s", strings.Join(finalError, "\n")))
-	}
-
+	// Fail with nil when the pipeline failed: what failed is in the result
 	if result.HasPipelineFailure() {
 		return result.Fail(nil)
 	}
