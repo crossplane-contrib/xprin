@@ -24,6 +24,22 @@ import (
 	"github.com/spf13/afero"
 )
 
+// updateGoldensMode is the mode of `xprin update-goldens`.
+type updateGoldensMode struct {
+	r *Runner
+}
+
+// skips tells that update-goldens has nothing to do with a test case that has no golden-file assertions to write.
+func (updateGoldensMode) skips(testCase api.TestCase) bool {
+	return !testCase.HasAssertionsDiff() && !testCase.HasAssertionsDyff()
+}
+
+// runPhasesAfterRender is the one phase of update-goldens that follows the render: it writes the golden files of the
+// test case from what was rendered. Validate, the assertions and the post-test hooks are not run.
+func (m updateGoldensMode) runPhasesAfterRender(testCase api.TestCase, _ *testCaseEnv, _ map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
+	return m.r.runUpdateGoldens(testCase, result)
+}
+
 // runUpdateGoldens writes render output to the `expected:` paths of assertions.diff/dyff entries.
 // Called instead of validate/assertions/post-test hooks when UpdateGoldens is set.
 // Test cases without assertions.diff/dyff are skipped (result marked SKIP).
