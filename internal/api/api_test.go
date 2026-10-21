@@ -1833,3 +1833,28 @@ func TestIsValidID(t *testing.T) {
 		assert.False(t, IsValidID(id), id)
 	}
 }
+
+func TestHasAssertionsGoldenFiles(t *testing.T) {
+	golden := []AssertionGoldenFile{{Name: "g", Expected: "g.yaml"}}
+
+	tests := []struct {
+		name       string
+		assertions Assertions
+		expected   bool
+	}{
+		{"no assertions", Assertions{}, false},
+		{"xprin assertions are not golden-file ones", Assertions{Xprin: []AssertionXprin{{Name: "x", Type: "Count", Value: 1}}}, false},
+		{"empty lists", Assertions{Diff: []AssertionGoldenFile{}, Dyff: []AssertionGoldenFile{}}, false},
+		{"diff", Assertions{Diff: golden}, true},
+		{"dyff", Assertions{Dyff: golden}, true},
+		{"both", Assertions{Diff: golden, Dyff: golden}, true},
+		{"with xprin ones", Assertions{Xprin: []AssertionXprin{{Name: "x", Type: "Count", Value: 1}}, Dyff: golden}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.assertions.HasAssertionsGoldenFiles())
+			assert.Equal(t, tt.expected, (&TestCase{Assertions: tt.assertions}).HasAssertionsGoldenFiles())
+		})
+	}
+}

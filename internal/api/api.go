@@ -167,6 +167,12 @@ func (a *Assertions) HasAssertionsDyff() bool {
 	return len(a.Dyff) > 0
 }
 
+// HasAssertionsGoldenFiles returns true if any golden-file assertions are set: the diff and dyff ones, which compare
+// with a golden file, and that update-goldens writes.
+func (a *Assertions) HasAssertionsGoldenFiles() bool {
+	return a.HasAssertionsDiff() || a.HasAssertionsDyff()
+}
+
 // HasAssertions returns true if any assertions are set.
 func (a *Assertions) HasAssertions() bool {
 	return a.HasAssertionsXprin() || a.HasAssertionsDiff() || a.HasAssertionsDyff()
@@ -283,6 +289,11 @@ func (tc *TestCase) HasAssertionsDiff() bool {
 // HasAssertionsDyff checks if any dyff assertions are set in the test case.
 func (tc *TestCase) HasAssertionsDyff() bool {
 	return tc.Assertions.HasAssertionsDyff()
+}
+
+// HasAssertionsGoldenFiles checks if any golden-file assertions (diff or dyff) are set in the test case.
+func (tc *TestCase) HasAssertionsGoldenFiles() bool {
+	return tc.Assertions.HasAssertionsGoldenFiles()
 }
 
 // HasAssertions returns true if any assertions are defined.
