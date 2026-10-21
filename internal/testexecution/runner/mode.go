@@ -25,6 +25,7 @@ import (
 // runnerMode is what differs between the commands that run the test cases of a testsuite file: `xprin test` runs
 // them and checks them, and `xprin update-goldens` runs them to write their golden files. Everything else, from
 // the temporary directory to the render, is the same. A runner has one, for the whole run of its testsuite file.
+// The one of `xprin test` is testMode, below, and the one of `xprin update-goldens` is updateGoldensMode, in update_goldens.go.
 type runnerMode interface {
 	// skips tells if the test case is skipped without a word, whatever the test cases it needs did.
 	skips(testCase api.TestCase) bool
@@ -51,7 +52,7 @@ func (r *Runner) getMode() runnerMode {
 	return r.mode
 }
 
-// testMode is the mode of `xprin test`.
+// testMode is the mode of `xprin test`. The one of `xprin update-goldens` is updateGoldensMode, in update_goldens.go.
 type testMode struct {
 	r *Runner
 }

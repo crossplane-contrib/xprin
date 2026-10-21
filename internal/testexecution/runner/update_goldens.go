@@ -24,25 +24,36 @@ import (
 	"github.com/spf13/afero"
 )
 
-// updateGoldensMode is the mode of `xprin update-goldens`.
+// updateGoldensMode is the mode of `xprin update-goldens`. The other one is testMode, in mode.go, which says what a mode is.
 type updateGoldensMode struct {
 	r *Runner
 }
 
-// skips tells that update-goldens has nothing to do with a test case that has no golden-file assertions to write.
-func (updateGoldensMode) skips(testCase api.TestCase) bool {
-	return !testCase.HasAssertionsDiff() && !testCase.HasAssertionsDyff()
+// skips tells that update-goldens has nothing to do with a test case that writes no golden file, and that no golden
+// file depends on: the graph knows which those are. One without an ID is not in the graph by it, but no test case
+// can need it, so only its own golden-file assertions matter.
+func (m updateGoldensMode) skips(testCase api.TestCase) bool {
+	return !testCase.HasAssertionsGoldenFiles() && !m.r.testSuite.Graph.NodeByID(testCase.ID).NeededForGoldens
 }
 
 // runPhasesAfterRender is the one phase of update-goldens that follows the render: it writes the golden files of the
-// test case from what was rendered. Validate, the assertions and the post-test hooks are not run.
-func (m updateGoldensMode) runPhasesAfterRender(testCase api.TestCase, _ *testCaseEnv, _ map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
-	return m.r.runUpdateGoldens(testCase, result)
+// test case from what was rendered. Validate, the assertions and the post-test hooks are not run. The outputs are
+// exported, as in xprin test, for the test cases that need this one.
+func (m updateGoldensMode) runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, _ map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
+	result = m.r.runUpdateGoldens(testCase, result)
+	if result.Status == engine.StatusFail() {
+		return result
+	}
+
+	if err := m.r.exportOutputs(testCase, env, result); err != nil {
+		return result.Fail(err)
+	}
+
+	return result
 }
 
 // runUpdateGoldens writes render output to the `expected:` paths of assertions.diff/dyff entries.
 // Called instead of validate/assertions/post-test hooks when UpdateGoldens is set.
-// Test cases without assertions.diff/dyff are skipped (result marked SKIP).
 func (r *Runner) runUpdateGoldens(testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
 	allAssertions := append(testCase.Assertions.Diff, testCase.Assertions.Dyff...) //nolint:gocritic // intentional append to new slice
 

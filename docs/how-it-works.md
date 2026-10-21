@@ -36,7 +36,7 @@ flowchart TD
 3. **Render** - Execute `crossplane render` to generate manifests
 4. **Validate** - Execute `crossplane resource validate` (if CRDs provided)
 5. **Assert** - Run declarative Assertions on rendered resources
-6. **Final**
+6. **Finish**
   - Execute Post-test Hooks
   - Export artifacts (if test has ID)
 
@@ -303,7 +303,7 @@ Output uses the following **symbols**; internally, outcomes use the correspondin
 | **[✓]** | Pass | `PASS` | Check ran and passed. |
 | **[x]** | Fail | `FAIL` | Check ran and the condition was false (e.g. assertion failed, hook exited non-zero). |
 | **[!]** | Error | `ERROR` | Check could not run (e.g. missing resource, invalid config, render failure, hook template error). |
-| **[s]** | Skip | `SKIP` | Skipped: test case has no `assertions.diff`/`assertions.dyff` entries in `update-goldens` mode, or a test case it [`needs`](#dependencies-between-test-cases-needs) failed or was skipped. |
+| **[s]** | Skip | `SKIP` | Skipped: in `update-goldens` mode, the test case has no `assertions.diff`/`assertions.dyff` entries and no test case that has them needs it (directly or not), or a test case it [`needs`](#dependencies-between-test-cases-needs) failed or was skipped. |
 
 ### Verbose vs non-verbose output
 
@@ -677,7 +677,7 @@ Type checking is done at runtime based on actual YAML/JSON values.
 
 ```mermaid
 flowchart TD
-    A{"assertions.diff or<br/>assertions.dyff?"}
+    A{"assertions.diff or<br/>assertions.dyff, or needed<br/>by a test case that has them?"}
     A -->|No| B["SKIP"]
     A -->|Yes| C["Setup<br/>Pre-test Hooks"]
     C --> D[Convert Claim to XR]
@@ -695,11 +695,11 @@ flowchart TD
     style G fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
 ```
 
-**Test cases without `assertions.diff`/`assertions.dyff`** are reported as **SKIP** immediately. This avoids unnecessary work for test cases that have nothing to write.
+**Test cases without `assertions.diff`/`assertions.dyff`** are reported as **SKIP** immediately. This avoids unnecessary work for test cases that have nothing to write. The exception is a test case that a test case with golden assertions [needs](#dependencies-between-test-cases-needs), directly or through others: it runs as the others do, and writes nothing, so that the test cases that use its outputs (`.Tests`) have them, and can write their golden files. A test case that is needed only by test cases that are skipped is skipped too: no golden file depends on it. The [dependency graph](#dependency-graph) knows which ones those are.
 
-**Phases that run** for test cases with golden assertions (identical to `xprin test`): Setup, Pre-test Hooks, Convert Claim to XR, Patch XR, Render.
+**Phases that run** for test cases with golden assertions, and for the ones they need (identical to `xprin test`): Setup, Pre-test Hooks, Convert Claim to XR, Patch XR, Render.
 
-**Phases that are skipped**: Validate, Assert, Post-test Hooks, Artifact Export.
+**Phases that are skipped**: Validate, Assert, Post-test Hooks. The outputs of a test case with an `id` are still exported, as in `xprin test`, for the test cases that need it.
 
 **After Render**, for each `assertions.diff` and `assertions.dyff` entry, the render output (full render, or filtered to a single resource when `resource:` is set) is written to the `expected:` path. One `written: <path>` line appears in the output per file written.
 

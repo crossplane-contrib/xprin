@@ -17,6 +17,9 @@ limitations under the License.
 package runner
 
 import (
+	"bytes"
+	"errors"
+	"slices"
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
@@ -139,4 +142,149 @@ func TestRunUpdateGoldens_FailsOnUnknownResource(t *testing.T) {
 
 	assert.Equal(t, engine.StatusFail(), out.Status)
 	assert.Empty(t, out.WrittenGoldenFiles)
+}
+
+// goldenCase is a test case with golden files, which update-goldens writes.
+func goldenCase(id string, needs ...string) api.TestCase {
+	return api.TestCase{
+		Name:       id,
+		ID:         id,
+		Needs:      needs,
+		Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "g", Expected: id + ".yaml"}}},
+	}
+}
+
+// plainCase is a test case without golden files.
+func plainCase(id string, needs ...string) api.TestCase {
+	return api.TestCase{Name: id, ID: id, Needs: needs}
+}
+
+// updateGoldensRan runs the test cases of the spec as update-goldens does, where the ones in failing fail
+// and the others pass, and returns what was printed and which of them actually ran.
+func updateGoldensRan(t *testing.T, spec *api.TestSuiteSpec, failing ...string) (output string, ran []string) {
+	t.Helper()
+
+	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", spec))
+
+	var out bytes.Buffer
+
+	r.output = &out
+	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+		ran = append(ran, testCase.ID)
+
+		result := engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
+		if slices.Contains(failing, testCase.ID) {
+			return result.Fail(errors.New("boom"))
+		}
+
+		return result
+	}
+
+	_ = r.RunTests() // it fails when a test case does: what matters is what ran, and what was printed
+
+	return out.String(), ran
+}
+
+func TestRunTests_UpdateGoldensRunsTheOnesThatWriteAndWhatTheyNeed(t *testing.T) {
+	tests := []struct {
+		name    string
+		tests   []api.TestCase
+		failing []string
+		ran     []string
+		// shown in the output, and not shown
+		shown, hidden []string
+	}{
+		{
+			name:  "S1: a test case without golden files that one with them needs runs",
+			tests: []api.TestCase{plainCase("a"), goldenCase("b", "a")},
+			ran:   []string{"a", "b"},
+		},
+		{
+			name:  "S2: needed only by a test case that is skipped, it is skipped too",
+			tests: []api.TestCase{plainCase("a"), plainCase("b", "a")},
+			ran:   nil,
+		},
+		{
+			name:  "S3: a chain that ends in one with golden files runs, all of it",
+			tests: []api.TestCase{plainCase("a"), plainCase("b", "a"), goldenCase("c", "b")},
+			ran:   []string{"a", "b", "c"},
+		},
+		{
+			name:  "S4: a chain without golden files at all is skipped, all of it",
+			tests: []api.TestCase{plainCase("a"), plainCase("b", "a"), plainCase("c", "b")},
+			ran:   nil,
+		},
+		{
+			name:    "S5: one that fails and is needed by one with golden files: it is skipped, with the reason",
+			tests:   []api.TestCase{plainCase("a"), goldenCase("b", "a")},
+			failing: []string{"a"},
+			ran:     []string{"a"},
+			shown:   []string{"--- FAIL: a", "--- SKIP: b", `[!] needs failed test case "a"`},
+		},
+		{
+			name:    "S6: one that fails and is needed only by one that is skipped: it is skipped too, quietly",
+			tests:   []api.TestCase{plainCase("a"), plainCase("b", "a")},
+			failing: []string{"a"},
+			ran:     nil,
+			hidden:  []string{"FAIL", "needs failed"},
+		},
+		{
+			name:  "S7: a test case with golden files that something needs is not a reason to run what needs it",
+			tests: []api.TestCase{goldenCase("a"), plainCase("b", "a")},
+			ran:   []string{"a"},
+		},
+		{
+			name:  "S8: two that need the same one: it runs once, and the one without golden files is skipped",
+			tests: []api.TestCase{plainCase("a"), goldenCase("b", "a"), plainCase("c", "a")},
+			ran:   []string{"a", "b"},
+		},
+		{
+			name:  "S9: a chain with golden files at the end runs, and a branch that ends without them does not",
+			tests: []api.TestCase{plainCase("a"), plainCase("b", "a"), goldenCase("c", "b"), plainCase("d", "a")},
+			ran:   []string{"a", "b", "c"},
+		},
+		{
+			name:    "S10: a chain with golden files at the end, when its first one fails: the rest is skipped, with the reasons",
+			tests:   []api.TestCase{plainCase("a"), plainCase("b", "a"), goldenCase("c", "b")},
+			failing: []string{"a"},
+			ran:     []string{"a"},
+			shown:   []string{"--- FAIL: a", "--- SKIP: b", "--- SKIP: c", `[!] needs failed test case "a"`, `[!] needs skipped test case "b"`},
+		},
+		{
+			name:  "the needs are listed after the test case that needs them",
+			tests: []api.TestCase{goldenCase("c", "b"), plainCase("b", "a"), plainCase("a"), plainCase("d")},
+			ran:   []string{"a", "b", "c"},
+		},
+		{
+			name:  "a test case that is skipped is listed between the ones that run: the others are not shifted",
+			tests: []api.TestCase{goldenCase("x", "y"), plainCase("z"), plainCase("y")},
+			ran:   []string{"y", "x"},
+		},
+		{
+			name:  "a test case without an ID that has golden files runs, and nothing else does",
+			tests: []api.TestCase{{Name: "no id", Assertions: goldenCase("x").Assertions}, plainCase("a")},
+			ran:   []string{""},
+		},
+		{
+			name:  "a legacy file has no needs: only the ones with golden files run",
+			tests: append(legacySpec().Tests, goldenCase("d")),
+			ran:   []string{"d"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, ran := updateGoldensRan(t, &api.TestSuiteSpec{Tests: tt.tests}, tt.failing...)
+
+			assert.Equal(t, tt.ran, ran)
+
+			for _, s := range tt.shown {
+				assert.Contains(t, out, s)
+			}
+
+			for _, s := range tt.hidden {
+				assert.NotContains(t, out, s)
+			}
+		})
+	}
 }

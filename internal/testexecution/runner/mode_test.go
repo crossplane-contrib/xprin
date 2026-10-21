@@ -24,6 +24,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
+	cp "github.com/otiai10/copy"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
@@ -69,39 +70,130 @@ func TestGetMode(t *testing.T) {
 	})
 }
 
-func TestModeSkips(t *testing.T) {
-	withDiff := api.TestCase{Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "g"}}}}
-	withDyff := api.TestCase{Assertions: api.Assertions{Dyff: []api.AssertionGoldenFile{{Name: "g"}}}}
-	withXprin := api.TestCase{Assertions: api.Assertions{Xprin: []api.AssertionXprin{{Name: "a"}}}}
-
-	t.Run("xprin test skips nothing", func(t *testing.T) {
-		for _, testCase := range []api.TestCase{{}, withDiff, withDyff, withXprin} {
-			assert.False(t, testMode{}.skips(testCase))
-		}
-	})
-
-	t.Run("xprin update-goldens skips what has no golden files to write", func(t *testing.T) {
-		assert.True(t, updateGoldensMode{}.skips(api.TestCase{}))
-		assert.True(t, updateGoldensMode{}.skips(withXprin), "assertions that write no golden file are no reason to run")
-		assert.False(t, updateGoldensMode{}.skips(withDiff))
-		assert.False(t, updateGoldensMode{}.skips(withDyff))
-	})
+func TestTestModeSkipsNothing(t *testing.T) {
+	assert.False(t, testMode{}.skips(api.TestCase{}))
+	assert.False(t, testMode{}.skips(goldenCase("a")))
 }
 
-func TestUpdateGoldensModeFinish_WritesTheGoldenFiles(t *testing.T) {
-	r := newUpdateGoldensRunner(afero.NewMemMapFs())
-	require.NoError(t, afero.WriteFile(r.fs, "/tmp/rendered.yaml", []byte("kind: X\n"), 0o600))
+func TestUpdateGoldensModeSkips(t *testing.T) {
+	tests := []struct {
+		name  string
+		tests []api.TestCase
+		// whether each test case of the file is skipped
+		want []bool
+	}{
+		{
+			name:  "no golden files: everything is skipped",
+			tests: []api.TestCase{plainCase("a"), plainCase("b", "a")},
+			want:  []bool{true, true},
+		},
+		{
+			name:  "one with golden files, and what it needs",
+			tests: []api.TestCase{plainCase("a"), goldenCase("b", "a"), plainCase("c")},
+			want:  []bool{false, false, true},
+		},
+		{
+			name:  "what needs one with golden files is not needed for it",
+			tests: []api.TestCase{goldenCase("a"), plainCase("b", "a")},
+			want:  []bool{false, true},
+		},
+		{
+			name:  "a chain that ends in one with golden files runs all of it",
+			tests: []api.TestCase{plainCase("a"), plainCase("b", "a"), goldenCase("c", "b")},
+			want:  []bool{false, false, false},
+		},
+		{
+			name:  "needed only by one that is skipped: skipped too",
+			tests: []api.TestCase{plainCase("a"), plainCase("b", "a")},
+			want:  []bool{true, true},
+		},
+		{
+			name:  "listed after the one that needs it",
+			tests: []api.TestCase{goldenCase("x", "y"), plainCase("z"), plainCase("y")},
+			want:  []bool{false, true, false},
+		},
+		{
+			name:  "without an ID: only its own golden files matter",
+			tests: []api.TestCase{{Name: "no id"}, {Name: "no id, golden files", Assertions: goldenCase("g").Assertions}},
+			want:  []bool{true, false},
+		},
+		{
+			name:  "a legacy file has no needs: only the ones with golden files run",
+			tests: append(legacySpec().Tests, goldenCase("d")),
+			want:  []bool{true, true, true, false},
+		},
+	}
 
-	testCase := api.TestCase{Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "g", Expected: "/golden.yaml"}}}}
-	result := engine.NewTestCaseResult("t", "", false, false, false, false, false)
-	result.Outputs.Render = "/tmp/rendered.yaml"
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: tt.tests}))
+			got := make([]bool, len(tt.tests))
 
-	got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{}, nil, result)
+			for i, testCase := range tt.tests {
+				got[i] = updateGoldensMode{r}.skips(testCase)
+			}
 
-	assert.Equal(t, engine.StatusPass(), got.Status)
-	assert.Equal(t, []string{"/golden.yaml"}, got.WrittenGoldenFiles)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
 
-	written, err := afero.ReadFile(r.fs, "/golden.yaml")
-	require.NoError(t, err)
-	assert.Equal(t, "kind: X\n", string(written))
+func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
+	newRunner := func() (*Runner, *[]string) {
+		r := newUpdateGoldensRunner(afero.NewMemMapFs())
+		r.testSuiteArtifactsDir = "/artifacts"
+
+		var copied []string
+
+		r.copy = func(src, dest string, _ ...cp.Options) error {
+			copied = append(copied, src+" -> "+dest)
+
+			return nil
+		}
+
+		return r, &copied
+	}
+
+	t.Run("it writes the golden files, and exports the outputs for the ones that need this one", func(t *testing.T) {
+		r, copied := newRunner()
+		require.NoError(t, afero.WriteFile(r.fs, "/tmp/outputs/rendered.yaml", []byte("kind: X\n"), 0o600))
+
+		testCase := goldenCase("a")
+		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
+		result.Outputs.Render = "/tmp/outputs/rendered.yaml"
+
+		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
+
+		assert.Equal(t, engine.StatusPass(), got.Status)
+		assert.Equal(t, []string{"a.yaml"}, got.WrittenGoldenFiles)
+		assert.Equal(t, []string{"/tmp/outputs -> /artifacts/a"}, *copied)
+		assert.Equal(t, "/artifacts/a/rendered.yaml", got.Outputs.Render)
+
+		written, err := afero.ReadFile(r.fs, "a.yaml")
+		require.NoError(t, err)
+		assert.Equal(t, "kind: X\n", string(written))
+	})
+
+	t.Run("a test case that writes nothing and has no ID exports nothing", func(t *testing.T) {
+		r, copied := newRunner()
+		result := engine.NewTestCaseResult("n", "", false, false, false, false, false)
+
+		got := updateGoldensMode{r}.runPhasesAfterRender(api.TestCase{Name: "n"}, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
+
+		assert.Equal(t, engine.StatusPass(), got.Status)
+		assert.Empty(t, *copied)
+	})
+
+	t.Run("a failure to write a golden file is the result, and nothing is exported", func(t *testing.T) {
+		r, copied := newRunner()
+
+		testCase := goldenCase("a")
+		testCase.Assertions.Diff[0].Resource = "Kind/missing"
+		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
+
+		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
+
+		assert.Equal(t, engine.StatusFail(), got.Status)
+		assert.Empty(t, *copied)
+	})
 }
