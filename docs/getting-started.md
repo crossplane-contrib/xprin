@@ -99,7 +99,7 @@ xprin test tests/... -a /tmp/xprin-debug
 
 `xprin update-goldens` runs `crossplane render` on each test case that has `assertions.diff` or `assertions.dyff` entries, and writes the render output to the `expected:` paths. Use it to bootstrap or regenerate golden files after your Composition changes.
 
-Test cases without `assertions.diff`/`assertions.dyff` are reported as SKIP immediately. For test cases that do have golden assertions, pre-test hooks run normally (they may affect render output), but validate, `assertions.xprin`, and post-test hooks are skipped.
+Test cases without `assertions.diff`/`assertions.dyff` are reported as SKIP immediately, unless a test case that has them needs them (`needs`), directly or through others: then they run, and write nothing, so that the test cases that use their outputs work. Test cases that are needed only by test cases that are skipped are skipped too, as no golden file depends on them. For test cases that do have golden assertions, pre-test hooks run normally (they may affect render output), but validate, `assertions.xprin`, and post-test hooks are skipped.
 
 For Claim-input test cases, a full-render golden file (an `expected:` path with no `resource:` set) is also reused to keep the Claim-derived XR's name stable across runs, instead of a new random suffix every time - see [convert-claim-to-xr.md](xprin-helpers/convert-claim-to-xr.md#reproducible-output-with---golden).
 

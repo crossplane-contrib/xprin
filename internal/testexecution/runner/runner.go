@@ -45,7 +45,7 @@ type Runner struct {
 	output                io.Writer
 	testSuiteArtifactsDir string
 	totalTestCases        int
-	// mode is what differs between xprin test and xprin update-goldens. RunTests sets it, and nil means xprin test
+	// mode is what differs between xprin test and xprin update-goldens, see mode.go. RunTests sets it, and nil means xprin test
 	mode runnerMode
 	// Mockable function fields
 	runTestsFunc                      func() error
@@ -195,7 +195,8 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 
 	mode := r.getMode()
 
-	// Skip immediately a test case that the mode has no use for, whatever it needs
+	// Skip immediately a test case that the mode has no use for, whatever it needs (the modes are in mode.go and
+	// update_goldens.go)
 	if mode.skips(testCase) {
 		return result.Skip()
 	}
