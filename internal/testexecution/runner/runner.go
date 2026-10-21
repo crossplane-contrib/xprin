@@ -45,6 +45,8 @@ type Runner struct {
 	output                io.Writer
 	testSuiteArtifactsDir string
 	totalTestCases        int
+	// mode is what differs between xprin test and xprin update-goldens. RunTests sets it, and nil means xprin test
+	mode runnerMode
 	// Mockable function fields
 	runTestsFunc                      func() error
 	runTestCaseFunc                   func(api.TestCase) *engine.TestCaseResult
@@ -146,6 +148,8 @@ func (r *Runner) RunTests() error {
 	testSuiteResult.WorkingDir = r.WorkingDir
 
 	r.totalTestCases = len(r.testSuite.Spec.Tests)
+
+	r.mode = newRunnerMode(r)
 	if r.ArtifactsBaseDir != "" && r.totalTestCases > 0 {
 		if err := r.initArtifactsRunDir(); err != nil {
 			return err
@@ -189,8 +193,10 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 
 	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, r.Verbose, r.ShowRender, r.ShowValidate, r.ShowHooks, r.ShowAssertions)
 
-	// In update-goldens mode, skip immediately if there are no golden-file assertions to write.
-	if r.UpdateGoldens && !testCase.HasAssertionsDiff() && !testCase.HasAssertionsDyff() {
+	mode := r.getMode()
+
+	// Skip immediately a test case that the mode has no use for, whatever it needs
+	if mode.skips(testCase) {
 		return result.Skip()
 	}
 
@@ -272,33 +278,5 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		return failed
 	}
 
-	if r.UpdateGoldens {
-		return r.runUpdateGoldens(testCase, result)
-	}
-
-	if failed := r.validateTestCase(env, testCase, result); failed != nil {
-		return failed
-	}
-
-	if failed := r.runAssertions(env, testCase, result); failed != nil {
-		return failed
-	}
-
-	r.runPostTestHooks(testCase, needsResults, result)
-
-	if err := r.exportOutputs(testCase, env, result); err != nil {
-		return result.Fail(err)
-	}
-
-	// Fail with nil when the pipeline failed: what failed is in the result
-	if result.HasPipelineFailure() {
-		return result.Fail(nil)
-	}
-
-	// Complete the test case result
-	if r.Debug {
-		utils.DebugPrintf("Test case '%s' completed with status: %s\n", testCase.Name, result.Status.String())
-	}
-
-	return result.Complete()
+	return mode.runPhasesAfterRender(testCase, env, needsResults, result)
 }
