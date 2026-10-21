@@ -28,7 +28,8 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
@@ -472,11 +473,11 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 	require.NoError(t, afero.WriteFile(fs, testSuiteFile, []byte("tests: []"), 0o644))
 
 	// Create a runner with the testsuite file path
-	options := &testexecutionUtils.Options{}
-	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+	options := &testexecutionOptions.Options{}
+	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
-	// Verify that testSuiteFileDir is computed correctly
-	assert.Equal(t, testSuiteDir, runner.testSuiteFileDir, "testSuiteFileDir should be computed from testSuiteFile")
+	// Verify that the directory of the test suite is computed correctly
+	assert.Equal(t, testSuiteDir, runner.testSuite.GetDir(), "the directory should be computed from the file of the test suite")
 
 	// Verify that the working directory is set correctly by capturing cmd.Dir
 	// We don't need to actually run the command - just verify cmd.Dir is set
@@ -485,7 +486,7 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 	runner.runCommand = func(name string, args ...string) ([]byte, error) {
 		cmd := exec.Command(name, args...)
 		// Set Dir the same way the original does
-		cmd.Dir = runner.testSuiteFileDir
+		cmd.Dir = runner.testSuite.GetDir()
 		capturedDir = cmd.Dir
 		// Return without running to avoid filesystem I/O
 		return []byte{}, nil

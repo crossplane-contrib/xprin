@@ -41,29 +41,18 @@ func ExpandTilde(path string) (string, error) {
 	return path, nil
 }
 
-// ExpandAbs returns the absolute path for the given path (does not expand tilde).
-func ExpandAbs(path string) (string, error) {
+// ExpandTildeAbs expands tilde and then returns the absolute path.
+func ExpandTildeAbs(path string) (string, error) {
 	if path == "" {
 		return "", errors.New("empty path")
 	}
 
-	return filepath.Abs(path)
-}
-
-// ExpandTildeAbs expands tilde and then returns the absolute path.
-func ExpandTildeAbs(path string) (string, error) {
 	tildeExpanded, err := ExpandTilde(path)
 	if err != nil {
 		return "", err
 	}
 
-	return ExpandAbs(tildeExpanded)
-}
-
-// Exists returns true if the given path exists (file or directory), false otherwise.
-func Exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+	return filepath.Abs(tildeExpanded)
 }
 
 // VerifyPathExists returns nil if the path exists, or an error if it does not.

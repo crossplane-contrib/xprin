@@ -26,9 +26,9 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
@@ -39,7 +39,7 @@ import (
 func runWithResults(t *testing.T, spec *api.TestSuiteSpec, failing ...string) (output string, ran []string) {
 	t.Helper()
 
-	r := NewRunner(&testexecutionUtils.Options{}, "/tests/a_xprin.yaml", spec)
+	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
 
 	var out bytes.Buffer
 
@@ -113,16 +113,11 @@ func TestRunTests_Order(t *testing.T) {
 		assert.Equal(t, []string{"a", "b", "c"}, ran)
 	})
 
-	t.Run("it uses the graph it is given, and builds one when it has none", func(t *testing.T) {
-		// "a" needs "b": the order is [b, a], and it is only in the graph, the spec of the runner has no needs
-		given := graph.Build(&api.TestSuiteSpec{Tests: []api.TestCase{{Name: "A", ID: "a", Needs: []string{"b"}}, {Name: "B", ID: "b"}}})
-		r := NewRunner(&testexecutionUtils.Options{}, "/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "A", ID: "a"}, {Name: "B", ID: "b"}}})
+	t.Run("it uses the graph of its test suite", func(t *testing.T) {
+		// "a" needs "b": the order is [b, a]
+		r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "A", ID: "a", Needs: []string{"b"}}, {Name: "B", ID: "b"}}}))
 
-		assert.Equal(t, []int{0, 1}, r.runOrder(), "the graph that it builds from its own spec")
-
-		r.SetTestSuiteGraph(given)
-
-		assert.Equal(t, []int{1, 0}, r.runOrder(), "the graph that it is given")
+		assert.Equal(t, []int{1, 0}, r.runOrder())
 	})
 
 	t.Run("a test case that needs one listed after it is skipped when that one fails", func(t *testing.T) {
@@ -142,7 +137,7 @@ func TestRunTests_Needs_UpdateGoldens(t *testing.T) {
 		{Name: "C", ID: "c", Needs: []string{"a"}, Assertions: golden},
 	}}
 
-	r := NewRunner(&testexecutionUtils.Options{UpdateGoldens: true}, "/tests/a_xprin.yaml", spec)
+	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", spec))
 
 	var out bytes.Buffer
 
@@ -174,7 +169,7 @@ func TestGetNeedsResults(t *testing.T) {
 	results.AddResult(engine.NewTestCaseResult("B", "b", false, false, false, false, false))
 
 	t.Run("a legacy file: everything that ran", func(t *testing.T) {
-		r := NewRunner(&testexecutionUtils.Options{}, "/tests/a_xprin.yaml", legacySpec())
+		r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", legacySpec()))
 
 		needsResults, skipReasons := r.getNeedsResults(api.TestCase{ID: "c"}, results)
 
@@ -183,7 +178,7 @@ func TestGetNeedsResults(t *testing.T) {
 	})
 
 	t.Run("any other file: only the ones listed", func(t *testing.T) {
-		r := NewRunner(&testexecutionUtils.Options{}, "/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}, {ID: "b"}, {ID: "c", Needs: []string{"b"}}}})
+		r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}, {ID: "b"}, {ID: "c", Needs: []string{"b"}}}}))
 
 		needsResults, _ := r.getNeedsResults(api.TestCase{ID: "c", Needs: []string{"b"}}, results)
 		assert.Equal(t, []string{"b"}, slices.Collect(maps.Keys(needsResults)))
@@ -195,7 +190,7 @@ func TestGetNeedsResults(t *testing.T) {
 
 func TestRenderTemplate_MissingNeed(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}, {ID: "b"}, {ID: "c", Needs: []string{"b"}}}}
-	r := NewRunner(&testexecutionUtils.Options{}, "/tests/a_xprin.yaml", spec)
+	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
 	ctx := newTemplateContext(nil, api.Inputs{}, nil, map[string]*engine.TestCaseResult{"b": {}})
 
 	t.Run("a testcase that exists but is not listed", func(t *testing.T) {
@@ -241,7 +236,7 @@ func TestRenderTemplate_MissingNeed(t *testing.T) {
 	})
 
 	t.Run("a legacy file, also with index", func(t *testing.T) {
-		legacy := NewRunner(&testexecutionUtils.Options{}, "/tests/a_xprin.yaml", legacySpec())
+		legacy := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", legacySpec()))
 		_, err := legacy.renderTemplate("{{ .Tests.a.Outputs.XR }}", ctx, "test")
 
 		require.Error(t, err)

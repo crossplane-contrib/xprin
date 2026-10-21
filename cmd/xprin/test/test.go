@@ -20,12 +20,11 @@ package test
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/alecthomas/kong"
 	internalcfg "github.com/crossplane-contrib/xprin/internal/config"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/processor"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	"github.com/gonvenience/bunt"
@@ -110,32 +109,21 @@ func (c *Cmd) Run(_ *kong.Context) error {
 	return processor.ProcessTargets(c.fs, c.Targets, options)
 }
 
-// newOptions creates a testexecutionUtils.Options struct from a Command and Config.
-func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionUtils.Options {
-	var render, validate []string
+// newOptions creates a testexecutionOptions.Options struct from a Command and Config.
+func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionOptions.Options {
+	opts := testexecutionOptions.FromConfig(cfg)
+	opts.ShowRender = c.ShowRender
+	opts.ShowValidate = c.ShowValidate
+	opts.ShowHooks = c.ShowHooks
+	opts.ShowAssertions = c.ShowAssertions
+	opts.Verbose = c.Verbose
+	opts.Quiet = c.Quiet
+	opts.Debug = c.Debug
+	opts.Color = bunt.UseColors()
+	opts.CrossplaneVersion = c.CrossplaneVersion
+	opts.NoContainerReuse = c.NoContainerReuse
+	opts.WorkingDir = c.cwd
+	opts.ArtifactsBaseDir = c.ArtifactsBaseDir
 
-	if cfg.Subcommands != nil {
-		render = strings.Fields(cfg.Subcommands.Render)
-		validate = strings.Fields(cfg.Subcommands.Validate)
-	}
-
-	return &testexecutionUtils.Options{
-		Dependencies:      cfg.Dependencies,
-		Repositories:      cfg.Repositories,
-		ShowRender:        c.ShowRender,
-		ShowValidate:      c.ShowValidate,
-		ShowHooks:         c.ShowHooks,
-		ShowAssertions:    c.ShowAssertions,
-		Verbose:           c.Verbose,
-		Quiet:             c.Quiet,
-		Debug:             c.Debug,
-		Color:             bunt.UseColors(),
-		Render:            render,
-		Validate:          validate,
-		XPCLI:             cfg.XPCLI,
-		CrossplaneVersion: c.CrossplaneVersion,
-		NoContainerReuse:  c.NoContainerReuse,
-		WorkingDir:        c.cwd,
-		ArtifactsBaseDir:  c.ArtifactsBaseDir,
-	}
+	return opts
 }

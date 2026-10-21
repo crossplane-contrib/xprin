@@ -25,9 +25,9 @@ import (
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
-	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
@@ -45,12 +45,7 @@ const (
 type mockRunner struct {
 	runTestsFunc func() error
 	output       io.Writer
-	options      *testexecutionUtils.Options
-	graph        *graph.Graph
-}
-
-func (m *mockRunner) SetTestSuiteGraph(g *graph.Graph) {
-	m.graph = g
+	options      *testexecutionOptions.Options
 }
 
 func (m *mockRunner) RunTests() error {
@@ -61,7 +56,7 @@ func (m *mockRunner) RunTests() error {
 	return nil
 }
 
-func TestProcessTargets_GivesTheRunnerTheGraphOfTheFile(t *testing.T) {
+func TestProcessTargets_GivesTheRunnerTheTestSuite(t *testing.T) {
 	originalNewRunnerFunc := newRunnerFunc
 
 	defer func() {
@@ -72,15 +67,20 @@ func TestProcessTargets_GivesTheRunnerTheGraphOfTheFile(t *testing.T) {
 	// "one" needs "two", which is listed after it
 	require.NoError(t, afero.WriteFile(fs, "/testdir/a_xprin.yaml", []byte("tests:\n- name: one\n  needs:\n  - two\n- name: two\n  id: two\n"), 0o644))
 
-	runner := &mockRunner{}
-	newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
-		return runner
+	var given *testsuite.TestSuite
+
+	newRunnerFunc = func(_ *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
+		given = testSuite
+
+		return &mockRunner{}
 	}
 
-	require.NoError(t, ProcessTargets(fs, []string{"/testdir/a_xprin.yaml"}, &testexecutionUtils.Options{NoContainerReuse: true}))
+	require.NoError(t, ProcessTargets(fs, []string{"/testdir/a_xprin.yaml"}, &testexecutionOptions.Options{NoContainerReuse: true}))
 
-	require.NotNil(t, runner.graph, "the runner gets the graph that the loader built")
-	assert.Equal(t, []int{1, 0}, runner.graph.GetOrder())
+	require.NotNil(t, given, "the runner gets the test suite that was loaded")
+	assert.Equal(t, "/testdir/a_xprin.yaml", given.File)
+	assert.Len(t, given.Spec.Tests, 2)
+	assert.Equal(t, []int{1, 0}, given.Graph.GetOrder(), "with the graph that the loader built")
 }
 
 func TestProcessTargets(t *testing.T) {
@@ -91,11 +91,11 @@ func TestProcessTargets(t *testing.T) {
 	}()
 
 	t.Run("non-existent path", func(t *testing.T) {
-		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
-		err := ProcessTargets(afero.NewMemMapFs(), []string{"non-existent-path"}, &testexecutionUtils.Options{Debug: false})
+		err := ProcessTargets(afero.NewMemMapFs(), []string{"non-existent-path"}, &testexecutionOptions.Options{Debug: false})
 
 		assert.NoError(t, err, "expected no error for non-existent path")
 	})
@@ -104,14 +104,14 @@ func TestProcessTargets(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll("/testdir", 0o755))
 
-		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
 		var err error
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = ProcessTargets(fs, []string{"/testdir"}, &testexecutionUtils.Options{})
+			err = ProcessTargets(fs, []string{"/testdir"}, &testexecutionOptions.Options{})
 		})
 
 		require.NoError(t, err, "expected no error for directory path")
@@ -123,14 +123,14 @@ func TestProcessTargets(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
-		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
 		var err error
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = ProcessTargets(fs, []string{"/base..."}, &testexecutionUtils.Options{})
+			err = ProcessTargets(fs, []string{"/base..."}, &testexecutionOptions.Options{})
 		})
 
 		// No errors expected
@@ -140,7 +140,7 @@ func TestProcessTargets(t *testing.T) {
 	})
 
 	t.Run("recursive path with error", func(t *testing.T) {
-		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
@@ -148,7 +148,7 @@ func TestProcessTargets(t *testing.T) {
 		var err error
 
 		_ = unittestsUtils.CaptureOutput(func() {
-			err = ProcessTargets(afero.NewMemMapFs(), []string{"[]..."}, &testexecutionUtils.Options{})
+			err = ProcessTargets(afero.NewMemMapFs(), []string{"[]..."}, &testexecutionOptions.Options{})
 		})
 
 		// Should have an error
@@ -162,14 +162,14 @@ func TestProcessTargets(t *testing.T) {
 		testFile := "/test_xprin.yaml"
 		require.NoError(t, afero.WriteFile(fs, testFile, []byte("invalid: yaml: : content}"), 0o644))
 
-		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return &mockRunner{options: options}
 		}
 
 		var err error
 
 		output := unittestsUtils.CaptureOutput(func() {
-			err = ProcessTargets(fs, []string{testFile}, &testexecutionUtils.Options{})
+			err = ProcessTargets(fs, []string{testFile}, &testexecutionOptions.Options{})
 		})
 
 		// Should have an error from loading the invalid YAML
@@ -190,17 +190,17 @@ func TestProcessTargets(t *testing.T) {
 
 		// Mock runner with custom runTests implementation
 		runner := &mockRunner{
-			options: &testexecutionUtils.Options{},
+			options: &testexecutionOptions.Options{},
 			runTestsFunc: func() error {
 				return nil // Success
 			},
 		}
 
-		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return runner
 		}
 
-		err := ProcessTargets(fs, []string{testFile}, &testexecutionUtils.Options{})
+		err := ProcessTargets(fs, []string{testFile}, &testexecutionOptions.Options{})
 
 		// Should be no errors
 		assert.NoError(t, err)
@@ -213,7 +213,7 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
 		// Create mock runner
-		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return &mockRunner{
 				options: options,
 			}
@@ -225,7 +225,7 @@ func TestProcessTargets(t *testing.T) {
 		var err error
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = ProcessTargets(fs, []string{path}, &testexecutionUtils.Options{})
+			err = ProcessTargets(fs, []string{path}, &testexecutionOptions.Options{})
 		})
 
 		// No errors expected
@@ -241,7 +241,7 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
 		// Create mock runner
-		newRunnerFunc = func(options *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return &mockRunner{
 				options: options,
 			}
@@ -253,7 +253,7 @@ func TestProcessTargets(t *testing.T) {
 		var err error
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = ProcessTargets(fs, []string{path}, &testexecutionUtils.Options{})
+			err = ProcessTargets(fs, []string{path}, &testexecutionOptions.Options{})
 		})
 
 		// No errors expected
@@ -298,15 +298,15 @@ func TestProcessTargets(t *testing.T) {
 
 		defer func() { newRunnerFunc = origNewRunnerFunc }()
 
-		newRunnerFunc = func(_ *testexecutionUtils.Options, testSuiteFile string, _ *api.TestSuiteSpec) runnerInterface {
-			// Create runner with output capture, capturing testSuiteFile in closure
+		newRunnerFunc = func(_ *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
+			// Create runner with output capture, capturing the test suite in closure
 			runner := &mockRunner{
 				output:  &buf,
-				options: &testexecutionUtils.Options{},
+				options: &testexecutionOptions.Options{},
 				runTestsFunc: func() error {
 					// Simulate what the real runTests would do by printing file results
 					// Write directly to the buffer we already have
-					fmt.Fprintf(&buf, "ok  \t%s\t%.3fs\n", testSuiteFile, 0.123)
+					fmt.Fprintf(&buf, "ok  \t%s\t%.3fs\n", testSuite.File, 0.123)
 					return nil
 				},
 			}
@@ -315,7 +315,7 @@ func TestProcessTargets(t *testing.T) {
 		}
 
 		// Process individual files first to confirm direct file handling works as expected
-		err := ProcessTargets(fs, []string{invalidFile1, invalidFile2, invalidFile3, invalidFile4, validFile1, validFile2, validFile3}, &testexecutionUtils.Options{})
+		err := ProcessTargets(fs, []string{invalidFile1, invalidFile2, invalidFile3, invalidFile4, validFile1, validFile2, validFile3}, &testexecutionOptions.Options{})
 
 		// Should not error since invalid files are just ignored
 		require.NoError(t, err)
@@ -327,7 +327,7 @@ func TestProcessTargets(t *testing.T) {
 		buf.Reset()
 
 		// Process the directory containing both invalid and valid files
-		err = ProcessTargets(fs, []string{"/testdir"}, &testexecutionUtils.Options{})
+		err = ProcessTargets(fs, []string{"/testdir"}, &testexecutionOptions.Options{})
 
 		// After directory processing, should not error
 		require.NoError(t, err, "Processing directory with mixed valid/invalid files should not error")
@@ -345,7 +345,7 @@ func TestProcessTestSuiteFile(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionUtils.Options{})
+			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
 		})
 		if !strings.Contains(out, "?   \t/suite.yaml\t[no test cases found]") {
 			t.Errorf("expected no test cases found output, got: %q", out)
@@ -364,7 +364,7 @@ func TestProcessTestSuiteFile(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionUtils.Options{Quiet: true})
+			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{Quiet: true})
 		})
 
 		require.NoError(t, err)
@@ -379,13 +379,13 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 		var err error
 
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
-		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
+		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionUtils.Options{})
+			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
 		})
 
 		// Should have an error returned
@@ -411,13 +411,13 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 		var err error
 
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
-		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
+		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionUtils.Options{})
+			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
 		})
 
 		if !strings.Contains(stderrOutput, "?   \t/suite.yaml\t[no test cases found]") {
@@ -436,15 +436,15 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 		var err error
 
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
+		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
 		runner.runTestsFunc = func() error {
 			return errors.New("tests failed in testsuite suite.yaml: something failed")
 		}
-		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return runner
 		}
 
-		err = processTestSuiteFile(fs, testFile, &testexecutionUtils.Options{})
+		err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
 		if err == nil {
 			t.Errorf("expected error, got nil")
 		}
@@ -459,16 +459,16 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 		var err error
 
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
+		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
 		runner.runTestsFunc = func() error {
 			return errors.New("some other error") // Use a generic error, not a group error
 		}
-		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionUtils.Options{})
+			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
 		})
 
 		// Check stderr for FAIL status
@@ -495,16 +495,16 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 		var err error
 
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
+		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
 		runner.runTestsFunc = func() error {
 			return nil
 		}
-		newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionUtils.Options{})
+			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
 		})
 
 		if strings.Contains(stderrOutput, "FAIL") {
@@ -587,16 +587,16 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 				var processErr error
 
-				runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionUtils.Options{}}
+				runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
 				runner.runTestsFunc = func() error {
 					return nil
 				}
-				newRunnerFunc = func(_ *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+				newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 					return runner
 				}
 
 				stderrOutput := unittestsUtils.CaptureStderr(func() {
-					processErr = processTestSuiteFile(fs, testFile, &testexecutionUtils.Options{})
+					processErr = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
 				})
 
 				if len(tt.expectedErrors) > 0 {
@@ -641,7 +641,7 @@ func TestProcessTargets_ContainerCleanup(t *testing.T) {
 		testFile := "/suite_xprin.yaml"
 		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
 
-		var options *testexecutionUtils.Options
+		var options *testexecutionOptions.Options
 
 		const functionsPath = "/suite/functions.yaml"
 		require.NoError(t, afero.WriteFile(fs, functionsPath, []byte(`apiVersion: pkg.crossplane.io/v1
@@ -659,7 +659,7 @@ spec:
   package: xpkg.crossplane.io/crossplane-contrib/function-b:v1.0.0
 `), 0o644))
 
-		newRunnerFunc = func(opts *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(opts *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			options = opts
 
 			return &mockRunner{
@@ -677,7 +677,7 @@ spec:
 			return containers.NewCoordinator(mockDocker), nil
 		}
 
-		opts := &testexecutionUtils.Options{}
+		opts := &testexecutionOptions.Options{}
 		require.Nil(t, opts.Containers, "precondition: Containers starts nil")
 
 		err := ProcessTargets(fs, []string{testFile}, opts)
@@ -699,7 +699,7 @@ spec:
 
 		var containersSeenByRunner *containers.Coordinator
 
-		newRunnerFunc = func(opts *testexecutionUtils.Options, _ string, _ *api.TestSuiteSpec) runnerInterface {
+		newRunnerFunc = func(opts *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return &mockRunner{
 				runTestsFunc: func() error {
 					containersSeenByRunner = opts.Containers
@@ -716,7 +716,7 @@ spec:
 			return nil, nil
 		}
 
-		opts := &testexecutionUtils.Options{NoContainerReuse: true}
+		opts := &testexecutionOptions.Options{NoContainerReuse: true}
 
 		err := ProcessTargets(fs, []string{testFile}, opts)
 		require.NoError(t, err)
@@ -735,7 +735,7 @@ spec:
 			return nil, errors.New("no docker")
 		}
 
-		err := ProcessTargets(fs, []string{testFile}, &testexecutionUtils.Options{})
+		err := ProcessTargets(fs, []string{testFile}, &testexecutionOptions.Options{})
 		require.ErrorContains(t, err, "failed to set up container reuse: no docker")
 	})
 }

@@ -21,15 +21,16 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
 func newUpdateGoldensRunner(fs afero.Fs) *Runner {
-	options := &testexecutionUtils.Options{UpdateGoldens: true}
-	r := NewRunner(options, "/suite_xprin.yaml", &api.TestSuiteSpec{})
+	options := &testexecutionOptions.Options{UpdateGoldens: true}
+	r := NewRunner(options, testsuite.New("/suite_xprin.yaml", &api.TestSuiteSpec{}))
 	r.fs = fs
 	r.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) { return path, nil }
 

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+package testsuite
 
 import (
 	"os"
@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-func TestExpandPathRelativeToTestSuiteFile(t *testing.T) {
+func TestExpandPath(t *testing.T) {
 	// Set up a fake HOME for tilde expansion (using in-memory path)
 	fakeHome := "/fake/home"
 	t.Setenv("HOME", fakeHome)
@@ -34,55 +34,55 @@ func TestExpandPathRelativeToTestSuiteFile(t *testing.T) {
 	absWithTilde := filepath.Join(string(os.PathSeparator), "path", "to", "~", "tests")
 	wantAbsWithTilde := absWithTilde // Expect no expansion
 
-	got, err := ExpandPathRelativeToTestSuiteFile(testSuiteFile, absWithTilde)
+	got, err := ExpandPath(testSuiteFile, absWithTilde)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if got != wantAbsWithTilde {
-		t.Errorf("ExpandPathRelativeToTestSuiteFile() = %v, want %v", got, wantAbsWithTilde)
+		t.Errorf("ExpandPath() = %v, want %v", got, wantAbsWithTilde)
 	}
 
 	// Absolute path
 	absPath := filepath.Join(baseDir, "absdir")
 
-	got, err = ExpandPathRelativeToTestSuiteFile(testSuiteFile, absPath)
+	got, err = ExpandPath(testSuiteFile, absPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if got != absPath {
-		t.Errorf("ExpandPathRelativeToTestSuiteFile() = %v, want %v", got, absPath)
+		t.Errorf("ExpandPath() = %v, want %v", got, absPath)
 	}
 
 	// Tilde path
 	tildePath := "~/foo"
 	wantTilde := filepath.Join(fakeHome, "foo")
 
-	got, err = ExpandPathRelativeToTestSuiteFile(testSuiteFile, tildePath)
+	got, err = ExpandPath(testSuiteFile, tildePath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if got != wantTilde {
-		t.Errorf("ExpandPathRelativeToTestSuiteFile() = %v, want %v", got, wantTilde)
+		t.Errorf("ExpandPath() = %v, want %v", got, wantTilde)
 	}
 
 	// Relative path
 	relPath := "rel/dir"
 	wantRel := filepath.Join(baseDir, "rel/dir")
 
-	got, err = ExpandPathRelativeToTestSuiteFile(testSuiteFile, relPath)
+	got, err = ExpandPath(testSuiteFile, relPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if got != wantRel {
-		t.Errorf("ExpandPathRelativeToTestSuiteFile() = %v, want %v", got, wantRel)
+		t.Errorf("ExpandPath() = %v, want %v", got, wantRel)
 	}
 
 	// Empty path
-	_, err = ExpandPathRelativeToTestSuiteFile(testSuiteFile, "")
+	_, err = ExpandPath(testSuiteFile, "")
 	if err == nil || err.Error() != "empty path" {
 		t.Errorf("expected error 'empty path', got %v", err)
 	}

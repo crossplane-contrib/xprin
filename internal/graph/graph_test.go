@@ -65,6 +65,15 @@ func TestBuild_ANeedWithAnEmptyIDIsNotADependency(t *testing.T) {
 	assert.Equal(t, [][]int{nil, nil, nil}, deps(t, spec))
 }
 
+func TestDependenciesOf(t *testing.T) {
+	// "c" needs "b" and "a", listed in that order, and "b" twice
+	g := Build(&api.TestSuiteSpec{Tests: []api.TestCase{testCase("a", "a"), testCase("b", "b"), testCase("c", "c", "b", "a", "b")}})
+
+	assert.Empty(t, g.DependenciesOf(0))
+	assert.Empty(t, g.DependenciesOf(1))
+	assert.Equal(t, []int{0, 1}, g.DependenciesOf(2), "in ascending order, and once each")
+}
+
 func deps(t *testing.T, spec *api.TestSuiteSpec) [][]int {
 	t.Helper()
 

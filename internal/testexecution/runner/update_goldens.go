@@ -46,7 +46,7 @@ func (r *Runner) runUpdateGoldens(testCase api.TestCase, result *engine.TestCase
 // then writes the actual content to the expected path (creating or overwriting).
 // Returns the absolute path that was written.
 func (r *Runner) writeGoldenFile(a api.AssertionGoldenFile, outputs *engine.Outputs) (string, error) {
-	expectedPath, err := r.expandPathRelativeToTestSuiteFile(r.testSuiteFile, a.Expected)
+	expectedPath, err := r.expandPathRelativeToTestSuiteFile(r.testSuite.File, a.Expected)
 	if err != nil {
 		return "", fmt.Errorf("invalid expected path %q: %w", a.Expected, err)
 	}

@@ -86,33 +86,6 @@ func TestExpandTildeWithoutHome(t *testing.T) {
 	}
 }
 
-func TestExpandAbs(t *testing.T) {
-	tests := []struct {
-		name    string
-		path    string
-		wantErr bool
-	}{
-		{"absolute path", "/tmp/test", false},
-		{"relative path", "../", false},
-		{"empty path", "", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ExpandAbs(tt.path)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ExpandAbs() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !tt.wantErr {
-				abs, _ := filepath.Abs(tt.path)
-				if got != abs {
-					t.Errorf("ExpandAbs() = %v, want %v", got, abs)
-				}
-			}
-		})
-	}
-}
-
 func TestExpandTildeAbs(t *testing.T) {
 	// Set a fake HOME for tilde tests
 	fakeHome := "/tmp/fakehome"
@@ -143,9 +116,9 @@ func TestExpandTildeAbs(t *testing.T) {
 	}
 }
 
-func TestExistsAndVerifyPathExists(t *testing.T) {
+func TestVerifyPathExists(t *testing.T) {
 	// Use afero with OS filesystem to create real files for testing
-	// (since Exists and VerifyPathExists use os.Stat which requires real filesystem)
+	// (since VerifyPathExists uses os.Stat which requires real filesystem)
 	fs := afero.NewOsFs()
 
 	tempDir, err := afero.TempDir(fs, "", "xprin-test-")
@@ -162,15 +135,7 @@ func TestExistsAndVerifyPathExists(t *testing.T) {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	// Exists should return true for existing file
-	if !Exists(tempFile) {
-		t.Errorf("Exists() = false, want true for existing file")
-	}
-	// Exists should return false for non-existent file
 	nonexistent := filepath.Join(tempDir, "nope.txt")
-	if Exists(nonexistent) {
-		t.Errorf("Exists() = true, want false for non-existent file")
-	}
 
 	// VerifyPathExists should return nil for existing file
 	if err := VerifyPathExists(tempFile); err != nil {

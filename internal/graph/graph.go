@@ -59,6 +59,12 @@ func Build(spec *api.TestSuiteSpec) *Graph {
 	return g
 }
 
+// DependenciesOf returns the positions of the testcases that the testcase at position i needs, in ascending order
+// and once each. The list belongs to the graph: it must not be changed.
+func (g *Graph) DependenciesOf(i int) []int {
+	return g.deps[i]
+}
+
 // GetOrder returns the positions of the testcases in the order they run: each one after the testcases it
 // needs. Whenever several can run, the one listed first in the file does, so the order depends only
 // on the file and the dependencies (never on the order of the IDs in a `needs`), and a file without

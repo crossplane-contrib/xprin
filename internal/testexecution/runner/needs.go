@@ -22,21 +22,14 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/graph"
 )
-
-// SetTestSuiteGraph sets the dependency graph of the test cases, the one that the loader built and checked.
-// Without it, the runner builds one when it needs it.
-func (r *Runner) SetTestSuiteGraph(g *graph.Graph) {
-	r.testSuiteGraph = g
-}
 
 // runOrder returns the positions of the test cases in the order they run: the order of the file in a legacy
 // testsuite file, which has no dependencies and doesn't need the graph, and the order of the dependency
 // graph in any other.
 func (r *Runner) runOrder() []int {
 	if r.legacy05 {
-		order := make([]int, len(r.testSuiteSpec.Tests))
+		order := make([]int, len(r.testSuite.Spec.Tests))
 		for i := range order {
 			order[i] = i
 		}
@@ -44,11 +37,7 @@ func (r *Runner) runOrder() []int {
 		return order
 	}
 
-	if r.testSuiteGraph == nil {
-		r.testSuiteGraph = graph.Build(r.testSuiteSpec)
-	}
-
-	return r.testSuiteGraph.GetOrder()
+	return r.testSuite.Graph.GetOrder()
 }
 
 // getNeedsResults returns the results that the test case can use with `.Tests`, and why it can't run, if
@@ -83,7 +72,7 @@ func (r *Runner) explainMissingNeeds(err error) error {
 
 	id := match[1] + match[2] // one of them is set, depending on how the test case is used
 
-	if r.testSuiteSpec.HasID(id) {
+	if r.testSuite.Spec.HasID(id) {
 		return errors.New("one or more test cases are used but are not listed in needs")
 	}
 

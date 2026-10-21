@@ -24,7 +24,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/crossplane-contrib/xprin/internal/discovery"
-	"github.com/crossplane-contrib/xprin/internal/graph"
+	graphRender "github.com/crossplane-contrib/xprin/internal/graph/render"
 	"github.com/spf13/afero"
 )
 
@@ -66,6 +66,6 @@ func graphTargets(fs afero.Fs, out io.Writer, targets []string, quiet bool) erro
 
 		first = false
 
-		return graph.WriteTree(out, testSuiteFile, testSuite.Spec, testSuite.Graph)
+		return graphRender.Tree(out, testSuite)
 	})
 }

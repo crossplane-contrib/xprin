@@ -21,7 +21,8 @@ import (
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
-	testexecutionUtils "github.com/crossplane-contrib/xprin/internal/testexecution/utils"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
+	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
@@ -48,10 +49,10 @@ spec:
 	require.NoError(t, fs.MkdirAll(outputDir, 0o755))
 
 	// Create a runner
-	options := &testexecutionUtils.Options{
+	options := &testexecutionOptions.Options{
 		Debug: false,
 	}
-	runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 	runner.fs = fs // Use in-memory filesystem
 
 	tests := []struct {
@@ -239,8 +240,8 @@ metadata:
 			outputDir := "/output"
 			require.NoError(t, fs.MkdirAll(outputDir, 0o755))
 
-			options := &testexecutionUtils.Options{Debug: false}
-			runner := NewRunner(options, testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}})
+			options := &testexecutionOptions.Options{Debug: false}
+			runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 			runner.fs = fs
 
 			xrPath, err := runner.convertClaimToXR(claimFile, tt.xrdPath, tt.goldenPath, outputDir)
