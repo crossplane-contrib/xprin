@@ -75,18 +75,19 @@ func newTestCaseResult(check testCaseCheckResult, verbose bool) *engine.TestCase
 // writeSummary writes what is left to do after the walk of all the files: a heading, and a line for each thing, with
 // the mark of an error so that it is not missed after a long list of results. Nothing is written when there is none.
 // The caller flushes the buffer, and gets the first error of the writes there.
-func writeSummary(out *bufio.Writer, missNeeds, needAPerson int) {
-	if missNeeds == 0 && needAPerson == 0 {
+func writeSummary(out *bufio.Writer, missNeeds, requireAPerson int) {
+	if missNeeds == 0 && requireAPerson == 0 {
 		return
 	}
 
 	write := func(text string) { _, _ = out.WriteString(text) }
 	plural := pluralize.NewClient()
 
-	// files says "1 testsuite file misses ..." and "2 testsuite files miss ...", with the verb that it is given
-	files := func(n int, verb, verbs, what string) string {
+	// files says "1 testsuite file misses ..." and "2 testsuite files miss ...", given the verb in its base form. The
+	// library knows nouns only: the plural of the verb is the form for a singular subject
+	files := func(n int, verb, what string) string {
 		if n == 1 {
-			verb = verbs
+			verb = plural.Plural(verb)
 		}
 
 		return plural.Pluralize("testsuite file", n, true) + " " + verb + " " + what
@@ -97,10 +98,10 @@ func writeSummary(out *bufio.Writer, missNeeds, needAPerson int) {
 	write("Total:\n")
 
 	if missNeeds > 0 {
-		write("    " + mark + " " + files(missNeeds, "miss", "misses", "needs") + ": see Missing Needs above\n")
+		write("    " + mark + " " + files(missNeeds, "miss", "needs") + "\n")
 	}
 
-	if needAPerson > 0 {
-		write("    " + mark + " " + files(needAPerson, "require", "requires", "a person") + "\n")
+	if requireAPerson > 0 {
+		write("    " + mark + " " + files(requireAPerson, "require", "a person") + "\n")
 	}
 }

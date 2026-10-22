@@ -129,21 +129,21 @@ func TestReport_AWriteErrorComesOutWhenTheBufferIsFlushed(t *testing.T) {
 
 func TestWriteSummary(t *testing.T) {
 	tests := map[string]struct {
-		missNeeds, needAPerson int
-		want                   string
+		missNeeds, requireAPerson int
+		want                      string
 	}{
 		"nothing is left: nothing is written": {0, 0, ""},
 		"one file that misses needs": {1, 0, `Total:
-    [!] 1 testsuite file misses needs: see Missing Needs above
+    [!] 1 testsuite file misses needs
 `},
 		"several files that miss needs": {2, 0, `Total:
-    [!] 2 testsuite files miss needs: see Missing Needs above
+    [!] 2 testsuite files miss needs
 `},
 		"one file that requires a person": {0, 1, `Total:
     [!] 1 testsuite file requires a person
 `},
 		"several of each": {20, 7, `Total:
-    [!] 20 testsuite files miss needs: see Missing Needs above
+    [!] 20 testsuite files miss needs
     [!] 7 testsuite files require a person
 `},
 	}
@@ -153,7 +153,7 @@ func TestWriteSummary(t *testing.T) {
 			var out bytes.Buffer
 
 			buffer := bufio.NewWriter(&out)
-			writeSummary(buffer, tt.missNeeds, tt.needAPerson)
+			writeSummary(buffer, tt.missNeeds, tt.requireAPerson)
 
 			require.NoError(t, buffer.Flush())
 			assert.Equal(t, tt.want, out.String())
