@@ -23,14 +23,16 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/crossplane-contrib/xprin/cmd/xprin-helpers/claimtoxr"
 	"github.com/crossplane-contrib/xprin/cmd/xprin-helpers/patchxr"
+	"github.com/crossplane-contrib/xprin/cmd/xprin-helpers/testsuiteneeds"
 	"github.com/crossplane-contrib/xprin/cmd/xprin-helpers/version"
 )
 
 // CLI represents the command-line interface structure.
 type CLI struct {
-	ConvertClaimToXR claimtoxr.Cmd `cmd:"convert-claim-to-xr" help:"Convert a Crossplane Claim to an XR (Composite Resource)."`
-	PatchXR          patchxr.Cmd   `cmd:""                    help:"Patch a Crossplane XR (Composite Resource) with additional configurations."`
-	Version          version.Cmd   `cmd:""                    help:"Print the version of xprin-helpers"`
+	CheckTestSuiteNeeds testsuiteneeds.Cmd `cmd:""                    help:"Check that testsuite files list the needs they use."                        name:"check-testsuite-needs"`
+	ConvertClaimToXR    claimtoxr.Cmd      `cmd:"convert-claim-to-xr" help:"Convert a Crossplane Claim to an XR (Composite Resource)."`
+	PatchXR             patchxr.Cmd        `cmd:""                    help:"Patch a Crossplane XR (Composite Resource) with additional configurations."`
+	Version             version.Cmd        `cmd:""                    help:"Print the version of xprin-helpers"`
 }
 
 func main() {

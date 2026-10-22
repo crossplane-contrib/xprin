@@ -16,6 +16,7 @@ Follow this path for a complete learning journey:
 6. **[How It Works](how-it-works.md)** - Deep dive into how xprin works under the hood
 7. **[xprin-helpers](xprin-helpers.md)** - Helper utilities overview
    - [convert-claim-to-xr](xprin-helpers/convert-claim-to-xr.md) - Convert Claims to XRs
+   - [check-testsuite-needs](xprin-helpers/check-testsuite-needs.md) - Check that testsuite files list the `needs` they use
    - [patch-xr](xprin-helpers/patch-xr.md) - Apply patches to XRs
 
 ## Quick Reference

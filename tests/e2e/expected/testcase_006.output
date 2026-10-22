@@ -52,7 +52,7 @@ FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
 --- SKIP: Missing required inputs (multiline error) (X.XXXs)
 PASS
 ok	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
-WARNING: examples/mytests/5_chained_tests/legacy_failure_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs.
+WARNING: examples/mytests/5_chained_tests/legacy_failure_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs, and run `xprin-helpers check-testsuite-needs examples/mytests/5_chained_tests/legacy_failure_xprin.yaml` to see what to add.
 === RUN   Legacy: a typo in the ID
 --- SKIP: Legacy: a typo in the ID (X.XXXs)
 === RUN   Legacy: uses a test case that is listed below it
@@ -237,7 +237,7 @@ FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
     [!] missing mandatory field: functions (it can be specified either in the test case or in the common inputs)
 FAIL
 FAIL	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
-WARNING: examples/mytests/5_chained_tests/legacy_failure_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs.
+WARNING: examples/mytests/5_chained_tests/legacy_failure_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs, and run `xprin-helpers check-testsuite-needs examples/mytests/5_chained_tests/legacy_failure_xprin.yaml` to see what to add.
 === RUN   Legacy: a typo in the ID
 --- FAIL: Legacy: a typo in the ID (X.XXXs)
     [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:9:14: executing "testcase" at <.Tests.legacy_frist.Outputs.XR>: map has no entry for key "legacy_frist"

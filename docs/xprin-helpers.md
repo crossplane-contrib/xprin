@@ -4,9 +4,10 @@ Helper utilities for xprin that provide additional functionality for working wit
 
 ## Overview
 
-xprin-helpers consists of two main tools:
+xprin-helpers consists of these tools:
 
 - **[convert-claim-to-xr](xprin-helpers/convert-claim-to-xr.md)**: Convert Crossplane Claims to XRs (Composite Resources)
+- **[check-testsuite-needs](xprin-helpers/check-testsuite-needs.md)**: Check that the test cases of testsuite files list the `needs` they use
 - **[patch-xr](xprin-helpers/patch-xr.md)**: Apply patches to XRs for enhanced testing scenarios
 
 ## Quick Start
@@ -34,6 +35,17 @@ Converts Crossplane Claims to XRs so they can be used with `crossplane render`. 
 - Integration with `crossplane render`
 
 [📖 Full Documentation](xprin-helpers/convert-claim-to-xr.md)
+
+### check-testsuite-needs
+
+Finds the test cases of testsuite files that use the outputs of other test cases (`.Tests`) without listing them in `needs`, and shows what is missing. `needs` is required from xprin 0.7.0, so this is the way to migrate your files, and to check that they stay migrated.
+
+**Key features:**
+- Checks every test case of every file, also the files that already use `needs`
+- Targets like `xprin test`: files, directories, and `...` for recursive directories
+- Exit code 1 if anything is missing, to check in a pipeline that they stay migrated
+
+[📖 Full Documentation](xprin-helpers/check-testsuite-needs.md)
 
 ### patch-xr
 
