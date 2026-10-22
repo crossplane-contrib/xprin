@@ -38,7 +38,7 @@ import (
 //	Patch and Render:  renderTestCase
 //	Validate:          validateTestCase
 //	Assert:            runAssertions
-//	Finish:            runPostTestHooks, exportOutputs
+//	Finish:            runPostTestHooks, saveOutputs
 
 // expandInputPaths makes the paths of the inputs of the test case (and its XRD patch) absolute, relative to the
 // testsuite file, and checks that they exist. It returns the failed result when they don't, to end the run of the
@@ -620,39 +620,39 @@ func (r *Runner) runPostTestHooks(testCase api.TestCase, needsResults map[string
 	}
 }
 
-// exportOutputs copies the outputs of a test case that has an ID to the testsuite artifacts directory, and
-// points its Outputs there, so that the test cases that use them (`.Tests`) find them after the temporary
+// saveOutputs saves the outputs of a test case that has an ID as internal artifacts, and points its Outputs
+// there, so that the test cases that use them (`.Tests`) find them after the temporary
 // directory of this one is removed.
-func (r *Runner) exportOutputs(testCase api.TestCase, env *testCaseEnv, result *engine.TestCaseResult) error {
+func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *engine.TestCaseResult) error {
 	if testCase.ID == "" {
 		return nil
 	}
 
-	artifactsDir := filepath.Join(r.testSuiteArtifactsDir, testCase.ID)
-	if err := r.copy(env.outputsDir, artifactsDir); err != nil {
-		return fmt.Errorf("failed to copy outputs to testsuite artifacts directory: %w", err)
+	testCaseDir := filepath.Join(r.testSuiteSavedOutputsDir, testCase.ID)
+	if err := r.copy(env.outputsDir, testCaseDir); err != nil {
+		return fmt.Errorf("failed to save outputs as internal artifacts: %w", err)
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Copied outputs to testsuite artifacts directory: %s\n", artifactsDir)
+		utils.DebugPrintf("Saved outputs as internal artifacts: %s\n", testCaseDir)
 	}
 
-	// Update Outputs paths to point to artifact paths for cross-test references
-	result.Outputs.Render = filepath.Join(artifactsDir, "rendered.yaml")
+	// Update Outputs paths to point to the internal artifacts for cross-test references
+	result.Outputs.Render = filepath.Join(testCaseDir, "rendered.yaml")
 
-	result.Outputs.XR = filepath.Join(artifactsDir, "xr.yaml")
+	result.Outputs.XR = filepath.Join(testCaseDir, "xr.yaml")
 	if result.Outputs.Validate != nil {
-		*result.Outputs.Validate = filepath.Join(artifactsDir, "validate.txt")
+		*result.Outputs.Validate = filepath.Join(testCaseDir, "validate.txt")
 	}
 
 	if result.Outputs.Assertions != nil {
-		*result.Outputs.Assertions = filepath.Join(artifactsDir, "assertions.txt")
+		*result.Outputs.Assertions = filepath.Join(testCaseDir, "assertions.txt")
 	}
 
-	// Update Rendered map paths to point to artifact paths
+	// Update Rendered map paths to point to the internal artifacts
 	for key, path := range result.Outputs.Rendered {
 		filename := filepath.Base(path)
-		result.Outputs.Rendered[key] = filepath.Join(artifactsDir, filename)
+		result.Outputs.Rendered[key] = filepath.Join(testCaseDir, filename)
 	}
 
 	return nil

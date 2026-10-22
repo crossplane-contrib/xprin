@@ -17,7 +17,7 @@ A Crossplane testing framework that leverages `crossplane render` and `crossplan
 - **Template Variables**: Dynamic content using Go template syntax
 - **Hooks Support**: Pre-test and post-test shell command execution
 - **Assertions**: Validate rendered resources with declarative assertions (count, existence, field checks)
-- **Test Chaining**: Export testcase outputs as artifacts for use in follow-up tests to better emulate the reconciliation process
+- **Test Chaining**: Use the outputs of a test case in the follow-up test cases that need it, to better emulate the reconciliation process
 - **CI/CD Ready**: Easy integration into any system or pipeline
 
 ## FAQ
@@ -31,7 +31,7 @@ It was originally developed by Elastic, where it is currently being used for moc
 
 - **Composition testing**: Run `crossplane render` using various combinations of XRs/Claims, Compositions and Functions, and assert on the output.
 - **Schema validation**: Validate various combinations of (mock or production) manifests with CRDs via `crossplane resource validate`.
-- **Reconciliation emulation**: Chain tests with exported artifacts so later tests consume prior outputs (e.g. observed resources, status).
+- **Reconciliation emulation**: Chain tests so later tests consume the outputs of earlier ones (e.g. observed resources, status).
 - **Advanced render inputs**: Drive render with extra resources, observed resources, additional context, environment configs, in multiple tests run one after the other.
 - **Upgrades**: Validate upgrades of Crossplane itself, providers, functions before or after adoption.
 
@@ -134,7 +134,7 @@ When xprin runs a test case, it follows this specific sequence:
 6. **Crossplane Validate** (optional) - If CRDs are provided, run `crossplane resource validate` on the rendered output
 7. **Assertions** (optional) - Validate rendered resources using declarative assertions (count, existence, field type/value checks)
 8. **Post-test Hooks** - Execute any post-test hooks defined in the test case
-9. **Export Artifacts** (optional) - If test case has an `id`, copy outputs to artifacts directory for cross-test references
+9. **Save Internal Artifacts** (optional) - If test case has an `id`, save its outputs as internal artifacts for cross-test references
 
 Visual flow (high-level steps):
 
@@ -146,7 +146,7 @@ flowchart TD
     C --> D
     D --> E[Validate]
     D --> F[Assertions]
-    E --> G[Post-test Hooks<br/>Export Artifacts]
+    E --> G[Post-test Hooks<br/>Save Internal Artifacts]
     F --> G
 
     style A fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
@@ -167,7 +167,7 @@ The flow ensures that:
 - The rendered output is validated against schemas if CRDs are available
 - Assertions validate rendered resources declaratively (count, existence, field checks) after validation
 - Post-test hooks can clean up and perform additional validation after assertions
-- Test cases can depend on earlier ones with `needs`, and their outputs (exported as artifacts when `id` is set) can be referenced via `.Tests.{test-id}` template variables for test chaining
+- Test cases can depend on earlier ones with `needs`, and their outputs (saved as internal artifacts when `id` is set) can be referenced via `.Tests.{test-id}` template variables for test chaining
 
 ## Documentation
 

@@ -25,7 +25,7 @@ sed_args=(
     -e 's|/var/folders/[^/]+/[^/]+/[^/]+/xprin-[^/]+|/tmp/xprin-XXXXX|g'
     -e 's|/tmp/[^/]+/xprin-[^/]+|/tmp/xprin-XXXXX|g'
     -e 's|(/tmp/xprin-testcase-)[0-9]+|\1XXXX|g'
-    -e 's|(/tmp/xprin-testsuite-artifacts-)[0-9]+|\1XXXX|g'
+    -e 's|(/tmp/xprin-internal-artifacts-)[0-9]+|\1XXXX|g'
     -e 's|(xprin-artifacts-)[0-9]{14}|\1YYYYMMDDHHMMSS|g'
     -e 's|/Users/[^/]+/repos/[^/]+/[^/]+|/Users/user/repos/xprin|g'
     -e "$root_sed"

@@ -38,14 +38,14 @@ func (m updateGoldensMode) skips(testCase api.TestCase) bool {
 
 // runPhasesAfterRender is the one phase of update-goldens that follows the render: it writes the golden files of the
 // test case from what was rendered. Validate, the assertions and the post-test hooks are not run. The outputs are
-// exported, as in xprin test, for the test cases that need this one.
+// saved as internal artifacts, as in xprin test, for the test cases that need this one.
 func (m updateGoldensMode) runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, _ map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
 	result = m.r.runUpdateGoldens(testCase, result)
 	if result.Status == engine.StatusFail() {
 		return result
 	}
 
-	if err := m.r.exportOutputs(testCase, env, result); err != nil {
+	if err := m.r.saveOutputs(testCase, env, result); err != nil {
 		return result.Fail(err)
 	}
 

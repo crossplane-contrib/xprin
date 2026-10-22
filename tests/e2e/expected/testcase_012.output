@@ -1,5 +1,5 @@
 DEBUG: Processing testsuite file examples/mytests/0_e2e/validations_xrd_v1_xprin.yaml
-DEBUG: Created testsuite artifacts directory: /tmp/xprin-testsuite-artifacts-XXXX
+DEBUG: Created internal artifacts directory: /tmp/xprin-internal-artifacts-XXXX
 DEBUG: Using testsuite file directory for relative path resolution: examples/mytests/0_e2e
 DEBUG: Found common configuration:
 DEBUG:   Inputs:

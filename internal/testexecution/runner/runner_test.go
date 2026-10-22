@@ -3799,7 +3799,7 @@ metadata:
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
 	testCase := api.TestCase{
 		Name: "test1",
-		ID:   "", // No ID - test outputs directory, not artifacts
+		ID:   "", // No ID - test outputs directory, not the internal artifacts
 		Inputs: api.Inputs{
 			XR:          "xr.yaml",            // Relative path, will be expanded
 			Composition: "comp.yaml",          // Relative path, will be expanded
@@ -3822,10 +3822,10 @@ metadata:
 		assert.NotEmpty(t, *result.Outputs.Validate, "Validate path should be set")
 	}
 
-	// Verify Outputs paths point to outputs directory (not artifacts since ID is empty)
-	// The paths should contain "outputs" but not "test1-id" (which would be artifacts)
-	assert.NotContains(t, result.Outputs.Render, "test1-id", "Render path should NOT point to artifacts directory when ID is empty")
-	assert.NotContains(t, result.Outputs.XR, "test1-id", "XR path should NOT point to artifacts directory when ID is empty")
+	// Verify Outputs paths point to outputs directory (not the internal artifacts since ID is empty)
+	// The paths should contain "outputs" but not "test1-id" (which would be the internal artifacts)
+	assert.NotContains(t, result.Outputs.Render, "test1-id", "Render path should NOT point to internal artifacts directory when ID is empty")
+	assert.NotContains(t, result.Outputs.XR, "test1-id", "XR path should NOT point to internal artifacts directory when ID is empty")
 	assert.Contains(t, result.Outputs.Render, "outputs", "Render path should point to outputs directory")
 	assert.Contains(t, result.Outputs.XR, "outputs", "XR path should point to outputs directory")
 
@@ -3853,9 +3853,9 @@ metadata:
 	assert.Equal(t, 2, result.Outputs.RenderCount, "RenderCount should match number of resources")
 }
 
-// TestArtifactsDirectory tests the artifacts directory functionality.
-func TestArtifactsDirectory(t *testing.T) {
-	t.Run("creates artifacts directory in runTests", func(t *testing.T) {
+// TestSavedOutputsDirectory tests the internal artifacts directory functionality.
+func TestSavedOutputsDirectory(t *testing.T) {
+	t.Run("creates internal artifacts directory in runTests", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		options := &testexecutionOptions.Options{
 			Debug: false,
@@ -3875,21 +3875,21 @@ func TestArtifactsDirectory(t *testing.T) {
 			return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false).Complete()
 		}
 
-		// Before runTests, artifacts directory should not exist
-		assert.Empty(t, runner.testSuiteArtifactsDir, "artifacts directory should not exist before runTests")
+		// Before runTests, internal artifacts directory should not exist
+		assert.Empty(t, runner.testSuiteSavedOutputsDir, "internal artifacts directory should not exist before runTests")
 
 		err := runner.RunTests()
 		require.NoError(t, err)
 
-		// After runTests, artifacts directory should have been created (even though it's cleaned up by defer)
+		// After runTests, internal artifacts directory should have been created (even though it's cleaned up by defer)
 		// We can verify it was set (the directory is created in runTests line 132)
 		// Note: The directory is cleaned up by defer, so we verify the field was set during execution
 		// Since we can't check after defer runs, we verify through behavior: if runTests succeeded,
 		// the directory was created. The actual copying logic is tested in other tests.
-		assert.NotEmpty(t, runner.testSuiteArtifactsDir, "artifacts directory path should have been set by runTests")
+		assert.NotEmpty(t, runner.testSuiteSavedOutputsDir, "internal artifacts directory path should have been set by runTests")
 	})
 
-	t.Run("copies outputs to artifacts directory when testCase.ID is set", func(t *testing.T) {
+	t.Run("saves outputs as internal artifacts when testCase.ID is set", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 
 		// Create test files
@@ -3926,10 +3926,10 @@ metadata:
 		runner.fs = fs // Use in-memory filesystem
 		runner.testSuite = testsuite.New(testSuiteFile, &api.TestSuiteSpec{})
 
-		// Set artifacts directory (simulating what runTests does)
-		artifactsBaseDir := "/artifacts-dir"
-		require.NoError(t, fs.MkdirAll(artifactsBaseDir, 0o755))
-		runner.testSuiteArtifactsDir = artifactsBaseDir
+		// Set internal artifacts directory (simulating what runTests does)
+		testSuiteSavedOutputsDir := "/saved-outputs-dir"
+		require.NoError(t, fs.MkdirAll(testSuiteSavedOutputsDir, 0o755))
+		runner.testSuiteSavedOutputsDir = testSuiteSavedOutputsDir
 
 		// Mock path expansion and verification
 		runner.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) {
@@ -4024,33 +4024,33 @@ metadata:
 		require.NoError(t, result.Error)
 		assert.Equal(t, engine.StatusPass(), result.Status)
 
-		// Verify files were actually copied to artifacts directory by the REAL code
-		artifactsDir := filepath.Join(artifactsBaseDir, testCase.ID)
-		info, err := fs.Stat(artifactsDir)
-		require.NoError(t, err, "artifacts directory should exist")
-		assert.True(t, info.IsDir(), "artifacts directory should be a directory")
+		// Verify files were actually saved as internal artifacts by the REAL code
+		testCaseDir := filepath.Join(testSuiteSavedOutputsDir, testCase.ID)
+		info, err := fs.Stat(testCaseDir)
+		require.NoError(t, err, "internal artifacts directory should exist")
+		assert.True(t, info.IsDir(), "internal artifacts directory should be a directory")
 
-		_, err = fs.Stat(filepath.Join(artifactsDir, "rendered.yaml"))
+		_, err = fs.Stat(filepath.Join(testCaseDir, "rendered.yaml"))
 		require.NoError(t, err, "rendered.yaml should be copied")
-		_, err = fs.Stat(filepath.Join(artifactsDir, "xr.yaml"))
+		_, err = fs.Stat(filepath.Join(testCaseDir, "xr.yaml"))
 		require.NoError(t, err, "xr.yaml should be copied")
-		_, err = fs.Stat(filepath.Join(artifactsDir, "validate.txt"))
+		_, err = fs.Stat(filepath.Join(testCaseDir, "validate.txt"))
 		require.NoError(t, err, "validate.txt should be copied")
-		_, err = fs.Stat(filepath.Join(artifactsDir, "rendered-pod-test-pod.yaml"))
+		_, err = fs.Stat(filepath.Join(testCaseDir, "rendered-pod-test-pod.yaml"))
 		require.NoError(t, err, "rendered Pod resource should be copied")
-		_, err = fs.Stat(filepath.Join(artifactsDir, "rendered-configmap-test-configmap.yaml"))
+		_, err = fs.Stat(filepath.Join(testCaseDir, "rendered-configmap-test-configmap.yaml"))
 		require.NoError(t, err, "rendered ConfigMap resource should be copied")
 
-		// Verify Outputs paths were updated to point to artifact paths (by real code at lines 665-675)
-		assert.Contains(t, result.Outputs.Render, "test1-id", "Render path should point to artifacts directory")
-		assert.Contains(t, result.Outputs.XR, "test1-id", "XR path should point to artifacts directory")
+		// Verify Outputs paths were updated to point to the internal artifacts (by real code at lines 665-675)
+		assert.Contains(t, result.Outputs.Render, "test1-id", "Render path should point to internal artifacts directory")
+		assert.Contains(t, result.Outputs.XR, "test1-id", "XR path should point to internal artifacts directory")
 
 		if result.Outputs.Validate != nil {
-			assert.Contains(t, *result.Outputs.Validate, "test1-id", "Validate path should point to artifacts directory")
+			assert.Contains(t, *result.Outputs.Validate, "test1-id", "Validate path should point to internal artifacts directory")
 		}
 		// Verify Rendered map paths were updated
-		assert.Contains(t, result.Outputs.Rendered["Pod/test-pod"], "test1-id", "Rendered Pod path should point to artifacts directory")
-		assert.Contains(t, result.Outputs.Rendered["ConfigMap/test-configmap"], "test1-id", "Rendered ConfigMap path should point to artifacts directory")
+		assert.Contains(t, result.Outputs.Rendered["Pod/test-pod"], "test1-id", "Rendered Pod path should point to internal artifacts directory")
+		assert.Contains(t, result.Outputs.Rendered["ConfigMap/test-configmap"], "test1-id", "Rendered ConfigMap path should point to internal artifacts directory")
 	})
 
 	t.Run("does not copy outputs when testCase.ID is empty", func(t *testing.T) {
@@ -4065,7 +4065,7 @@ metadata:
 
 		originalCopy := runner.copy
 		runner.copy = func(src, dest string, opts ...cp.Options) error {
-			if strings.Contains(dest, "xprin-testsuite-artifacts") {
+			if strings.Contains(dest, "xprin-internal-artifacts") {
 				copyCallCount++
 			}
 
@@ -4073,8 +4073,8 @@ metadata:
 		}
 
 		testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-		runner.testSuiteArtifactsDir = "/artifacts-dir"
-		require.NoError(t, fs.MkdirAll(runner.testSuiteArtifactsDir, 0o755))
+		runner.testSuiteSavedOutputsDir = "/saved-outputs-dir"
+		require.NoError(t, fs.MkdirAll(runner.testSuiteSavedOutputsDir, 0o755))
 
 		testCase := api.TestCase{
 			Name: "test1", // No ID
@@ -4082,7 +4082,7 @@ metadata:
 
 		runner.runTestCaseFunc = func(tc api.TestCase) *engine.TestCaseResult {
 			result := engine.NewTestCaseResult(tc.Name, tc.ID, false, false, false, false, false)
-			// The artifacts copying logic should not execute when ID is empty
+			// The internal artifacts saving logic should not execute when ID is empty
 			return result.Complete()
 		}
 
@@ -4176,10 +4176,10 @@ metadata:
 	})
 }
 
-func TestExportOutputs(t *testing.T) {
+func TestSaveOutputs(t *testing.T) {
 	newRunner := func() (*Runner, *[]string) {
 		r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/suite_xprin.yaml", &api.TestSuiteSpec{}))
-		r.testSuiteArtifactsDir = "/artifacts"
+		r.testSuiteSavedOutputsDir = "/saved-outputs"
 
 		var copied []string
 
@@ -4192,7 +4192,7 @@ func TestExportOutputs(t *testing.T) {
 		return r, &copied
 	}
 
-	t.Run("a test case with an ID: the outputs are copied, and point to the artifacts", func(t *testing.T) {
+	t.Run("a test case with an ID: the outputs are saved, and point to the internal artifacts", func(t *testing.T) {
 		r, copied := newRunner()
 		validate, assertions := "/tmp/outputs/validate.txt", "/tmp/outputs/assertions.txt"
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
@@ -4204,14 +4204,14 @@ func TestExportOutputs(t *testing.T) {
 			Rendered:   map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"},
 		}
 
-		require.NoError(t, r.exportOutputs(api.TestCase{ID: "a"}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
+		require.NoError(t, r.saveOutputs(api.TestCase{ID: "a"}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
 
-		assert.Equal(t, []string{"/tmp/outputs -> /artifacts/a"}, *copied)
-		assert.Equal(t, "/artifacts/a/rendered.yaml", result.Outputs.Render)
-		assert.Equal(t, "/artifacts/a/xr.yaml", result.Outputs.XR)
-		assert.Equal(t, "/artifacts/a/validate.txt", *result.Outputs.Validate)
-		assert.Equal(t, "/artifacts/a/assertions.txt", *result.Outputs.Assertions)
-		assert.Equal(t, "/artifacts/a/Kind-name.yaml", result.Outputs.Rendered["Kind/name"])
+		assert.Equal(t, []string{"/tmp/outputs -> /saved-outputs/a"}, *copied)
+		assert.Equal(t, "/saved-outputs/a/rendered.yaml", result.Outputs.Render)
+		assert.Equal(t, "/saved-outputs/a/xr.yaml", result.Outputs.XR)
+		assert.Equal(t, "/saved-outputs/a/validate.txt", *result.Outputs.Validate)
+		assert.Equal(t, "/saved-outputs/a/assertions.txt", *result.Outputs.Assertions)
+		assert.Equal(t, "/saved-outputs/a/Kind-name.yaml", result.Outputs.Rendered["Kind/name"])
 	})
 
 	t.Run("a test case without an ID: nothing is copied", func(t *testing.T) {
@@ -4219,7 +4219,7 @@ func TestExportOutputs(t *testing.T) {
 		result := engine.NewTestCaseResult("a", "", false, false, false, false, false)
 		result.Outputs.XR = "/tmp/outputs/xr.yaml"
 
-		require.NoError(t, r.exportOutputs(api.TestCase{}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
+		require.NoError(t, r.saveOutputs(api.TestCase{}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
 
 		assert.Empty(t, *copied)
 		assert.Equal(t, "/tmp/outputs/xr.yaml", result.Outputs.XR)
