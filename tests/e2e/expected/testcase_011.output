@@ -1,6 +1,7 @@
 === RUN   Claim input with kind resolved from XRD (not 'X' + Claim kind)
 --- PASS: Claim input with kind resolved from XRD (not 'X' + Claim kind) (X.XXXs)
-    written: examples/gcp/golden/golden_render.yaml
+    Golden Files:
+        [✓] examples/gcp/golden/golden_render.yaml
 PASS
 ok	examples/mytests/0_e2e/claim_xprin.yaml	X.XXXs
 === RUN   Claim input with kind resolved from XRD (not 'X' + Claim kind)

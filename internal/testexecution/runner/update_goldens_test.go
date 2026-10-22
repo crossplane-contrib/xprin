@@ -40,6 +40,35 @@ func newUpdateGoldensRunner(fs afero.Fs) *Runner {
 	return r
 }
 
+// goldenFileLines returns the texts of the lines of the section of golden files of a test case that have this status.
+func goldenFileLines(result *engine.TestCaseResult, status engine.Status) []string {
+	var lines []string
+
+	for _, section := range result.Sections {
+		if section.Header != goldenFilesHeader {
+			continue
+		}
+
+		for _, line := range section.Lines {
+			if line.Status == status {
+				lines = append(lines, line.Text)
+			}
+		}
+	}
+
+	return lines
+}
+
+// writtenGoldenFiles returns the paths that a test case lists as the golden files that it wrote.
+func writtenGoldenFiles(result *engine.TestCaseResult) []string {
+	return goldenFileLines(result, engine.StatusPass())
+}
+
+// failedGoldenFiles returns the lines of the golden files that a test case could not write, with their reasons.
+func failedGoldenFiles(result *engine.TestCaseResult) []string {
+	return goldenFileLines(result, engine.StatusError())
+}
+
 func TestRunUpdateGoldens_IsNoOpWhenNoGoldenAssertions(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	r := newUpdateGoldensRunner(fs)
@@ -57,7 +86,7 @@ func TestRunUpdateGoldens_IsNoOpWhenNoGoldenAssertions(t *testing.T) {
 	// runUpdateGoldens is only called when diff/dyff assertions exist (runTestCase short-circuits
 	// before reaching it otherwise). With no golden assertions, it is a no-op: PASS, nothing written.
 	assert.Equal(t, engine.StatusPass(), out.Status)
-	assert.Empty(t, out.WrittenGoldenFiles)
+	assert.Empty(t, writtenGoldenFiles(out))
 }
 
 func TestRunUpdateGoldens_WritesDiffAndDyffAssertions(t *testing.T) {
@@ -84,7 +113,7 @@ func TestRunUpdateGoldens_WritesDiffAndDyffAssertions(t *testing.T) {
 	out := r.runUpdateGoldens(testCase, result)
 
 	require.Equal(t, engine.StatusPass(), out.Status)
-	require.Equal(t, []string{"/expected/golden-diff.yaml", "/expected/golden-dyff.yaml"}, out.WrittenGoldenFiles)
+	require.Equal(t, []string{"/expected/golden-diff.yaml", "/expected/golden-dyff.yaml"}, writtenGoldenFiles(out))
 
 	gotDiff, err := afero.ReadFile(fs, "/expected/golden-diff.yaml")
 	require.NoError(t, err)
@@ -116,7 +145,7 @@ func TestRunUpdateGoldens_WritesResourceScopedAssertion(t *testing.T) {
 	out := r.runUpdateGoldens(testCase, result)
 
 	require.Equal(t, engine.StatusPass(), out.Status)
-	require.Equal(t, []string{"/expected/pod.yaml"}, out.WrittenGoldenFiles)
+	require.Equal(t, []string{"/expected/pod.yaml"}, writtenGoldenFiles(out))
 
 	got, err := afero.ReadFile(fs, "/expected/pod.yaml")
 	require.NoError(t, err)
@@ -141,7 +170,74 @@ func TestRunUpdateGoldens_FailsOnUnknownResource(t *testing.T) {
 	out := r.runUpdateGoldens(testCase, result)
 
 	assert.Equal(t, engine.StatusFail(), out.Status)
-	assert.Empty(t, out.WrittenGoldenFiles)
+	require.NoError(t, out.Error, "the failure is a line of the section, and there is no other error")
+	assert.Empty(t, writtenGoldenFiles(out))
+	assert.Equal(t, []string{`/expected/missing.yaml: resource "Pod/ghost" not found in render output`}, failedGoldenFiles(out))
+}
+
+func TestRunUpdateGoldens_TheFailedFileComesAfterTheWrittenOnes(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	r := newUpdateGoldensRunner(fs)
+
+	require.NoError(t, afero.WriteFile(fs, "/actual/render.yaml", []byte("kind: X\n"), 0o600))
+
+	testCase := api.TestCase{
+		Name: "one fails",
+		Assertions: api.Assertions{
+			Diff: []api.AssertionGoldenFile{
+				{Name: "first", Expected: "/expected/first.yaml"},
+				{Name: "second", Expected: "/expected/second.yaml", Resource: "Pod/ghost"},
+				{Name: "third", Expected: "/expected/third.yaml"},
+			},
+		},
+	}
+	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
+	result.Outputs.Render = "/actual/render.yaml"
+	result.Outputs.Rendered = map[string]string{}
+
+	out := r.runUpdateGoldens(testCase, result)
+
+	assert.Equal(t, engine.StatusFail(), out.Status)
+	assert.Equal(t, []string{"/expected/first.yaml"}, writtenGoldenFiles(out))
+	assert.Equal(t, []string{`/expected/second.yaml: resource "Pod/ghost" not found in render output`}, failedGoldenFiles(out))
+	require.Len(t, out.Sections, 1, "one section, with the files in the order of the assertions")
+	assert.Equal(t, engine.StatusPass(), out.Sections[0].Lines[0].Status)
+	assert.Equal(t, engine.StatusError(), out.Sections[0].Lines[1].Status)
+
+	exists, err := afero.Exists(fs, "/expected/third.yaml")
+	require.NoError(t, err)
+	assert.False(t, exists, "it stops at the first one that fails")
+}
+
+func TestRunUpdateGoldens_AnExpectedPathThatCantBeResolved(t *testing.T) {
+	r := newUpdateGoldensRunner(afero.NewMemMapFs())
+	r.expandPathRelativeToTestSuiteFile = func(_, _ string) (string, error) { return "", errors.New("boom") }
+
+	testCase := api.TestCase{Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "bad", Expected: "~nobody/g.yaml"}}}}
+	result := engine.NewTestCaseResult("bad path", "", false, false, false, false, false)
+
+	out := r.runUpdateGoldens(testCase, result)
+
+	assert.Equal(t, engine.StatusFail(), out.Status)
+	assert.Equal(t, []string{"~nobody/g.yaml: invalid expected path: boom"}, failedGoldenFiles(out), "the path is the one of the assertion")
+}
+
+func TestRunUpdateGoldens_AFileThatCantBeWritten(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(fs, "/actual/render.yaml", []byte("kind: X\n"), 0o600))
+
+	r := newUpdateGoldensRunner(afero.NewReadOnlyFs(fs))
+
+	testCase := api.TestCase{Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "g", Expected: "/expected/g.yaml"}}}}
+	result := engine.NewTestCaseResult("read only", "", false, false, false, false, false)
+	result.Outputs.Render = "/actual/render.yaml"
+
+	out := r.runUpdateGoldens(testCase, result)
+
+	assert.Equal(t, engine.StatusFail(), out.Status)
+	require.Len(t, failedGoldenFiles(out), 1)
+	assert.Contains(t, failedGoldenFiles(out)[0], "/expected/g.yaml: write expected file:")
+	assert.Empty(t, writtenGoldenFiles(out))
 }
 
 // goldenCase is a test case with golden files, which update-goldens writes.

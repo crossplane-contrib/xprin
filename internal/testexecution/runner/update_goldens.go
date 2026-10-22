@@ -52,18 +52,26 @@ func (m updateGoldensMode) runPhasesAfterRender(testCase api.TestCase, env *test
 	return result
 }
 
+// goldenFilesHeader is the header of the section where a test case lists its golden files: the ones that it
+// wrote, and the one that it could not.
+const goldenFilesHeader = "Golden Files"
+
 // runUpdateGoldens writes render output to the `expected:` paths of assertions.diff/dyff entries.
 // Called instead of validate/assertions/post-test hooks when UpdateGoldens is set.
 func (r *Runner) runUpdateGoldens(testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
 	allAssertions := append(testCase.Assertions.Diff, testCase.Assertions.Dyff...) //nolint:gocritic // intentional append to new slice
 
 	for _, a := range allAssertions {
-		written, err := r.writeGoldenFile(a, &result.Outputs)
+		path, err := r.writeGoldenFile(a, &result.Outputs)
 		if err != nil {
-			return result.Fail(fmt.Errorf("update-goldens: %w", err))
+			// It stops at the first one that fails. The failure is a line of the section, after the files that were
+			// written, so there is no other error to show.
+			result.AddToSection(goldenFilesHeader, engine.StatusError(), path+": "+err.Error())
+
+			return result.Fail(nil)
 		}
 
-		result.WrittenGoldenFiles = append(result.WrittenGoldenFiles, written)
+		result.AddToSection(goldenFilesHeader, engine.StatusPass(), path)
 	}
 
 	return result.Complete()
@@ -71,11 +79,12 @@ func (r *Runner) runUpdateGoldens(testCase api.TestCase, result *engine.TestCase
 
 // writeGoldenFile resolves the expected path and actual path for a golden-file assertion,
 // then writes the actual content to the expected path (creating or overwriting).
-// Returns the absolute path that was written.
+// Returns the path of the golden file, also when it fails, to say which one it was: the absolute path that was
+// written, or the one of the assertion when it can't be resolved.
 func (r *Runner) writeGoldenFile(a api.AssertionGoldenFile, outputs *engine.Outputs) (string, error) {
 	expectedPath, err := r.expandPathRelativeToTestSuiteFile(r.testSuite.File, a.Expected)
 	if err != nil {
-		return "", fmt.Errorf("invalid expected path %q: %w", a.Expected, err)
+		return a.Expected, fmt.Errorf("invalid expected path: %w", err)
 	}
 
 	var actualPath string
@@ -86,17 +95,17 @@ func (r *Runner) writeGoldenFile(a api.AssertionGoldenFile, outputs *engine.Outp
 
 		actualPath, ok = outputs.Rendered[a.Resource]
 		if !ok {
-			return "", fmt.Errorf("resource %q not found in render output", a.Resource)
+			return expectedPath, fmt.Errorf("resource %q not found in render output", a.Resource)
 		}
 	}
 
 	actualBytes, err := afero.ReadFile(r.fs, actualPath)
 	if err != nil {
-		return "", fmt.Errorf("read actual file %q: %w", actualPath, err)
+		return expectedPath, fmt.Errorf("read actual file %q: %w", actualPath, err)
 	}
 
 	if err := afero.WriteFile(r.fs, expectedPath, actualBytes, 0o600); err != nil {
-		return "", fmt.Errorf("write expected file %q: %w", expectedPath, err)
+		return expectedPath, fmt.Errorf("write expected file: %w", err)
 	}
 
 	return expectedPath, nil

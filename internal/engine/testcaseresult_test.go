@@ -428,6 +428,71 @@ func TestTestCaseResult_Print(t *testing.T) {
 	})
 }
 
+func TestTestCaseResult_AddToSection(t *testing.T) {
+	result := NewTestCaseResult("a", "", false, false, false, false, false)
+
+	result.AddToSection("Written Golden Files", StatusPass(), "one.yaml")
+	result.AddToSection("Added Needs", StatusPass(), "base")
+	result.AddToSection("Written Golden Files", StatusPass(), "two.yaml")
+
+	assert.Equal(t, []Section{
+		{Header: "Written Golden Files", Lines: []SectionLine{{StatusPass(), "one.yaml"}, {StatusPass(), "two.yaml"}}},
+		{Header: "Added Needs", Lines: []SectionLine{{StatusPass(), "base"}}},
+	}, result.Sections, "a line goes to the section with its header, and new sections come after the others")
+}
+
+func TestTestCaseResult_Print_Sections(t *testing.T) {
+	printed := func(result *TestCaseResult) string {
+		var out bytes.Buffer
+
+		result.Print(&out)
+
+		return out.String()
+	}
+
+	t.Run("a passed test case with a section is printed, also when it is not verbose", func(t *testing.T) {
+		result := NewTestCaseResult("a", "", false, false, false, false, false)
+		result.AddToSection("Written Golden Files", StatusPass(), "one.yaml")
+		result.AddToSection("Written Golden Files", StatusPass(), "two.yaml")
+
+		assert.Equal(t, "--- PASS: a (0.00s)\n    Written Golden Files:\n        [✓] one.yaml\n        [✓] two.yaml\n", printed(result.Complete()))
+	})
+
+	t.Run("each line has the mark of its status", func(t *testing.T) {
+		result := NewTestCaseResult("a", "", false, false, false, false, false)
+		result.AddToSection("Missing Needs", StatusFail(), "base")
+		result.AddToSection("Notes", StatusError(), "something")
+
+		assert.Equal(t, "--- PASS: a (0.00s)\n    Missing Needs:\n        [x] base\n    Notes:\n        [!] something\n", printed(result.Complete()))
+	})
+
+	t.Run("a passed test case without one is not printed when it is not verbose", func(t *testing.T) {
+		assert.Empty(t, printed(NewTestCaseResult("a", "", false, false, false, false, false).Complete()))
+	})
+
+	t.Run("a skipped test case with a section is printed too, and one without is not", func(t *testing.T) {
+		with := NewTestCaseResult("a", "", false, false, false, false, false)
+		with.AddToSection("Added Needs", StatusPass(), "base")
+
+		assert.Contains(t, printed(with.Skip()), "--- SKIP: a")
+		assert.Empty(t, printed(NewTestCaseResult("b", "", false, false, false, false, false).Skip()))
+	})
+
+	t.Run("the sections come before the error", func(t *testing.T) {
+		result := NewTestCaseResult("a", "", false, false, false, false, false)
+		result.AddToSection("Written Golden Files", StatusPass(), "one.yaml")
+
+		assert.Equal(t, "--- FAIL: a (0.00s)\n    Written Golden Files:\n        [✓] one.yaml\n    [!] it failed\n", printed(result.Fail(errors.New("it failed"))))
+	})
+
+	t.Run("verbose: the run line comes first", func(t *testing.T) {
+		result := NewTestCaseResult("a", "", true, false, false, false, false)
+		result.AddToSection("Added Needs", StatusPass(), "base")
+
+		assert.Equal(t, "=== RUN   a\n--- PASS: a (0.00s)\n    Added Needs:\n        [✓] base\n", printed(result.Complete()))
+	})
+}
+
 func TestTestCaseResult_Print_Integration(t *testing.T) {
 	t.Run("successful test with render and validate output", func(t *testing.T) {
 		result := NewTestCaseResult("integration-test", "integration-test-id", true, true, true, false, false)

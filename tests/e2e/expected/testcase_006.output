@@ -20,10 +20,11 @@
 --- SKIP: Invalid Post-test hook, template rendering error (X.XXXs)
 === RUN   Assertion failure
 --- FAIL: Assertion failure (X.XXXs)
-    written: examples/mytests/0_e2e/golden_full_render.yaml
-    written: examples/mytests/0_e2e/golden_single_resource.yaml
-    written: examples/mytests/0_e2e/doesnotexist.yaml
-    [!] update-goldens: resource "SecurityGroup/doesnotexist" not found in render output
+    Golden Files:
+        [✓] examples/mytests/0_e2e/golden_full_render.yaml
+        [✓] examples/mytests/0_e2e/golden_single_resource.yaml
+        [✓] examples/mytests/0_e2e/doesnotexist.yaml
+        [!] examples/mytests/0_e2e/golden_single_resource.yaml: resource "SecurityGroup/doesnotexist" not found in render output
 === RUN   Failed validation and assertion
 --- SKIP: Failed validation and assertion (X.XXXs)
 === RUN   Failed validation, assertion, and post-test hook

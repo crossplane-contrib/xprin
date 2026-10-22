@@ -92,8 +92,8 @@ type TestCaseResult struct {
 	ShowHooks      bool
 	ShowAssertions bool
 
-	// WrittenGoldenFiles holds the paths written by the update-goldens command (populated by runner, printed always when non-empty).
-	WrittenGoldenFiles []string
+	// Sections are titled lists that the testcase shows under its status line, after the ones of its phases
+	Sections []Section
 }
 
 // NewTestCaseResult creates a new test case result.
@@ -112,6 +112,33 @@ func NewTestCaseResult(name, id string, verbose, showRender, showValidate, showH
 			Rendered: make(map[string]string),
 		},
 	}
+}
+
+// Section is a titled list of lines that a test case shows under its status line, each with the mark of its status.
+type Section struct {
+	Header string
+	Lines  []SectionLine
+}
+
+// SectionLine is a line of a Section: its status is the mark in front of the text.
+type SectionLine struct {
+	Status Status
+	Text   string
+}
+
+// AddToSection adds a line to the section with this header.
+func (tcr *TestCaseResult) AddToSection(header string, status Status, text string) {
+	line := SectionLine{Status: status, Text: text}
+
+	for i := range tcr.Sections {
+		if tcr.Sections[i].Header == header {
+			tcr.Sections[i].Lines = append(tcr.Sections[i].Lines, line)
+
+			return
+		}
+	}
+
+	tcr.Sections = append(tcr.Sections, Section{Header: header, Lines: []SectionLine{line}})
 }
 
 // Outputs represents the output data available in post-test hooks.
@@ -182,8 +209,8 @@ func (tcr *TestCaseResult) MarkAssertionsFailed() error {
 
 // Print prints the test case result to the given writer.
 func (tcr *TestCaseResult) Print(w io.Writer) {
-	// In non-verbose mode, only print failures and update-goldens results.
-	if (tcr.Status == StatusPass() || tcr.Status == StatusSkip()) && !tcr.Verbose && len(tcr.WrittenGoldenFiles) == 0 && tcr.Error == nil {
+	// In non-verbose mode, only print failures, and what has a section.
+	if (tcr.Status == StatusPass() || tcr.Status == StatusSkip()) && !tcr.Verbose && len(tcr.Sections) == 0 && tcr.Error == nil {
 		return
 	}
 
@@ -201,8 +228,12 @@ func (tcr *TestCaseResult) Print(w io.Writer) {
 	fmt.Fprint(w, tcr.FormattedAssertionsOutput)    //nolint:errcheck // output function, error handling not practical
 	fmt.Fprint(w, tcr.FormattedPostTestHooksOutput) //nolint:errcheck // output function, error handling not practical
 
-	for _, p := range tcr.WrittenGoldenFiles {
-		fmt.Fprintf(w, "%swritten: %s\n", spaces, p) //nolint:errcheck // output function, error handling not practical
+	for _, section := range tcr.Sections {
+		fmt.Fprintf(w, "%s%s:\n", spaces, section.Header) //nolint:errcheck // output function, error handling not practical
+
+		for _, line := range section.Lines {
+			fmt.Fprintf(w, "%s%s %s\n", spaces+spaces, line.Status.Symbol, line.Text) //nolint:errcheck // output function, error handling not practical
+		}
 	}
 
 	// Print error when set: for a failure not represented in a section, and for the reasons of a skip.

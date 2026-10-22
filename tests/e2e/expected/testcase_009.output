@@ -10,7 +10,8 @@
 --- PASS: Needed by another test case, and has no golden files (X.XXXs)
 === RUN   Needs it and uses its outputs, with a golden file
 --- PASS: Needs it and uses its outputs, with a golden file (X.XXXs)
-    written: examples/mytests/0_e2e/golden_full_render.yaml
+    Golden Files:
+        [✓] examples/mytests/0_e2e/golden_full_render.yaml
 PASS
 ok	examples/mytests/0_e2e/success_xprin.yaml	X.XXXs
 === RUN   Second reconciliation loop
@@ -23,10 +24,11 @@ PASS
 ok	examples/mytests/6_assertions/example2_assertions_pattern_xprin.yaml	X.XXXs
 === RUN   Successful assertions against golden files
 --- PASS: Successful assertions against golden files (X.XXXs)
-    written: examples/mytests/6_assertions/golden_full_render.yaml
-    written: examples/mytests/6_assertions/golden_single_resource.yaml
-    written: examples/mytests/6_assertions/golden_full_render.yaml
-    written: examples/mytests/6_assertions/golden_single_resource.yaml
+    Golden Files:
+        [✓] examples/mytests/6_assertions/golden_full_render.yaml
+        [✓] examples/mytests/6_assertions/golden_single_resource.yaml
+        [✓] examples/mytests/6_assertions/golden_full_render.yaml
+        [✓] examples/mytests/6_assertions/golden_single_resource.yaml
 PASS
 ok	examples/mytests/6_assertions/example3_golden_file_xprin.yaml	X.XXXs
 === RUN   Successful test with hooks, validation, and assertions
