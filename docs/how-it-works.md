@@ -701,7 +701,7 @@ flowchart TD
 
 **Phases that are skipped**: Validate, Assert, Post-test Hooks. The outputs of a test case with an `id` are still exported, as in `xprin test`, for the test cases that need it.
 
-**After Render**, for each `assertions.diff` and `assertions.dyff` entry, the render output (full render, or filtered to a single resource when `resource:` is set) is written to the `expected:` path. One `written: <path>` line appears in the output per file written.
+**After Render**, for each `assertions.diff` and `assertions.dyff` entry, the render output (full render, or filtered to a single resource when `resource:` is set) is written to the `expected:` path. The `Golden Files:` section of the output lists them, one `[✓] <path>` line per file written. If one can't be written (for example, a `resource:` that is not in the render output), a `[!] <path>: <reason>` line follows the ones written, the test case fails, and the entries after it are not tried.
 
 **Pre-test hooks run** for test cases that have golden assertions, for the same reason they run in test mode: they may modify the XR or other inputs before render, so skipping them would produce different render output than `xprin test` would see.
 

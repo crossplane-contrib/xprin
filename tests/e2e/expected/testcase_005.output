@@ -1,8 +1,9 @@
 --- FAIL: Assertion failure (X.XXXs)
-    written: examples/mytests/0_e2e/golden_full_render.yaml
-    written: examples/mytests/0_e2e/golden_single_resource.yaml
-    written: examples/mytests/0_e2e/doesnotexist.yaml
-    [!] update-goldens: resource "SecurityGroup/doesnotexist" not found in render output
+    Golden Files:
+        [✓] examples/mytests/0_e2e/golden_full_render.yaml
+        [✓] examples/mytests/0_e2e/golden_single_resource.yaml
+        [✓] examples/mytests/0_e2e/doesnotexist.yaml
+        [!] examples/mytests/0_e2e/golden_single_resource.yaml: resource "SecurityGroup/doesnotexist" not found in render output
 --- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
     [!] needs failed test case "assertion_failure"
 FAIL

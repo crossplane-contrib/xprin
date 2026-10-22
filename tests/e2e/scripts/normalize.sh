@@ -6,15 +6,16 @@
 set -euo pipefail
 
 root="$(pwd)"
-# Strip project root prefix so paths become relative (expected output uses relative paths).
+# Strip project root prefix so paths become relative (expected output uses relative paths), also in the lines of the
+# golden files of update-goldens ("        [✓] <path>" or "        [!] <path>: <reason>", under "Golden Files:").
 # When root is "/", must only strip one leading slash; otherwise "s|/|...|g" would replace every "/".
 if [ "$root" = "/" ]; then
     root_sed='s|^/||'
-    written_sed='s|    written: /|    written: |'
+    golden_sed='s|^(        \[[✓!]\] )/|\1|'
 else
     root_escaped="${root//\//\\/}"
     root_sed="s|^${root_escaped}/||"
-    written_sed="s|    written: ${root_escaped}/|    written: |"
+    golden_sed="s|^(        \[[✓!]\] )${root_escaped}/|\1|"
 fi
 
 sed_args=(
@@ -32,7 +33,7 @@ sed_args=(
     -e 's/(--crossplane-version=v)[0-9]+\.[0-9]+\.[0-9]+/\1X.Y.Z/g'
     -e 's/(--crossplane-docker-network=xprin-net-)[0-9a-f]+/\1XXXX/g'
     -e 's|(--crossplane-image=xpkg\.crossplane\.io/crossplane/crossplane:v)[0-9]+\.[0-9]+\.[0-9]+|\1X.Y.Z|g'
-    -e "${written_sed}"
+    -e "${golden_sed}"
     -e 's/\r$//'
     -e 's/[[:space:]]+$//'
 )
