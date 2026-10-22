@@ -201,8 +201,9 @@ xprin graph <targets>
 
 ## Related Tools
 
-**[xprin-helpers](docs/xprin-helpers.md)**: Helper utilities for converting Claims to XRs and patching XRs
+**[xprin-helpers](docs/xprin-helpers.md)**: Helper utilities for converting Claims to XRs, checking the `needs` of testsuite files, and patching XRs
   - [convert-claim-to-xr](docs/xprin-helpers/convert-claim-to-xr.md): Convert Claims to XRs
+  - [check-testsuite-needs](docs/xprin-helpers/check-testsuite-needs.md): Check that testsuite files list the `needs` they use
   - [patch-xr](docs/xprin-helpers/patch-xr.md): Apply patches to XRs
 
 ## Requirements

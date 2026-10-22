@@ -1,4 +1,4 @@
-# convert-claim-to-xr
+# convert claim-to-xr
 
 Converts a Crossplane Claim YAML file to a Crossplane XR (Composite Resource) format.
 
@@ -36,45 +36,45 @@ The last two show the relation between the Claim and the XR.
 
 ```bash
 # Convert claim.yaml to XR format and write to stdout (kind will be 'X' + Claim's kind)
-xprin-helpers convert-claim-to-xr claim.yaml
+xprin-helpers convert claim-to-xr claim.yaml
 
 # Convert claim.yaml to XR format and write to xr.yaml
-xprin-helpers convert-claim-to-xr claim.yaml -o xr.yaml
+xprin-helpers convert claim-to-xr claim.yaml -o xr.yaml
 
 # Convert claim.yaml using an explicit XR name (overrides the default suffix or claim name)
-xprin-helpers convert-claim-to-xr claim.yaml --name my-xr
+xprin-helpers convert claim-to-xr claim.yaml --name my-xr
 
 # Convert claim.yaml and create a reproducible XR by setting the XR's name based on a previous golden file of a render output, or just an XR output
-xprin-helpers convert-claim-to-xr claim.yaml --golden render_output.yaml
+xprin-helpers convert claim-to-xr claim.yaml --golden render_output.yaml
 
 # Convert claim.yaml to XR format with a specific kind
-xprin-helpers convert-claim-to-xr claim.yaml --kind MyCompositeResource
+xprin-helpers convert claim-to-xr claim.yaml --kind MyCompositeResource
 
 # Convert claim.yaml with the kind resolved from its XRD
-xprin-helpers convert-claim-to-xr claim.yaml --xrd xrd.yaml
+xprin-helpers convert claim-to-xr claim.yaml --xrd xrd.yaml
 
 # Convert claim.yaml to a directly created XR (no Claim references, no name suffix)
-xprin-helpers convert-claim-to-xr claim.yaml --direct
+xprin-helpers convert claim-to-xr claim.yaml --direct
 
 # Convert claim.yaml and assign a fresh random metadata.uid to the XR
-xprin-helpers convert-claim-to-xr claim.yaml --gen-uid
+xprin-helpers convert claim-to-xr claim.yaml --gen-uid
 
 # Convert Claim from stdin to XR format
-cat claim.yaml | xprin-helpers convert-claim-to-xr -
+cat claim.yaml | xprin-helpers convert claim-to-xr -
 
 # Convert claim.yaml, reusing the XR name from a previous render if one matches
 # (falls back to a random suffix if golden_render.yaml doesn't exist yet, or has no matching document)
-xprin-helpers convert-claim-to-xr claim.yaml --golden golden_render.yaml
+xprin-helpers convert claim-to-xr claim.yaml --golden golden_render.yaml
 
 # Show detailed help
-xprin-helpers convert-claim-to-xr --help
+xprin-helpers convert claim-to-xr --help
 ```
 
 ## Integration with other tools
 ### crossplane render
 
 ```bash
-crossplane render <(xprin-helpers convert-claim-to-xr claim.yaml) composition.yaml functions.yaml
+crossplane render <(xprin-helpers convert claim-to-xr claim.yaml) composition.yaml functions.yaml
 ```
 
 ### xprin

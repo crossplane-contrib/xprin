@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package legacy05 is what xprin knows about the testsuite files in the format of up to 0.5, where a
 // testcase that uses the outputs of others (`.Tests`) doesn't list them in `needs`: the dependencies are
-// implicit, found by reading the templates.
+// implicit, found by reading the templates. It is what the converter of those files uses.
 package legacy05
 
 import (
@@ -31,19 +31,26 @@ import (
 var (
 	// An action: what is between the placeholders of {{ and }}.
 	action = regexp.MustCompile("(?s)" + regexp.QuoteMeta(placeholder.Open) + "(.*?)" + regexp.QuoteMeta(placeholder.Close))
+	// index .Tests "<id>", or with backticks: the way to use an ID that is not a field name (a hyphen).
+	indexedID = regexp.MustCompile("\\bindex\\s+\\.Tests\\s+(?:\"([^\"]*)\"|`([^`]*)`)")
+	// .Tests.<id>.
+	dottedID = regexp.MustCompile(`\.Tests\.([A-Za-z0-9_]+)`)
 	// Any use of .Tests.
 	testsUse = regexp.MustCompile(`\.Tests\b`)
 )
 
-// hasImplicitNeeds tells if a testcase uses `.Tests` in the actions of its templates, as the runner
-// renders them (the testcase without its hooks, and each hook on its own). It is also true for:
-//   - a mention that is not a use (a comment or a string in an action), so that a use is never missed
-//   - a testcase that can't be marshalled, which the runner fails anyway
-func hasImplicitNeeds(testCase api.TestCase) bool {
+// FindImplicitNeeds finds what a testcase needs without listing it, reading its templates as the runner renders
+// them (the testcase without its hooks as one template, and each hook command on its own). It returns:
+//   - ids: the testcases whose outputs it uses through `.Tests`
+//   - needsAll: true when it needs all of them, because it uses `.Tests` in a way that can't be traced to an ID
+//     (`range .Tests`, `index .Tests $id`), or because it can't be marshalled (the runner fails it anyway)
+//
+// Pass the testcase with the common configuration merged in.
+func FindImplicitNeeds(testCase api.TestCase) (ids []string, needsAll bool) {
 	body, err := templates.MarshalWithoutHooks(testCase)
 	if err != nil {
-		// Can't be rendered, so the runner fails the testcase: assume that it uses them.
-		return true
+		// Can't be rendered, so the runner fails the testcase: what it needs is unknown.
+		return nil, true
 	}
 
 	sources := []string{string(body)}
@@ -52,12 +59,38 @@ func hasImplicitNeeds(testCase api.TestCase) bool {
 	}
 
 	for _, source := range sources {
-		for _, act := range action.FindAllStringSubmatch(source, -1) {
-			if testsUse.MatchString(act[1]) {
-				return true
-			}
+		found, all := findImplicitNeedsInString(source)
+		ids = append(ids, found...)
+		needsAll = needsAll || all
+	}
+
+	return ids, needsAll
+}
+
+// findImplicitNeedsInString is FindImplicitNeeds for one template, as the loader stores it (with placeholders):
+//   - it reads the actions only, not the text around them
+//   - it takes out the uses of `.Tests` that name an ID: a `.Tests` left is not understood, so needsAll is true
+//   - a mention that is not a use (a comment or a string of an action) counts too, so that a use is never missed
+func findImplicitNeedsInString(s string) (ids []string, needsAll bool) {
+	for _, act := range action.FindAllStringSubmatch(s, -1) {
+		body := act[1]
+
+		for _, match := range indexedID.FindAllStringSubmatch(body, -1) {
+			ids = append(ids, match[1]+match[2])
+		}
+
+		body = indexedID.ReplaceAllString(body, " ")
+
+		for _, match := range dottedID.FindAllStringSubmatch(body, -1) {
+			ids = append(ids, match[1])
+		}
+
+		body = dottedID.ReplaceAllString(body, " ")
+
+		if testsUse.MatchString(body) {
+			needsAll = true
 		}
 	}
 
-	return false
+	return ids, needsAll
 }

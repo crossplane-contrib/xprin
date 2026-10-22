@@ -567,7 +567,7 @@ Until xprin 0.5 there was no `needs`: a test case that used `.Tests.<id>` depend
 - **Legacy**: no test case lists `needs`, and some use `.Tests`. They run as they always did, one after another, in file order, each seeing all the earlier ones, and xprin prints a warning for the file. The warning appears for any use of `.Tests`, also one that can't work (for example a typo in the ID: the test case then fails when it runs).
 - **Current**: every other file, which means one where at least one test case lists `needs` (migrated), or one that doesn't use `.Tests` at all. There is no warning, a test case only sees the test cases it lists, and the ones whose needs failed are skipped, as described above.
 
-**Migrating.** In each test case that uses `.Tests.<id>`, list those IDs in `needs`. Once one test case in a file lists `needs`, every test case in it has to list what it uses.
+**Migrating.** In each test case that uses `.Tests.<id>`, list those IDs in `needs`. Once one test case in a file lists `needs`, every test case in it has to list what it uses. `xprin-helpers check-testsuite-needs <targets>` finds what is missing in every test case of the files and shows it, so that you can add it (see [check-testsuite-needs](xprin-helpers/check-testsuite-needs.md)).
 
 ## Hooks Execution
 

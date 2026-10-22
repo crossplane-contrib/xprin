@@ -26,7 +26,7 @@ const docs = "https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/
 
 // Warning is the deprecation notice for a testsuite file in this format.
 func Warning(file string) string {
-	return fmt.Sprintf("%s: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See %s.", file, docs)
+	return fmt.Sprintf("%[1]s: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See %[2]s, and run `xprin-helpers check-testsuite-needs %[1]s` to see what to add.", file, docs)
 }
 
 // IsTestSuite tells if the testsuite file is in the format of xprin up to 0.5, which means that:
@@ -59,4 +59,13 @@ func hasNeeds(spec *api.TestSuiteSpec) bool {
 	}
 
 	return false
+}
+
+// hasImplicitNeeds tells if a testcase uses `.Tests` in the actions of its templates. It is also true for:
+//   - a mention that is not a use (a comment or a string in an action), so that a use is never missed
+//   - a testcase that can't be marshalled, which the runner fails anyway
+func hasImplicitNeeds(testCase api.TestCase) bool {
+	ids, needsAll := FindImplicitNeeds(testCase)
+
+	return len(ids) > 0 || needsAll
 }

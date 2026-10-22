@@ -103,7 +103,7 @@ ok	examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml	X.X
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 PASS
 ok	examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml	X.XXXs
-WARNING: examples/mytests/5_chained_tests/legacy_success_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs.
+WARNING: examples/mytests/5_chained_tests/legacy_success_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs, and run `xprin-helpers check-testsuite-needs examples/mytests/5_chained_tests/legacy_success_xprin.yaml` to see what to add.
 === RUN   Legacy: first loop
 --- PASS: Legacy: first loop (X.XXXs)
     Render:
