@@ -39,12 +39,12 @@ import (
 type Runner struct {
 	*testexecutionOptions.Options
 
-	fs                    afero.Fs
-	testSuite             *testsuite.TestSuite // the test suite that is run: its file, its spec and its dependency graph
-	legacy05              bool                 // the file is in the format of xprin up to 0.5 (see legacy05.IsTestSuite)
-	output                io.Writer
-	testSuiteArtifactsDir string
-	totalTestCases        int
+	fs                       afero.Fs
+	testSuite                *testsuite.TestSuite // the test suite that is run: its file, its spec and its dependency graph
+	legacy05                 bool                 // the file is in the format of xprin up to 0.5 (see legacy05.IsTestSuite)
+	output                   io.Writer
+	testSuiteSavedOutputsDir string
+	totalTestCases           int
 	// mode is what differs between xprin test and xprin update-goldens, see mode.go. RunTests sets it, and nil means xprin test
 	mode runnerMode
 	// Mockable function fields
@@ -115,20 +115,20 @@ func (r *Runner) RunTests() error {
 		utils.WarningPrintf("%s\n", legacy05.Warning(r.testSuite.File))
 	}
 
-	// Create testsuite artifacts directory (always created, cleaned up when testsuite finishes)
+	// Create the directory of the internal artifacts, the outputs that test cases share (always created, cleaned up when testsuite finishes)
 	var err error
 
-	r.testSuiteArtifactsDir, err = afero.TempDir(r.fs, "", "xprin-testsuite-artifacts-")
+	r.testSuiteSavedOutputsDir, err = afero.TempDir(r.fs, "", "xprin-internal-artifacts-")
 	if err != nil {
-		return fmt.Errorf("failed to create testsuite artifacts directory: %w", err)
+		return fmt.Errorf("failed to create internal artifacts directory: %w", err)
 	}
 
 	defer func() {
-		_ = r.fs.RemoveAll(r.testSuiteArtifactsDir)
+		_ = r.fs.RemoveAll(r.testSuiteSavedOutputsDir)
 	}()
 
 	if r.Debug {
-		utils.DebugPrintf("Created testsuite artifacts directory: %s\n", r.testSuiteArtifactsDir)
+		utils.DebugPrintf("Created internal artifacts directory: %s\n", r.testSuiteSavedOutputsDir)
 	}
 
 	if r.Debug {

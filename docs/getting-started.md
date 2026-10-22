@@ -88,7 +88,7 @@ xprin test tests/advanced_xprin.yaml -v --show-assertions
 # Debug mode (shows detailed execution information)
 xprin test tests/basic_xprin.yaml --debug
 
-# Export artifacts (inputs and outputs of every test case) to a timestamped directory.
+# Export the external artifacts (inputs and outputs of every test case) to a timestamped directory.
 # Each run creates <dir>/xprin-artifacts-<YYYYMMDDHHMMSS>/ containing inputs/ and outputs/ per test case.
 # After each suite, the path is printed to stderr:  artifacts: /path/to/xprin-artifacts-.../suite
 xprin test tests/... --artifacts-dir /tmp/xprin-debug
@@ -367,7 +367,7 @@ tests:
     functions: /path/to/functions
 ```
 
-A test case that needs another one can also use its outputs: tests with IDs have their outputs stored in a shared artifacts directory, and the test cases that list them in `needs` can reference them using the `.Tests.{test-id}` template variable.
+A test case that needs another one can also use its outputs: tests with IDs have their outputs saved as internal artifacts, and the test cases that list them in `needs` can reference them using the `.Tests.{test-id}` template variable.
 
 This is useful for:
 - **Sequential workflows**: Using outputs from one test as inputs for the next
@@ -405,7 +405,7 @@ tests:
       run: ./scripts/compare_test_outputs.sh {{ .Tests.db_setup.Outputs.RenderCount }} {{ .Outputs.RenderCount }} {{ .Tests.db_setup.Outputs.Render }}
 ```
 
-For detailed information about how test chaining works, see [How It Works](how-it-works.md#test-chaining-and-artifacts).
+For detailed information about how test chaining works, see [How It Works](how-it-works.md#test-chaining).
 
 > A test case can only use the outputs of the test cases it lists in `needs`. xprin used to find them automatically, which became **deprecated** in 0.6.0 and will stop working in 0.7.0: see [Migrating from Automatic Detection](how-it-works.md#migrating-from-automatic-detection-deprecated).
 

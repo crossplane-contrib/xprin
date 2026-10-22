@@ -14,7 +14,7 @@ flowchart TD
     C --> D
     D --> E[Validate]
     D --> F[Assertions]
-    E --> G[Post-test Hooks<br/>Export Artifacts]
+    E --> G[Post-test Hooks<br/>Save Internal Artifacts]
     F --> G
 
     style A fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
@@ -38,7 +38,7 @@ flowchart TD
 5. **Assert** - Run declarative Assertions on rendered resources
 6. **Finish**
   - Execute Post-test Hooks
-  - Export artifacts (if test has ID)
+  - Save internal artifacts (if test has ID)
 
 ## Detailed Execution Flow
 
@@ -61,7 +61,7 @@ flowchart TD
     K --> L
     L --> M["Post-test Hooks<br/>• Cleanup<br/>• Validate outputs"]
     M --> N{"Test case has ID?"}
-    N -->|Yes| O["Export Artifacts"]
+    N -->|Yes| O["Save Internal Artifacts"]
     N -->|No| P["End Test Case"]
     O --> P
 
@@ -223,7 +223,7 @@ flowchart TD
 
 **What happens:**
 1. **Post-test Hooks**: All post-test hooks are executed sequentially
-2. **Artifact Export** (if test has ID): Outputs are copied to artifacts directory
+2. **Save Internal Artifacts** (if test has ID): The outputs are saved as internal artifacts, for the test cases that need it
 3. **Cleanup**: Temp directory is cleaned up
 
 **Template Variables Available:**
@@ -236,12 +236,12 @@ flowchart TD
 - `{{ index .Outputs.Rendered "Kind/Name" }}` - Individual resource paths
 - `{{ .Tests.{test-id}.Outputs.* }}` - Cross-test references (for the test cases listed in `needs`)
 
-**Artifact Export:**
+**Save Internal Artifacts:**
 - Only happens if test case has an `id` field
-- All outputs are copied to a shared artifacts directory
-- Artifacts are organized by test ID: `artifacts/{test-id}/`
-- Artifacts are available to the test cases that list it in `needs`, via `.Tests.{test-id}.Outputs.*` (see [Test Chaining](#test-chaining-and-artifacts))
-- Artifacts directory is cleaned up after all tests complete
+- All outputs are saved as internal artifacts, in a directory shared by the test cases of the testsuite file
+- They are organized by test ID: `internal-artifacts/{test-id}/`
+- They are available to the test cases that list it in `needs`, via `.Tests.{test-id}.Outputs.*` (see [Test Chaining](#test-chaining))
+- The directory is cleaned up after all tests complete
 
 **Error Handling:**
 - Post-test hooks always run, even if previous phases failed
@@ -454,7 +454,7 @@ inputs:
 - Repository paths from configuration are absolute
 - Can combine templates with relative paths: `{{ .Repositories.myrepo }}/relative/path`
 
-## Test Chaining and Artifacts
+## Test Chaining
 
 Test cases can depend on each other, enabling sequential workflows and reconciliation testing. A test case declares the test cases it depends on in `needs`, and can then also use their outputs. `xprin graph` shows these dependencies (see [Dependency Graph](#dependency-graph)).
 
@@ -521,14 +521,14 @@ A test case can only use (`.Tests.<id>`) the outputs of the test cases it lists 
 #### How It Works
 
 1. **Test ID**: The test case that is used must have an `id` field
-2. **Artifact Storage**: After test completes, outputs are copied to `artifacts/{test-id}/`
-3. **Cross-test References**: The test cases that list it in `needs` can reference the artifacts via `.Tests.{test-id}.Outputs.*`
-4. **Cleanup**: Artifacts directory is cleaned up after all tests complete
+2. **Internal Artifacts**: After test completes, its outputs are saved as internal artifacts, in `internal-artifacts/{test-id}/`. They are not the external artifacts that `--artifacts-dir` exports (the inputs and the outputs of every test case, see [Resource Cleanup](#resource-cleanup))
+3. **Cross-test References**: The test cases that list it in `needs` can reference its outputs via `.Tests.{test-id}.Outputs.*`
+4. **Cleanup**: The directory of the internal artifacts is cleaned up after all tests complete
 
-#### Artifact Structure
+#### Internal Artifact Structure
 
 ```
-artifacts/
+internal-artifacts/
   {test-id-1}/
     xr.yaml
     render.yaml
@@ -550,7 +550,7 @@ artifacts/
 
 - Tests must run sequentially (not in parallel)
 - Referenced test must complete before reference is valid
-- If the referenced test fails, the test cases that need it are skipped, so they never see missing artifacts
+- If the referenced test fails, the test cases that need it are skipped, so they never see missing outputs
 
 ### Migrating from Automatic Detection (Deprecated)
 
@@ -607,7 +607,7 @@ Hooks provide a way to execute arbitrary shell commands at specific points in th
 
 ### Post-test Hooks
 
-**When:** After assertions, before artifact export
+**When:** After assertions, before the internal artifacts are saved
 
 **Use Cases:**
 - Cleanup operations
@@ -699,7 +699,7 @@ flowchart TD
 
 **Phases that run** for test cases with golden assertions, and for the ones they need (identical to `xprin test`): Setup, Pre-test Hooks, Convert Claim to XR, Patch XR, Render.
 
-**Phases that are skipped**: Validate, Assert, Post-test Hooks. The outputs of a test case with an `id` are still exported, as in `xprin test`, for the test cases that need it.
+**Phases that are skipped**: Validate, Assert, Post-test Hooks. The outputs of a test case with an `id` are still saved as internal artifacts, as in `xprin test`, for the test cases that need it.
 
 **After Render**, for each `assertions.diff` and `assertions.dyff` entry, the render output (full render, or filtered to a single resource when `resource:` is set) is written to the `expected:` path. The `Golden Files:` section of the output lists them, one `[✓] <path>` line per file written. If one can't be written (for example, a `resource:` that is not in the render output), a `[!] <path>: <reason>` line follows the ones written, the test case fails, and the entries after it are not tried.
 
@@ -804,8 +804,8 @@ By default, `xprin test` reuses one Docker container per unique composition func
 ### Resource Cleanup
 
 - Temp directories are cleaned up immediately after test completion
-- Artifacts directory is cleaned up after all tests complete
-- The --artifacts-dir flag copies the artifacts along with the inputs from the temp directory to a persistent one for inspection
+- The directory of the internal artifacts (the outputs shared between test cases) is cleaned up after all tests complete
+- The `--artifacts-dir` flag exports the inputs and the outputs of every test case, the external artifacts, from the temp directory to a persistent one for inspection
 - Composition function containers (and the shared Docker network, on Crossplane CLI v2.3+) are reused across test cases and suite files, then removed once the whole `xprin test` invocation finishes (see "Function Container Reuse" above)
 
 ---

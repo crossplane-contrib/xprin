@@ -140,7 +140,7 @@ tests:
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
 | `name` | ✅ | string | Test case name (alphanumeric, underscores, hyphens) |
-| `id` | ❌ | string | Optional unique test case ID (makes the test case available to `needs`, and enables cross-test references and artifact storage) |
+| `id` | ❌ | string | Optional unique test case ID (makes the test case available to `needs`, and enables cross-test references) |
 | `needs` | ❌ | list of strings | IDs of the test cases this one depends on, listed before or after it (not itself, and not in a cycle); it runs after them, can use their outputs, and is skipped if one of them failed or was skipped. Can't be empty (supported since xprin 0.6.0, and the only way from 0.7.0, see [Dependencies Between Test Cases](how-it-works.md#dependencies-between-test-cases-needs)) |
 | `inputs` | ✅ | map | Inputs for the test case |
 | `patches` | ❌ | map | XR patching configuration |
@@ -269,7 +269,7 @@ Available when test has `id` field, to the test cases that list it in `needs`:
 
 A test case can depend on another one with `needs` alone, without using its outputs. To use them (`.Tests.{test-id}`) it has to list that ID in `needs`: that is the only way from 0.7.0. See [Dependencies Between Test Cases](how-it-works.md#dependencies-between-test-cases-needs) and [Migrating](how-it-works.md#migrating-from-automatic-detection-deprecated). The `needs` of the test cases form their **dependency graph**: to see it for your testsuite files, as a tree and without running anything, use `xprin graph <targets>` (see [Dependency Graph](how-it-works.md#dependency-graph)).
 
-For detailed information, see [How It Works](how-it-works.md#template-variable-expansion) and [How It Works](how-it-works.md#test-chaining-and-artifacts).
+For detailed information, see [How It Works](how-it-works.md#template-variable-expansion) and [How It Works](how-it-works.md#test-chaining).
 
 ## Test Discovery
 

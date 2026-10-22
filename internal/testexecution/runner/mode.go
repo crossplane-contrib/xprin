@@ -63,7 +63,7 @@ func (testMode) skips(api.TestCase) bool {
 }
 
 // runPhasesAfterRender runs the phases of xprin test that follow the render: Validate, Assert and Finish. They
-// validate the rendered resources, run the assertions and the post-test hooks, and export the outputs.
+// validate the rendered resources, run the assertions and the post-test hooks, and save the outputs.
 func (m testMode) runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
 	r := m.r
 
@@ -77,7 +77,7 @@ func (m testMode) runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, 
 
 	r.runPostTestHooks(testCase, needsResults, result)
 
-	if err := r.exportOutputs(testCase, env, result); err != nil {
+	if err := r.saveOutputs(testCase, env, result); err != nil {
 		return result.Fail(err)
 	}
 

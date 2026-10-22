@@ -141,7 +141,7 @@ func TestUpdateGoldensModeSkips(t *testing.T) {
 func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 	newRunner := func() (*Runner, *[]string) {
 		r := newUpdateGoldensRunner(afero.NewMemMapFs())
-		r.testSuiteArtifactsDir = "/artifacts"
+		r.testSuiteSavedOutputsDir = "/saved-outputs"
 
 		var copied []string
 
@@ -154,7 +154,7 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 		return r, &copied
 	}
 
-	t.Run("it writes the golden files, and exports the outputs for the ones that need this one", func(t *testing.T) {
+	t.Run("it writes the golden files, and saves the outputs for the ones that need this one", func(t *testing.T) {
 		r, copied := newRunner()
 		require.NoError(t, afero.WriteFile(r.fs, "/tmp/outputs/rendered.yaml", []byte("kind: X\n"), 0o600))
 
@@ -166,15 +166,15 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 
 		assert.Equal(t, engine.StatusPass(), got.Status)
 		assert.Equal(t, []string{"a.yaml"}, writtenGoldenFiles(got))
-		assert.Equal(t, []string{"/tmp/outputs -> /artifacts/a"}, *copied)
-		assert.Equal(t, "/artifacts/a/rendered.yaml", got.Outputs.Render)
+		assert.Equal(t, []string{"/tmp/outputs -> /saved-outputs/a"}, *copied)
+		assert.Equal(t, "/saved-outputs/a/rendered.yaml", got.Outputs.Render)
 
 		written, err := afero.ReadFile(r.fs, "a.yaml")
 		require.NoError(t, err)
 		assert.Equal(t, "kind: X\n", string(written))
 	})
 
-	t.Run("a test case that writes nothing and has no ID exports nothing", func(t *testing.T) {
+	t.Run("a test case that writes nothing and has no ID saves nothing", func(t *testing.T) {
 		r, copied := newRunner()
 		result := engine.NewTestCaseResult("n", "", false, false, false, false, false)
 
@@ -184,7 +184,7 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 		assert.Empty(t, *copied)
 	})
 
-	t.Run("a failure to write a golden file is the result, and nothing is exported", func(t *testing.T) {
+	t.Run("a failure to write a golden file is the result, and nothing is saved", func(t *testing.T) {
 		r, copied := newRunner()
 
 		testCase := goldenCase("a")
