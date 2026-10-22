@@ -134,7 +134,7 @@ When xprin runs a test case, it follows this specific sequence:
 6. **Crossplane Validate** (optional) - If CRDs are provided, run `crossplane resource validate` on the rendered output
 7. **Assertions** (optional) - Validate rendered resources using declarative assertions (count, existence, field type/value checks)
 8. **Post-test Hooks** - Execute any post-test hooks defined in the test case
-9. **Save Internal Artifacts** (optional) - If test case has an `id`, save its outputs as internal artifacts for cross-test references
+9. **Save Artifacts** (optional) - If test case has an `id`, save its outputs as artifacts for cross-test references
 
 Visual flow (high-level steps):
 
@@ -146,7 +146,7 @@ flowchart TD
     C --> D
     D --> E[Validate]
     D --> F[Assertions]
-    E --> G[Post-test Hooks<br/>Save Internal Artifacts]
+    E --> G[Post-test Hooks<br/>Save Artifacts]
     F --> G
 
     style A fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
@@ -167,7 +167,7 @@ The flow ensures that:
 - The rendered output is validated against schemas if CRDs are available
 - Assertions validate rendered resources declaratively (count, existence, field checks) after validation
 - Post-test hooks can clean up and perform additional validation after assertions
-- Test cases can depend on earlier ones with `needs`, and their outputs (saved as internal artifacts when `id` is set) can be referenced via `.Tests.{test-id}` template variables for test chaining
+- Test cases can depend on earlier ones with `needs`, and their outputs (saved as artifacts when `id` is set) can be referenced via `.Tests.{test-id}` template variables for test chaining
 
 ## Documentation
 
