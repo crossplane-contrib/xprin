@@ -58,7 +58,7 @@ FAIL	tests/aws_xprin.yaml	0.002s
 ok	tests/gcp_xprin.yaml	0.002s
 FAIL
 Total:
-    [!] 1 testsuite file misses needs: see Missing Needs above
+    [!] 1 testsuite file misses needs
 ```
 
 Like `xprin test` and `go test`, a run in which any file fails ends with a `FAIL` line, and the `Total:` that follows says what is left to do: the files that miss needs, and the files that require a person (see [What Requires a Person](#what-requires-a-person)).

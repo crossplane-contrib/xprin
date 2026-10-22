@@ -83,7 +83,7 @@ func (c *Cmd) AfterApply() error {
 
 // Run runs the check-testsuite-needs command. The error is set when anything is missing, or requires a person.
 func (c *Cmd) Run(k *kong.Context) error {
-	var missNeeds, needReview int
+	var missNeeds, requireAPerson int
 
 	errOut := bufio.NewWriter(k.Stderr)
 
@@ -112,7 +112,7 @@ func (c *Cmd) Run(k *kong.Context) error {
 		// Every file that makes the run fail is an error here, so that the walk ends with a FAIL, as xprin test does
 		switch {
 		case res.requiresAPerson():
-			needReview++
+			requireAPerson++
 
 			return errors.New("requires a person")
 		case res.missesNeeds():
@@ -122,7 +122,7 @@ func (c *Cmd) Run(k *kong.Context) error {
 		return nil
 	})
 
-	writeSummary(errOut, missNeeds, needReview)
+	writeSummary(errOut, missNeeds, requireAPerson)
 
 	if err := errOut.Flush(); err != nil && walkErr == nil {
 		return fmt.Errorf("failed to write the summary: %w", err)
