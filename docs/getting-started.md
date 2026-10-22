@@ -4,6 +4,7 @@
 
 ## Table of Contents
 
+- [What a Testsuite File Contains](#what-a-testsuite-file-contains)
 - [Testsuite filenames](#testsuite-filenames)
 - [Command Examples](#command-examples)
   - [How to Run Tests](#how-to-run-tests)
@@ -27,6 +28,12 @@
   - [Show Validation Results](#show-validation-results)
 - [Integration Examples](#integration-examples)
   - [With CI/CD Pipeline](#with-cicd-pipeline)
+
+---
+
+## What a Testsuite File Contains
+
+A testsuite file is a YAML file with a list of test cases (`tests`), and optionally settings shared by all of them (`common`). Each test case has `inputs` (an XR or a Claim, a Composition, the functions, and optionally CRDs), and can have `patches`, `hooks` (shell commands before and after), `assertions`, and `needs` (to depend on other test cases). The [testsuite examples](#testsuite-examples) below build one up step by step.
 
 ---
 
@@ -88,6 +95,10 @@ xprin test tests/advanced_xprin.yaml -v --show-assertions
 # Debug mode (shows detailed execution information)
 xprin test tests/basic_xprin.yaml --debug
 
+# Select the version of the Crossplane controller image.
+# It is passed to validate (as --crossplane-image, with any CLI version), and to render (as --crossplane-version, only with Crossplane CLI v2.3.0+: older CLIs ignore it there).
+xprin test tests/basic_xprin.yaml --crossplane-version v2.4.0
+
 # Export the external artifacts (inputs and outputs of every test case) to a timestamped directory.
 # Each run creates <dir>/xprin-artifacts-<YYYYMMDDHHMMSS>/ containing inputs/ and outputs/ per test case.
 # After each suite, the path is printed to stderr:  artifacts: /path/to/xprin-artifacts-.../suite
@@ -101,7 +112,7 @@ xprin test tests/... -a /tmp/xprin-debug
 
 Test cases without `assertions.diff`/`assertions.dyff` are reported as SKIP immediately, unless a test case that has them needs them (`needs`), directly or through others: then they run, and write nothing, so that the test cases that use their outputs work. Test cases that are needed only by test cases that are skipped are skipped too, as no golden file depends on them. For test cases that do have golden assertions, pre-test hooks run normally (they may affect render output), but validate, `assertions.xprin`, and post-test hooks are skipped.
 
-For Claim-input test cases, a full-render golden file (an `expected:` path with no `resource:` set) is also reused to keep the Claim-derived XR's name stable across runs, instead of a new random suffix every time - see [convert-claim-to-xr.md](xprin-helpers/convert-claim-to-xr.md#reproducible-output-with---golden).
+For Claim-input test cases, a full-render golden file (an `expected:` path with no `resource:` set) is also reused to keep the Claim-derived XR's name stable across runs, instead of a new random suffix every time - see [convert-claim-to-xr.md](xprin-helpers/convert-claim-to-xr.md#xprin).
 
 ```bash
 # Regenerate golden files for all tests in a directory
@@ -170,7 +181,7 @@ tests:
     functions: /path/to/functions
 ```
 
-It supports both XR and Claim as inputs. The Claim will be converted to XR using the `xprin-helpers convert-claim-to-xr` tool:
+It supports both XR and Claim as inputs. A Claim is converted to an XR the way [`xprin-helpers convert-claim-to-xr`](xprin-helpers/convert-claim-to-xr.md) does:
 - If the test case also sets `patches.xrd` (see [Patching](#patching) below), the converted XR's kind is resolved from the XRD instead of guessed as "X" prefixed to the Claim's kind.
 - The converted XR normally gets a new random name suffix on every run. If the test case also has a full-render `assertions.diff`/`assertions.dyff` entry, that golden file's XR name is reused instead, keeping it (and anything derived from it) stable across runs — see [Updating Golden Files](#updating-golden-files).
 
@@ -205,7 +216,7 @@ If an input is defined both in the common and the testcase level, the testcase p
 
 ### Patching
 
-We can do simple patching via the `xprin-helpers patch-xr` tool. 
+We can do simple patching with the `patches` section: applying the defaults of an XRD, and setting a connection secret reference (the same patches as [`xprin-helpers patch-xr`](xprin-helpers/patch-xr.md)).
 
 ```yaml
 # tests/patch_inputs_xprin.yaml
@@ -239,7 +250,7 @@ Hooks can run arbitrary shell commands before and after each test.
 Use pre-test hooks for:
 - test environment setup (creating temp dirs, copying fixtures, exporting env)
 - pre-test validations (e.g. ensure `.spec.k8s_version` matches `1.3[0-9]`)
-- advanced patching of any input (see [input template variables](testsuite-specification.md#template-variables))
+- advanced patching of any input (see [input template variables](how-it-works.md#available-variables))
 
 Example:
 ```yaml
@@ -265,13 +276,13 @@ hooks:
 
 Notes:
 - `{{ .Inputs.XR }}` and other input variables are available in pre-test hooks.
-- See [Template Variables](testsuite-specification.md#template-variables) for the full list.
+- See [Available Variables](how-it-works.md#available-variables) for the full list.
 - Scripts can be stored in your repository and referenced by path, making hooks cleaner and reusable.
 
 #### Post-test hooks
 Use post-test hooks for:
 - cleaning up the test environment
-- printing outputs (see [output template variables](testsuite-specification.md#template-variables))
+- printing outputs (see [output template variables](how-it-works.md#available-variables))
 - comparing inputs and outputs (e.g. `diff -u {{ .Inputs.XR }} {{ .Outputs.XR }}`)
 - assertions via scripts or external tools (e.g. Kyverno Chainsaw, UpTest) using the render output
 
@@ -367,7 +378,7 @@ tests:
     functions: /path/to/functions
 ```
 
-A test case that needs another one can also use its outputs: tests with IDs have their outputs saved as internal artifacts, and the test cases that list them in `needs` can reference them using the `.Tests.{test-id}` template variable.
+A test case that needs another one can also use its outputs: tests with IDs have their outputs kept for the test cases that list them in `needs`, which can reference them using the `.Tests.{test-id}` template variable.
 
 This is useful for:
 - **Sequential workflows**: Using outputs from one test as inputs for the next
@@ -405,6 +416,8 @@ tests:
       run: ./scripts/compare_test_outputs.sh {{ .Tests.db_setup.Outputs.RenderCount }} {{ .Outputs.RenderCount }} {{ .Tests.db_setup.Outputs.Render }}
 ```
 
+To see the dependencies of your testsuite files as a tree, without running anything, use `xprin graph tests/...`.
+
 For detailed information about how test chaining works, see [How It Works](how-it-works.md#test-chaining).
 
 > A test case can only use the outputs of the test cases it lists in `needs`. xprin used to find them automatically, which became **deprecated** in 0.6.0 and will stop working in 0.7.0: see [Migrating from Automatic Detection](how-it-works.md#migrating-from-automatic-detection-deprecated).
@@ -416,14 +429,14 @@ For detailed information about how test chaining works, see [How It Works](how-i
 ### Successful Test Run
 
 ```bash
-$ xprin test tests/basic_xprin.yaml
+➜ xprin test tests/basic_xprin.yaml
 ok      tests/basic_xprin.yaml     4.896s
 ```
 
 ### Verbose Output
 
 ```bash
-$ xprin test tests/basic_xprin.yaml -v
+➜ xprin test tests/basic_xprin.yaml -v
 === RUN   Database_Setup
 --- PASS: Database_Setup (2.33s)
 === RUN   Web_Application
@@ -437,7 +450,7 @@ ok      tests/basic_xprin.yaml     4.546s
 Failures are shown with section headers (**Render:**, **Validate:**, **Assertions:**, **Pre-test Hooks:**, **Post-test Hooks:**) and symbols **[✓]** pass, **[x]** fail, **[!]** error. Example:
 
 ```bash
-$ xprin test tests/broken_xprin.yaml
+➜ xprin test tests/broken_xprin.yaml
 --- FAIL: gcp (0.00s)
     [!] failed to expand or verify paths:
     [!] composition file not found: stat /path/to/comp.yaml: no such file or directory
@@ -457,7 +470,7 @@ FAIL
 ### Show Rendered Resources
 
 ```bash
-$ xprin test -v --show-render tests/hello_xprin.yaml
+➜ xprin test -v --show-render tests/hello_xprin.yaml
 === RUN   onecluster
     Render:
         ├── XCluster/mycluster-72nd5
@@ -470,7 +483,7 @@ ok      tests/hello_xprin.yaml     4.422s
 ### Show Validation Results
 
 ```bash
-$ xprin test -v --show-validate tests/hello_xprin.yaml
+➜ xprin test -v --show-validate tests/hello_xprin.yaml
 === RUN   onecluster
     Validate:
         [✓] mycluster.myorg.com/v1alpha1, Kind=XCluster, mycluster-qngkb validated successfully
@@ -493,20 +506,34 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      COMPRESSED: true
+      VERIFY_SHA: true
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
-        with:
-          go-version: '1.24'
-      - name: Install xprin
+      - uses: actions/checkout@vX.Y.Z
+      - name: Set up the PATH
         run: |
-          go install github.com/crossplane-contrib/xprin/cmd/xprin@latest
-          go install github.com/crossplane-contrib/xprin/cmd/xprin-helpers@latest
+          mkdir -p "$HOME/bin"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+      - name: Install Crossplane CLI
+        # env:
+        #   XP_VERSION: vX.Y.Z  # defaults to the current version of the stable channel
+        run: |
+          cd "$HOME/bin"
+          curl -sfL "https://cli.crossplane.io/install.sh" | sh
+      - name: Install xprin
+        # env:
+        #   VERSION: vX.Y.Z  # defaults to the latest stable version
+        run: |
+          cd "$HOME/bin"
+          curl -sL https://raw.githubusercontent.com/crossplane-contrib/xprin/main/install.sh | sh
       - name: Check xprin dependencies
         run: xprin check
       - name: Run tests
-        run: xprin test tests/
+        run: xprin test -qv tests/
 ```
+
+Both install scripts download the binary to the current directory, so the example puts it in `$HOME/bin`, which is added to the `PATH` first. See [Installation](installation.md) for the options of the xprin script.
 
 ---
 
