@@ -158,7 +158,7 @@ flowchart TD
     style G fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
 ```
 
-For the full flow with decision points and optional steps, see [How It Works](docs/how-it-works.md).
+*For the full flow with decision points and optional steps, see [How It Works](docs/how-it-works.md) and [Architecture](docs/architecture.md).*
 
 The flow ensures that:
 - Pre-test hooks can set up the environment, patch inputs or validate them before processing
@@ -171,14 +171,9 @@ The flow ensures that:
 
 ## Documentation
 
-- [Installation](docs/installation.md) - Install xprin and verify your setup
-   - Optional [Configuration](docs/configuration.md) if you need custom subcommands or repositories
-   - Optional [IDE integration](docs/ide-integration.md) for autocompletion and validation in your editor
-- [Getting Started](docs/getting-started.md) - Run your first test and learn basic commands
-- [Examples](examples/README.md) - Step-by-step examples with real outputs
-- [Test Suite Specification](docs/testsuite-specification.md) - Complete reference for all test suite fields and options
-- [Assertions](docs/assertions.md) - Complete guide to declarative resource validation
-- [How It Works](docs/how-it-works.md) - Deep dive into how xprin works under the hood
+Start with [Installation](docs/installation.md) and [Getting Started](docs/getting-started.md). The [Documentation Index](docs/README.md) has the rest: examples, the test suite specification, assertions, how xprin works, and the [helper tools](docs/xprin-helpers.md).
+
+Want to contribue to xprin? See [Contributing](CONTRIBUTING.md).
 
 ## Commands
 
@@ -198,13 +193,6 @@ xprin update-goldens <targets>
 # Show the dependency graph of the test cases (which needs which others), as a tree
 xprin graph <targets>
 ```
-
-## Related Tools
-
-**[xprin-helpers](docs/xprin-helpers.md)**: Helper utilities for converting Claims to XRs, checking the `needs` of testsuite files, and patching XRs
-  - [convert-claim-to-xr](docs/xprin-helpers/convert-claim-to-xr.md): Convert Claims to XRs
-  - [check-testsuite-needs](docs/xprin-helpers/check-testsuite-needs.md): Check that testsuite files list the `needs` they use
-  - [patch-xr](docs/xprin-helpers/patch-xr.md): Apply patches to XRs
 
 ## Requirements
 
