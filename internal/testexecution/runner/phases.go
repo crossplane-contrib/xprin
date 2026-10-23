@@ -259,7 +259,7 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 	for i, crdPath := range testCase.Inputs.CRDs {
 		dest := filepath.Join(crdsDir, uniqueNames[i])
 
-		testCase.Inputs.CRDs[i], err = r.copyToPath(crdPath, dest)
+		testCase.Inputs.CRDs[i], err = r.copyToPath(crdPath, dest, "crds")
 		if err != nil {
 			return result.Fail(err)
 		}
