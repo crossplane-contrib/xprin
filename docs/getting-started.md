@@ -116,8 +116,8 @@ Example output:
 ```
 --- PASS: My test case (1.23s)
     Golden Files:
-        [✓] tests/golden_full_render.yaml
-        [✓] tests/golden_single_resource.yaml
+        [✓] Full render matches golden (using diff): tests/golden_full_render.yaml
+        [✓] Cluster resource matches golden (using diff): tests/golden_single_resource.yaml
 ok      tests/my_test_xprin.yaml        1.234s
 ```
 

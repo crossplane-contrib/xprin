@@ -53,7 +53,8 @@ func (m updateGoldensMode) runPhasesAfterRender(testCase api.TestCase, env *test
 }
 
 // goldenFilesHeader is the header of the section where a test case lists its golden files: the ones that it
-// wrote, and the one that it could not.
+// wrote, and the one that it could not. Each line starts with the name of the assertion that asked for the file, as
+// two assertions (diff and dyff, for example) can ask for the same one.
 const goldenFilesHeader = "Golden Files"
 
 // runUpdateGoldens writes render output to the `expected:` paths of assertions.diff/dyff entries.
@@ -66,12 +67,12 @@ func (r *Runner) runUpdateGoldens(testCase api.TestCase, result *engine.TestCase
 		if err != nil {
 			// It stops at the first one that fails. The failure is a line of the section, after the files that were
 			// written, so there is no other error to show.
-			result.AddToSection(goldenFilesHeader, engine.StatusError(), path+": "+err.Error())
+			result.AddToSection(goldenFilesHeader, engine.StatusError(), a.Name+": "+path+": "+err.Error())
 
 			return result.Fail(nil)
 		}
 
-		result.AddToSection(goldenFilesHeader, engine.StatusPass(), path)
+		result.AddToSection(goldenFilesHeader, engine.StatusPass(), a.Name+": "+path)
 	}
 
 	return result.Complete()

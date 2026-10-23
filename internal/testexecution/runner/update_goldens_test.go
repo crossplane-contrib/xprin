@@ -59,7 +59,8 @@ func goldenFileLines(result *engine.TestCaseResult, status engine.Status) []stri
 	return lines
 }
 
-// writtenGoldenFiles returns the paths that a test case lists as the golden files that it wrote.
+// writtenGoldenFiles returns the lines (the name of the assertion, and the path) that a test case lists for the golden
+// files that it wrote.
 func writtenGoldenFiles(result *engine.TestCaseResult) []string {
 	return goldenFileLines(result, engine.StatusPass())
 }
@@ -113,7 +114,7 @@ func TestRunUpdateGoldens_WritesDiffAndDyffAssertions(t *testing.T) {
 	out := r.runUpdateGoldens(testCase, result)
 
 	require.Equal(t, engine.StatusPass(), out.Status)
-	require.Equal(t, []string{"/expected/golden-diff.yaml", "/expected/golden-dyff.yaml"}, writtenGoldenFiles(out))
+	require.Equal(t, []string{"full render diff: /expected/golden-diff.yaml", "full render dyff: /expected/golden-dyff.yaml"}, writtenGoldenFiles(out))
 
 	gotDiff, err := afero.ReadFile(fs, "/expected/golden-diff.yaml")
 	require.NoError(t, err)
@@ -122,6 +123,27 @@ func TestRunUpdateGoldens_WritesDiffAndDyffAssertions(t *testing.T) {
 	gotDyff, err := afero.ReadFile(fs, "/expected/golden-dyff.yaml")
 	require.NoError(t, err)
 	assert.Equal(t, renderContent, gotDyff)
+}
+
+func TestRunUpdateGoldens_TwoAssertionsForTheSameFileAreToldApartByTheirNames(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	r := newUpdateGoldensRunner(fs)
+
+	require.NoError(t, afero.WriteFile(fs, "/actual/render.yaml", []byte("kind: X\n"), 0o600))
+
+	testCase := api.TestCase{
+		Name: "same file",
+		Assertions: api.Assertions{
+			Diff: []api.AssertionGoldenFile{{Name: "diff", Expected: "/expected/golden.yaml"}},
+			Dyff: []api.AssertionGoldenFile{{Name: "dyff", Expected: "/expected/golden.yaml"}},
+		},
+	}
+	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
+	result.Outputs.Render = "/actual/render.yaml"
+
+	out := r.runUpdateGoldens(testCase, result)
+
+	assert.Equal(t, []string{"diff: /expected/golden.yaml", "dyff: /expected/golden.yaml"}, writtenGoldenFiles(out))
 }
 
 func TestRunUpdateGoldens_WritesResourceScopedAssertion(t *testing.T) {
@@ -145,7 +167,7 @@ func TestRunUpdateGoldens_WritesResourceScopedAssertion(t *testing.T) {
 	out := r.runUpdateGoldens(testCase, result)
 
 	require.Equal(t, engine.StatusPass(), out.Status)
-	require.Equal(t, []string{"/expected/pod.yaml"}, writtenGoldenFiles(out))
+	require.Equal(t, []string{"pod diff: /expected/pod.yaml"}, writtenGoldenFiles(out))
 
 	got, err := afero.ReadFile(fs, "/expected/pod.yaml")
 	require.NoError(t, err)
@@ -172,7 +194,7 @@ func TestRunUpdateGoldens_FailsOnUnknownResource(t *testing.T) {
 	assert.Equal(t, engine.StatusFail(), out.Status)
 	require.NoError(t, out.Error, "the failure is a line of the section, and there is no other error")
 	assert.Empty(t, writtenGoldenFiles(out))
-	assert.Equal(t, []string{`/expected/missing.yaml: resource "Pod/ghost" not found in render output`}, failedGoldenFiles(out))
+	assert.Equal(t, []string{`missing: /expected/missing.yaml: resource "Pod/ghost" not found in render output`}, failedGoldenFiles(out))
 }
 
 func TestRunUpdateGoldens_TheFailedFileComesAfterTheWrittenOnes(t *testing.T) {
@@ -198,8 +220,8 @@ func TestRunUpdateGoldens_TheFailedFileComesAfterTheWrittenOnes(t *testing.T) {
 	out := r.runUpdateGoldens(testCase, result)
 
 	assert.Equal(t, engine.StatusFail(), out.Status)
-	assert.Equal(t, []string{"/expected/first.yaml"}, writtenGoldenFiles(out))
-	assert.Equal(t, []string{`/expected/second.yaml: resource "Pod/ghost" not found in render output`}, failedGoldenFiles(out))
+	assert.Equal(t, []string{"first: /expected/first.yaml"}, writtenGoldenFiles(out))
+	assert.Equal(t, []string{`second: /expected/second.yaml: resource "Pod/ghost" not found in render output`}, failedGoldenFiles(out))
 	require.Len(t, out.Sections, 1, "one section, with the files in the order of the assertions")
 	assert.Equal(t, engine.StatusPass(), out.Sections[0].Lines[0].Status)
 	assert.Equal(t, engine.StatusError(), out.Sections[0].Lines[1].Status)
@@ -219,7 +241,7 @@ func TestRunUpdateGoldens_AnExpectedPathThatCantBeResolved(t *testing.T) {
 	out := r.runUpdateGoldens(testCase, result)
 
 	assert.Equal(t, engine.StatusFail(), out.Status)
-	assert.Equal(t, []string{"~nobody/g.yaml: invalid expected path: boom"}, failedGoldenFiles(out), "the path is the one of the assertion")
+	assert.Equal(t, []string{"bad: ~nobody/g.yaml: invalid expected path: boom"}, failedGoldenFiles(out), "the path is the one of the assertion")
 }
 
 func TestRunUpdateGoldens_AFileThatCantBeWritten(t *testing.T) {
@@ -236,7 +258,7 @@ func TestRunUpdateGoldens_AFileThatCantBeWritten(t *testing.T) {
 
 	assert.Equal(t, engine.StatusFail(), out.Status)
 	require.Len(t, failedGoldenFiles(out), 1)
-	assert.Contains(t, failedGoldenFiles(out)[0], "/expected/g.yaml: write expected file:")
+	assert.Contains(t, failedGoldenFiles(out)[0], "g: /expected/g.yaml: write expected file:")
 	assert.Empty(t, writtenGoldenFiles(out))
 }
 
