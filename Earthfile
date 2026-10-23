@@ -246,9 +246,6 @@ e2e-v2:
 
 # e2e-regen-expected runs all three CLI tiers in parallel, merges artifacts, runs cleanup, then exports.
 e2e-regen-expected:
-  BUILD +e2e-regen-expected-v1
-  BUILD +e2e-regen-expected-v2legacy
-  BUILD +e2e-regen-expected-v2
   FROM alpine:3.24
   RUN apk add --no-cache bash
   WORKDIR /work
@@ -265,7 +262,6 @@ e2e-regen-expected:
   SAVE ARTIFACT expected AS LOCAL tests/e2e/expected
 
 # e2e-regen-expected-v1 runs the regen script for Crossplane v1 only; used in parallel then merged.
-# Full target (not BUILD-only) so COPY +e2e-regen-expected-v1/expected works in e2e-regen-expected.
 e2e-regen-expected-v1:
   ARG TARGETARCH
   ARG TARGETOS
