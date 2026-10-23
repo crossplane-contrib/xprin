@@ -6,11 +6,12 @@ This directory contains step-by-step examples to help you learn how to use `xpri
 
 ## Table of Contents
 
+- [Check Your Setup](#check-your-setup)
 - [Basic Examples](#basic-examples)
 - [Multiple Test Cases](#multiple-test-cases)
 - [Patching XRs](#patching-xrs)
 - [Hooks](#hooks)
-- [Chained Tests / Artifacts](#chained-tests--artifacts)
+- [Chained Tests](#chained-tests)
 - [Assertions](#assertions)
 
 See [How to Run Tests](../docs/getting-started.md#how-to-run-tests) in the getting started documentation for details on running tests. The basic pattern is:
@@ -18,6 +19,37 @@ See [How to Run Tests](../docs/getting-started.md#how-to-run-tests) in the getti
 ```bash
 xprin test examples/mytests/...
 ```
+
+---
+
+## Check Your Setup
+
+`xprin check` verifies the dependencies and the settings, and tells which Crossplane CLI it found. xprin adapts to it: the Crossplane CLI v1 and v2 differ in the commands (for example `render --xrd`, or `beta validate` against `resource validate`) and in what they do, and xprin runs the right ones (see [Crossplane CLI Versions](../docs/how-it-works.md#crossplane-cli-versions)). These examples run with the Crossplane CLI v2 (2.3 or newer), and show the output of v1 where it differs.
+
+```bash
+xprin check
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin check
+<output>
+```
+
+</details>
+
+<details>
+<summary><strong>Output with the Crossplane CLI v1</strong></summary>
+
+<!-- examples-gen: v1 -->
+```
+➜ xprin check
+<output>
+```
+
+</details>
 
 ---
 
@@ -166,6 +198,21 @@ ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.985s
 
 Note: No validation results are shown because, as mentioned in the debug output, validation was skipped (no CRDs were specified).
 
+To inspect a run afterwards, `--artifacts-dir` exports the inputs and the outputs of every test case (the external artifacts) to a directory of your choice, one per test case (see [Artifacts](../docs/how-it-works.md#artifacts)):
+
+<details>
+<summary>Export the artifacts (--artifacts-dir)</summary>
+
+```
+➜ xprin test examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml --artifacts-dir /tmp/xprin-debug
+<output>
+
+➜ find /tmp/xprin-debug -maxdepth 7
+<output>
+```
+
+</details>
+
 ### Example 2: Simple Test using Claim
 
 **File**: [`mytests/1_simple_tests/example2_using-claim_xprin.yaml`](mytests/1_simple_tests/example2_using-claim_xprin.yaml)
@@ -307,6 +354,26 @@ ok	examples/mytests/1_simple_tests/example3_validate_xprin.yaml	1.338s
 
 </details>
 
+### Example 4: Test with validation failures
+
+**File**: [`mytests/1_simple_tests/example4_validate-failure_xprin.yaml`](mytests/1_simple_tests/example4_validate-failure_xprin.yaml)
+
+Example 3 passes the validation. This example shows the two ways that it fails, in the same test case. The XR doesn't match its XRD: `spec.sshPublicKey` can only be `qa_ssh_key`, and the XR sets another value, which is a schema validation error. And the CRDs of the provider are not given, so the `SecurityGroup` that the composition renders has no schema: xprin validates with `--error-on-missing-schemas`, so a resource without a schema fails the validation instead of being skipped. The render works, the test case fails, and the `Validate:` section says which resources failed and why:
+
+```bash
+xprin test examples/mytests/1_simple_tests/example4_validate-failure_xprin.yaml
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin test examples/mytests/1_simple_tests/example4_validate-failure_xprin.yaml
+<output>
+```
+
+</details>
+
 ---
 
 ## Multiple Test Cases
@@ -350,6 +417,21 @@ xprin test examples/mytests/2_multiple_testcases/example1_multiple-reconciliatio
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
 PASS
 ok	examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml	2.576s
+```
+
+</details>
+
+The function containers are reused across the test cases, and the testsuite files, of a run: the first test case that uses a function image pays for pulling it (if it isn't on the machine yet) and starting its container, and the next ones reuse the running container. With `--no-container-reuse`, every render starts and removes a fresh container instead (see [Function Container Reuse](../docs/how-it-works.md#function-container-reuse)). Compare the times of the second test case:
+
+<details>
+<summary>Without <code>--no-container-reuse</code> (the default) and with it</summary>
+
+```
+➜ xprin test examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml -v
+<output>
+
+➜ xprin test examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml -v --no-container-reuse
+<output>
 ```
 
 </details>
@@ -403,49 +485,52 @@ Note: This produces identical output to Example 1, demonstrating that `common.in
 
 ## Patching XRs
 
-Examples demonstrating how to use patches to apply XRD defaults to XRs before validation.
+Examples demonstrating how to use `patches` with an XRD.
 
-### Example 1: Patch XR with XRD Defaults
+### Example 1: Patch XR with the XRD (legacy XRD)
 
-**File**: [`mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml`](mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml)
+**File**: [`mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml`](mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml)
 
-This example demonstrates how to use `patches.xrd` to apply default values from an XRD to an XR. When an XR/Claim doesn't have a required field specified, schema validation will fail. However, if `patches.xrd` is defined, it populates the field with the default value from the XRD before validation.
+The XR of this example doesn't set `spec.team`, which its XRD requires and defaults to `devops`, and the XRD is a legacy one (`apiextensions.crossplane.io/v1`, with a Claim). Both test cases render the same XR, and the second one gives the XRD with `patches.xrd`. `crossplane render` needs the XRD to apply the defaults and to know the scope of the XR, and the Crossplane CLI v1 and v2 do that differently, so does xprin:
+
+- **v2 (2.3 or newer)**: xprin passes `patches.xrd` to `crossplane render` as `--xrd`. Without it, render takes the XRD as one of the Modern scope, and puts `resourceRefs` at `spec.crossplane.resourceRefs`, which the legacy XRD doesn't have: the first test case fails the validation (`spec.crossplane` is an unknown field).
+- **v1**: `crossplane render` has no `--xrd`. xprin applies the defaults of the XRD to the XR itself before it renders it. Without it, the first test case fails the validation (`spec.team` is required, and the XR doesn't have it).
+
+In both versions the first test case fails and the second one passes, with `--debug` to see the difference:
 
 ```bash
-➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml -v --show-render --show-validate
+xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml -v --show-render --show-validate
+xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml --debug 2>&1 | grep -oE '(Crossplane CLI v1 detected.*|Applying XRD defaults|--xrd=[^ ]+)'
 ```
 
 <details>
 <summary><strong>Output</strong></summary>
 
 ```
-➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml -v --show-render --show-validate
-=== RUN   Validation fails without XRD defaults
---- FAIL: Validation fails without XRD defaults (1.57s)
-    Render:
-        ├── XAWSInfrastructure/platform-aws
-        └── SecurityGroup/platform-aws-sg
-    Validate:
-        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws : spec.team: Required value
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 2 resources: 0 missing schemas, 1 success cases, 1 failure cases
-        crossplane: error: cannot validate resources: could not validate all resources
-=== RUN   Validation passes with XRD defaults applied
---- PASS: Validation passes with XRD defaults applied (1.32s)
-    Render:
-        ├── XAWSInfrastructure/platform-aws
-        └── SecurityGroup/platform-aws-sg
-    Validate:
-        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
-FAIL
-FAIL	examples/mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml	2.894s
+➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml -v --show-render --show-validate
+<output>
+
+➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml --debug 2>&1 | grep -oE '(Crossplane CLI v1 detected.*|Applying XRD defaults|--xrd=[^ ]+)'
+<output>
 ```
 
 </details>
 
-Note: Patches can also be specified in the `common.patches` section. If patches are defined at both the common and test case level, the test case level patches take precedence.
+<details>
+<summary><strong>Output with the Crossplane CLI v1</strong></summary>
+
+<!-- examples-gen: v1 -->
+```
+➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml -v --show-render --show-validate
+<output>
+
+➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml --debug 2>&1 | grep -oE '(Crossplane CLI v1 detected.*|Applying XRD defaults|--xrd=[^ ]+)'
+<output>
+```
+
+</details>
+
+Note: Patches can also be specified in the `common.patches` section. If patches are defined at both the common and test case level, the test case level prevails.
 
 ---
 
@@ -605,7 +690,7 @@ ok	examples/mytests/4_hooks/example3_post-test-hooks_xprin.yaml	1.464s
 
 ---
 
-## Chained Tests / Artifacts
+## Chained Tests
 
 Test cases can depend on each other. A test case lists the IDs of the test cases it depends on in `needs`: it runs after them, and only if they passed (if one failed, or was skipped, it is skipped, and the reason is printed under it).
 
@@ -633,7 +718,7 @@ xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-
 <details>
 <summary><strong>Output</strong></summary>
 
-```bash
+```
 ➜ xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-render --show-validate
 
 === RUN   Initial reconciliation loop
@@ -695,7 +780,7 @@ xprin test examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml -v
 <details>
 <summary><strong>Output</strong></summary>
 
-```bash
+```
 ➜ xprin test examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml -v --show-render --show-validate --show-assertions
 
 === RUN   Initial reconciliation loop
@@ -731,7 +816,7 @@ FAIL	examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml	1.35s
 This example demonstrates how to use outputs from a previous test as input to a subsequent test. The first test runs an initial reconciliation loop and stores its result with id `aws_first`. The second test uses `{{ .Tests.aws_first.Outputs.XR }}` to reference the XR output from the first test, enabling you to test multiple reconciliation loops in sequence.
 
 **Key Points:**
-- The first test has `id: aws_first`, which makes its outputs available as artifacts to later tests
+- The first test has `id: aws_first`, which makes its outputs available to later tests
 - The second test uses `{{ .Tests.aws_first.Outputs.XR }}` to reference the XR output from the first test
 - The second test lists `aws_first` in `needs`: a test case can only use (`.Tests`) the outputs of the test cases it lists
 - The outputs are available in the hooks too (the second test has a `pre-test` hook that checks that the XR of the first one exists)
@@ -744,7 +829,7 @@ xprin test examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.
 <details>
 <summary><strong>Output</strong></summary>
 
-```bash
+```
 ➜ xprin test examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml -v --show-render --show-validate
 
 === RUN   Initial reconciliation loop
@@ -791,7 +876,7 @@ This example demonstrates cross-composition chaining, where one composition rend
 <details>
 <summary><strong>Output</strong></summary>
 
-```bash
+```
 ➜ xprin test examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml -v --show-render --show-validate
 
 === RUN   Base layer final loop
@@ -861,13 +946,49 @@ The base layer comes first. The GCP and AWS chains each need it, but not each ot
 
 ---
 
-### What happens when `needs` goes wrong
+### Example 6: Mistakes in the use of `needs`
 
-The files under [`mytests/0_e2e/`](mytests/0_e2e/) and [`mytests/5_chained_tests/`](mytests/5_chained_tests/) also act as the acceptance tests of `needs`:
+**File**: [`mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml`](mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml)
 
-- [`failures_xprin.yaml`](mytests/0_e2e/failures_xprin.yaml) (the `Needs:` test cases at the end): more cases of skipped test cases (see Example 2). A test case that uses the outputs of another one without listing it fails with an error that says it has to be listed. A typo in the ID and a typo in the output fail too, with the error of the template.
-- [`broken_needs_xprin.yaml`](mytests/0_e2e/broken_needs_xprin.yaml): `needs` that make the file invalid: an ID that doesn't exist, test cases that need each other (a cycle), and a test case that needs itself. All the problems are reported together.
-- [`legacy_success_xprin.yaml`](mytests/5_chained_tests/legacy_success_xprin.yaml) and [`legacy_failure_xprin.yaml`](mytests/5_chained_tests/legacy_failure_xprin.yaml): the old way (deprecated), without `needs`: the dependency is detected from `.Tests`. It works and xprin prints a warning, but a typo in the ID, or a test case listed below, fail. These files are removed in xprin 0.7.0.
+A test case can only use the outputs of the test cases that it lists in `needs`. Using the outputs of one that it doesn't list fails with an error that says it has to be listed. A typo in the ID, or in the name of the output, fails with the error of the template:
+
+```bash
+xprin test examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin test examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml
+<output>
+```
+
+</details>
+
+### Example 7: `needs` that make the file invalid
+
+**File**: [`mytests/5_chained_tests/example7_needs-invalid_xprin.yaml`](mytests/5_chained_tests/example7_needs-invalid_xprin.yaml)
+
+Some `needs` make the testsuite file invalid: an ID that doesn't exist, test cases that need each other (a cycle), and a test case that needs itself. No test case runs, and all the problems are reported together:
+
+```bash
+xprin test examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin test examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml
+<output>
+```
+
+</details>
+
+### The old way (deprecated)
+
+[`legacy_success_xprin.yaml`](mytests/5_chained_tests/legacy_success_xprin.yaml) and [`legacy_failure_xprin.yaml`](mytests/5_chained_tests/legacy_failure_xprin.yaml) are the old way, without `needs`: the dependency is detected from `.Tests`. It works and xprin prints a warning, but a typo in the ID, or a test case listed below, fail. These files are removed in xprin 0.7.0.
 
 ---
 
@@ -944,7 +1065,42 @@ This example demonstrates wildcard pattern matching in resource identifiers (e.g
 xprin test examples/mytests/6_assertions/example2_assertions_pattern_xprin.yaml -v --show-assertions
 ```
 
-### Example 3: Diff and Dyff (golden-file) assertions
+### Example 3: Generating golden files with update-goldens
+
+**File**: [`mytests/6_assertions/example3_golden_file_xprin.yaml`](mytests/6_assertions/example3_golden_file_xprin.yaml)
+
+Golden files don't have to be written by hand. `xprin update-goldens` runs the render of each test case that has `assertions.diff` or `assertions.dyff` entries, and writes the result to their `expected:` paths. This is the workflow:
+
+1. Write the `diff` or `dyff` assertions, with the `expected:` paths of the golden files that don't exist yet (here, we delete the two golden files that the next example uses).
+2. Run `xprin update-goldens`. It lists the files it wrote under `Golden Files:`.
+3. Check the generated file, and commit it: it is the baseline now.
+4. Run `xprin test`: the assertions pass against the golden files that were just generated (the next example).
+
+```bash
+rm examples/mytests/6_assertions/golden_full_render.yaml examples/mytests/6_assertions/golden_single_resource.yaml
+xprin update-goldens examples/mytests/6_assertions/example3_golden_file_xprin.yaml
+head -15 examples/mytests/6_assertions/golden_single_resource.yaml
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ rm examples/mytests/6_assertions/golden_full_render.yaml examples/mytests/6_assertions/golden_single_resource.yaml
+<output>
+
+➜ xprin update-goldens examples/mytests/6_assertions/example3_golden_file_xprin.yaml
+<output>
+
+➜ head -15 examples/mytests/6_assertions/golden_single_resource.yaml
+<output>
+```
+
+</details>
+
+Run `xprin update-goldens` again whenever the render output changes on purpose, and review the diff of the golden files in your version control.
+
+### Example 4: Diff and Dyff (golden-file) assertions
 
 **File**: [`mytests/6_assertions/example3_golden_file_xprin.yaml`](mytests/6_assertions/example3_golden_file_xprin.yaml)
 
@@ -953,8 +1109,7 @@ xprin test examples/mytests/6_assertions/example2_assertions_pattern_xprin.yaml 
 
 This example has a single test that **passes** when the render output matches the golden files. It uses `golden_full_render.yaml` (full render) and `golden_single_resource.yaml` (one resource: `Cluster/platform-aws-rds`). Each assertion has `name` and `expected` (path to the golden file, relative to the test suite file). The optional `resource` field (e.g. `Cluster/platform-aws-rds`) compares that resource’s file instead of the full render.
 
-**First-time setup — generate the golden files:**  
-The file includes a commented-out preliminary test “Generate golden files”. Uncomment that test, run the suite once, then comment it back out. That run will create `golden_full_render.yaml` and `golden_single_resource.yaml` in the same directory.
+**Golden files:** they are the ones that [Example 3](#example-3-generating-golden-files-with-update-goldens) generates, and they are in the repository too.
 
 **To see failure output:**  
 Edit one of the golden files (e.g. change a value) and run the test again; the assertion will fail and show the diff or dyff output.

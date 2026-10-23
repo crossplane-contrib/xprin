@@ -3,15 +3,16 @@ common:
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     crds:
-    - ../../aws/xrd.yaml
+    - ../../aws/xrd_legacy.yaml
     - ../../aws/crossplane.yaml
 
 tests:
-- name: "Validation fails without XRD defaults"
+- name: "Validation fails without patches.xrd (legacy XRD)"
   inputs:
     xr: ../../aws/xr_without_team.yaml
-- name: "Validation passes with XRD defaults applied"
+
+- name: "Validation passes with patches.xrd (legacy XRD)"
   patches:
-    xrd: ../../aws/xrd.yaml
+    xrd: ../../aws/xrd_legacy.yaml
   inputs:
     xr: ../../aws/xr_without_team.yaml

@@ -1,6 +1,6 @@
-DEBUG: Processing testsuite file examples/mytests/0_e2e/validations_xrd_v1_xprin.yaml
+DEBUG: Processing testsuite file examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml
 DEBUG: Created internal artifacts directory: /tmp/xprin-internal-artifacts-XXXX
-DEBUG: Using testsuite file directory for relative path resolution: examples/mytests/0_e2e
+DEBUG: Using testsuite file directory for relative path resolution: examples/mytests/3_patch_xr
 DEBUG: Found common configuration:
 DEBUG:   Inputs:
 DEBUG:   - Composition: ../../aws/composition.yaml
@@ -9,7 +9,7 @@ DEBUG:   - CRDs:
 DEBUG:     - ../../aws/xrd_legacy.yaml
 DEBUG:     - ../../aws/crossplane.yaml
 DEBUG: Found 2 test cases
-DEBUG: Starting test case 'validation with incomplete XR, no patches, XRD v1'
+DEBUG: Starting test case 'Validation fails without patches.xrd (legacy XRD)'
 DEBUG: Created temporary directory for test case: /tmp/xprin-testcase-XXXX
 DEBUG: - Inputs: /tmp/xprin-testcase-XXXX/inputs
 DEBUG: - Outputs: /tmp/xprin-testcase-XXXX/outputs
@@ -39,12 +39,12 @@ DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-x
 DEBUG: Wrote rendered output to: /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
 DEBUG: Running validate command: /usr/local/bin/crossplane resource validate --error-on-missing-schemas --crossplane-image=xpkg.crossplane.io/crossplane/crossplane:vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/crds /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
 DEBUG: Wrote validation output to: /tmp/xprin-testcase-XXXX/outputs/validate.txt
---- FAIL: validation with incomplete XR, no patches, XRD v1 (X.XXXs)
+--- FAIL: Validation fails without patches.xrd (legacy XRD) (X.XXXs)
     Validate:
         [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws : spec.crossplane: Invalid value: "crossplane": unknown field: "crossplane"
         Total 2 resources: 0 missing schemas, 1 success cases, 1 failure cases
         crossplane: error: could not validate all resources
-DEBUG: Starting test case 'validation with incomplete XR, with patches, XRD v1'
+DEBUG: Starting test case 'Validation passes with patches.xrd (legacy XRD)'
 DEBUG: Created temporary directory for test case: /tmp/xprin-testcase-XXXX
 DEBUG: - Inputs: /tmp/xprin-testcase-XXXX/inputs
 DEBUG: - Outputs: /tmp/xprin-testcase-XXXX/outputs
@@ -79,8 +79,8 @@ DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-x
 DEBUG: Wrote rendered output to: /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
 DEBUG: Running validate command: /usr/local/bin/crossplane resource validate --error-on-missing-schemas --crossplane-image=xpkg.crossplane.io/crossplane/crossplane:vX.Y.Z /tmp/xprin-testcase-XXXX/inputs/crds /tmp/xprin-testcase-XXXX/outputs/rendered.yaml
 DEBUG: Wrote validation output to: /tmp/xprin-testcase-XXXX/outputs/validate.txt
-DEBUG: Test case 'validation with incomplete XR, with patches, XRD v1' completed with status: PASS
+DEBUG: Test case 'Validation passes with patches.xrd (legacy XRD)' completed with status: PASS
 FAIL
-FAIL	examples/mytests/0_e2e/validations_xrd_v1_xprin.yaml	X.XXXs
+FAIL	examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml	X.XXXs
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors

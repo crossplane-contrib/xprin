@@ -5,11 +5,11 @@ FAIL	examples/mytests/0_e2e/generated_invalid_xprin.yaml	[invalid testsuite file
 invalid testsuite file:
 - test case "Empty needs" has an empty `needs`: list the IDs of the test cases it needs, or remove it
 FAIL	examples/mytests/0_e2e/generated_empty_needs_xprin.yaml	[invalid testsuite file]
-# examples/mytests/0_e2e/broken_needs_xprin.yaml
+# examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml
 invalid testsuite file:
 - test case "Second loop, with a typo in needs" needs "frist", but no test case has that ID
 - needs cycle: third -> fourth -> third
 - needs cycle: fifth -> fifth
-FAIL	examples/mytests/0_e2e/broken_needs_xprin.yaml	[invalid testsuite file]
+FAIL	examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml	[invalid testsuite file]
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors

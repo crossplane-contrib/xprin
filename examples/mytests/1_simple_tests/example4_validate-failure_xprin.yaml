@@ -1,0 +1,8 @@
+tests:
+- name: "Validation fails: a value that the XRD doesn't allow, and the provider CRDs are missing"
+  inputs:
+    xr: ../../aws/xr_invalid.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd.yaml

@@ -2,14 +2,15 @@
 --- PASS: Initial reconciliation loop (using XR) (X.XXXs)
 PASS
 ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	X.XXXs
-=== RUN   Validation failure (missing CRD)
---- FAIL: Validation failure (missing CRD) (X.XXXs)
+=== RUN   Validation fails: a value that the XRD doesn't allow, and the provider CRDs are missing
+--- FAIL: Validation fails: a value that the XRD doesn't allow, and the provider CRDs are missing (X.XXXs)
     Validate:
-        [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure
-        Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
-        crossplane: error: could not validate all resources, schema(s) missing
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws : spec.sshPublicKey: Unsupported value: "prod_ssh_key": supported values: "qa_ssh_key"
+        [!] could not find CRD/XRD for: ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup
+        Total 2 resources: 1 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
 FAIL
-FAIL	examples/mytests/0_e2e/single_failure_xprin.yaml	X.XXXs
+FAIL	examples/mytests/1_simple_tests/example4_validate-failure_xprin.yaml	X.XXXs
 === RUN   Initial reconciliation loop (using Claim)
 --- PASS: Initial reconciliation loop (using Claim) (X.XXXs)
 PASS

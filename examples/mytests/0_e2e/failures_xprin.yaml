@@ -305,25 +305,9 @@ tests:
   inputs:
     xr: ../../aws/xr.yaml
 
-- name: "Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs)"
-  inputs:
-    xr: '{{ .Tests.success.Outputs.XR }}'
-
 - name: "Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs)"
   inputs:
     xr: '{{ (index .Tests "success").Outputs.XR }}'
-
-- name: "Needs: a typo in the ID at the template variable"
-  needs:
-  - success
-  inputs:
-    xr: '{{ .Tests.succes.Outputs.XR }}'
-
-- name: "Needs: a typo in the output"
-  needs:
-  - success
-  inputs:
-    xr: '{{ .Tests.success.Outputs.XRR }}'
 
 - name: "Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs)"
   needs:
