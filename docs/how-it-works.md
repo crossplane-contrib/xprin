@@ -1,10 +1,24 @@
 # How It Works
 
-This document provides a deep dive into how xprin works under the hood, including execution flow, error handling, and internal mechanics.
+This document describes how xprin behaves, step by step: how a testsuite file is loaded, what each phase of a test case does, how errors are reported, and how test cases depend on each other. For the flow diagrams and the components behind them, see [Architecture](architecture.md).
 
-## High-Level Execution Flow
+## Discovering Testsuite Files
 
-At its core, xprin executes test cases through a series of sequential phases:
+`xprin test` takes one or more targets: files, directories, or `dir/...` for a directory and everything below it. It discovers the files named `xprin.yaml` or `*_xprin.yaml` among them, and loads and runs them one by one, each with its own result line.
+
+## Loading a Testsuite File
+
+Before any test case of a file runs, xprin loads it once:
+
+1. The file is read and checked: a test case needs a name, IDs are unique, and every ID in `needs` belongs to a test case of the file.
+2. The [dependency graph](#dependency-graph) is built from the `needs` of the test cases, and checked for cycles. A file with a problem is reported with all its problems, and none of its test cases runs.
+3. The graph gives the order in which the test cases run: every test case after the ones it needs, whatever the order of the file.
+
+The test cases then run one after another in that order (currently xprin doesn't run test cases in parallel). One that needs a test case that failed or was skipped is skipped (see [Dependencies Between Test Cases](#dependencies-between-test-cases-needs)); the others go through the phases below.
+
+## Phase-by-Phase Breakdown
+
+Each test case goes through a series of sequential phases:
 
 ```mermaid
 flowchart TD
@@ -14,8 +28,9 @@ flowchart TD
     C --> D
     D --> E[Validate]
     D --> F[Assertions]
-    E --> G[Post-test Hooks<br/>Save Internal Artifacts]
+    E --> G[Post-test Hooks]
     F --> G
+    G --> H["Finish<br/>Save Internal Artifacts<br/>Export External Artifacts"]
 
     style A fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
     style B fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
@@ -24,6 +39,7 @@ flowchart TD
     style E fill:#a855f7,stroke:#7e22ce,stroke-width:2px,color:#fff
     style F fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
     style G fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style H fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
 ```
 
 **Phase Overview:**
@@ -36,73 +52,22 @@ flowchart TD
 3. **Render** - Execute `crossplane render` to generate manifests
 4. **Validate** - Execute `crossplane resource validate` (if CRDs provided)
 5. **Assert** - Run declarative Assertions on rendered resources
-6. **Finish**
-  - Execute Post-test Hooks
+6. **Post-test Hooks** - Execute the Post-test Hooks
+7. **Finish**
   - Save internal artifacts (if test has ID)
+  - Export external artifacts (if `--artifacts-dir` is set)
 
-## Detailed Execution Flow
-
-The complete execution flow includes decision points and optional steps:
-
-```mermaid
-flowchart TD
-    A["Start Test Case<br/>• Expand inputs<br/>• Check paths<br/>• Copy inputs to tmp dir"] --> B["Pre-test Hooks<br/>• Setup environment<br/>• Patch inputs<br/>• Pre-validate inputs"]
-    B --> C{"Claim input?"}
-    C -->|Yes| D["Convert Claim to XR<br/>xprin-helpers convert-claim-to-xr"]
-    C -->|No| E["Use XR directly"]
-    D --> F{"Patch XR?"}
-    E --> F
-    F -->|Yes| G["xprin-helpers patch-xr<br/>• Apply XRD defaults<br/>• Add connection secret"]
-    F -->|No| I["crossplane render"]
-    G --> I
-    I --> J{"CRDs provided?"}
-    J -->|Yes| K["crossplane resource validate"]
-    J -->|No| L["Assertions (xprin / diff / dyff)<br/>• Count, existence, fields<br/>• Golden-file diff"]
-    K --> L
-    L --> M["Post-test Hooks<br/>• Cleanup<br/>• Validate outputs"]
-    M --> N{"Test case has ID?"}
-    N -->|Yes| O["Save Internal Artifacts"]
-    N -->|No| P["End Test Case"]
-    O --> P
-
-    %% Color scheme: Group related operations with white text for readability
-    classDef xprin fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
-    classDef xprinHelpers fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
-    classDef crossplane fill:#a855f7,stroke:#7e22ce,stroke-width:2px,color:#fff
-    classDef validation fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
-    classDef neutral fill:#6b7280,stroke:#374151,stroke-width:2px,color:#fff
-    classDef decision fill:#f3f4f6,stroke:#9ca3af,stroke-width:2px,color:#000
-
-    class A,B,M,O,P xprin
-    class D,G xprinHelpers
-    class I,K crossplane
-    class L validation
-    class E neutral
-    class C,F,J,N decision
-```
-
-## Phase-by-Phase Breakdown
+The [template variables](#available-variables) you can use, and where, are listed in [Template Variable Expansion](#template-variable-expansion).
 
 ### Phase 1: Setup
 
 **What happens:**
 1. **Input Expansion**: Template variables (e.g., `{{ .Repositories.myrepo }}`) are expanded using Go templates
-2. **Path Resolution**: All input paths are resolved (absolute, relative to test suite file, or template-based)
-3. **Path Verification**: All required files are checked for existence
-4. **Temp Directory Creation**: A temporary directory is created for the test case execution
-5. **File Copying**: All input files are copied to the temp directory (inputs are never modified in place)
-6. **Pre-test Hooks**: All pre-test hooks are executed sequentially in the temp directory (can modify copied files)
-7. **Claim to XR Conversion** (if using Claim input): If a Claim is provided instead of an XR, it is converted to an XR using `xprin-helpers convert-claim-to-xr`. The converted XR is written to the temp directory and used for subsequent phases.
-   - If the test case also sets `patches.xrd`, it's passed through to this step: the XR's kind is resolved from the XRD's `spec.names.kind` instead of guessed as "X" prefixed to the Claim's kind, since that's only a naming convention, not a guarantee.
-   - If the test case also has a full-render `assertions.diff`/`assertions.dyff` entry (an `expected:` golden file with no `resource:` set), that golden file is passed through as `--golden`: a matching document's name is reused instead of a fresh random suffix, making the Claim-derived XR - and anything a Composition derives from its name - reproducible across runs (see [convert-claim-to-xr.md](xprin-helpers/convert-claim-to-xr.md)).
+2. **Path Resolution**: All input paths are resolved (absolute, relative to test suite file, or template-based), and checked for existence
+3. **Temp Directory**: The input files are copied to a temporary directory made for the test case (inputs are never modified in place)
+4. **Pre-test Hooks**: All pre-test hooks are executed sequentially (they can modify the copied files)
 
-**Template Variables Available:**
-- `{{ .Inputs.XR }}` - Path to XR file (only available if XR is provided directly; **not available in pre-test hooks when using Claim input**, as conversion happens after hooks)
-- `{{ .Inputs.Claim }}` - Path to Claim file (if using Claim input)
-- `{{ .Inputs.Composition }}` - Path to Composition file
-- `{{ .Inputs.Functions }}` - Path to Functions directory
-- `{{ .Repositories.name }}` - Repository paths from configuration
-- `{{ .Tests.{test-id}.Outputs.* }}` - Cross-test references (for tests with IDs, listed in `needs`)
+**Template Variables:** see [Available Variables](#available-variables).
 
 **Key Points:**
 - All operations happen in an isolated temp directory
@@ -113,15 +78,13 @@ flowchart TD
 ### Phase 2: Patch (Optional)
 
 **What happens:**
-1. **XR Detection**: Determine if XR patching is needed (based on `patches` configuration)
-2. **XRD Defaults**: If `xrd` path is provided, apply XRD defaults to the XR
-3. **Connection Secret**: If `connection-secret: true`, set the `spec.writeConnectionSecretToRef` field in the XR (does not create the secret itself, just configures where Crossplane should write it)
+1. **Claim to XR Conversion** (if using Claim input): If a Claim is provided instead of an XR, it is converted to an XR, the way [`xprin-helpers convert-claim-to-xr`](xprin-helpers/convert-claim-to-xr.md) does. The converted XR is written to the temp directory and used for subsequent phases.
+   - If the test case also sets `patches.xrd`, it's passed through to this step: the XR's kind is resolved from the XRD's `spec.names.kind` instead of guessed as "X" prefixed to the Claim's kind, since that's only a naming convention, not a guarantee.
+   - If the test case also has a full-render `assertions.diff`/`assertions.dyff` entry (an `expected:` golden file with no `resource:` set), that golden file is passed through as `--golden`: a matching document's name is reused instead of a fresh random suffix, making the Claim-derived XR - and anything a Composition derives from its name - reproducible across runs (see [convert-claim-to-xr.md](xprin-helpers/convert-claim-to-xr.md)).
+2. **XRD Defaults**: If `xrd` path is provided in `patches`, apply the XRD defaults to the XR
+3. **Connection Secret**: If `connection-secret: true`, set the `spec.writeConnectionSecretToRef` field in the XR, with a configurable name and namespace (does not create the secret itself, just configures where Crossplane should write it)
 
-**XR Patching Details:**
-- Uses `xprin-helpers patch-xr` tool
-- XRD defaults are applied by reading the XRD and extracting default values
-- Connection secret reference is set in `spec.writeConnectionSecretToRef` with configurable name and namespace (the secret itself is not created, only the reference field is set)
-- Patched XR replaces the original in the temp directory
+The patched XR replaces the original in the temp directory (see [`xprin-helpers patch-xr`](xprin-helpers/patch-xr.md)).
 
 **Alternative Patching via Pre-test Hooks:**
 - Pre-test hooks (executed in Phase 1) can also be used for patching XR, Composition, or other input files
@@ -130,9 +93,9 @@ flowchart TD
 - If both pre-test hook patching and `patches` configuration are used, pre-test hooks run first (in Phase 1), followed by the formal patching phase (Phase 2)
 
 **When it runs:**
-- Only if `patches` section is defined (in `common` or test case level)
-- Test case level patches override common patches
-- If no patches are defined, this phase is skipped
+- The Claim conversion only runs with a Claim input
+- The patching only runs if a `patches` section is defined (in `common` or test case level), and test case level patches override common patches
+- Without either, this phase is skipped
 
 ### Phase 3: Render
 
@@ -142,11 +105,9 @@ flowchart TD
    - Composition file
    - Functions directory
    - Optional context files, context values, observed resources, extra resources, function credentials
-2. **Output Capture**: Rendered manifests are written to a file in the temp directory
-3. **Resource Parsing**: Rendered output is parsed to extract individual resources
-4. **Resource Indexing**: Resources are indexed by `Kind/name` for later reference
+2. **Output Capture**: The rendered manifests are written to the temp directory, and split into one file per resource
 
-**Output Files:**
+**Output Files** (available to post-test hooks, see [Available Variables](#available-variables)):
 - `{{ .Outputs.Render }}` - Full rendered output (all resources in one file)
 - `{{ .Outputs.Rendered "Kind/name" }}` - Individual resource files (one per resource)
 
@@ -155,19 +116,15 @@ flowchart TD
 - No subsequent phases (validate, assertions, post-test hooks) are executed
 - This is a hard failure because without rendered output, nothing else can proceed
 
-**CLI version note:** when a test case sets `patches.xrd`, xprin appends `--xrd <path>` to the render command, but only when the detected CLI is v2.0+, which introduced the flag. On CLI v1.x, `patches.xrd` still applies XRD defaults via `xprin-helpers patch-xr --xrd <path>` without the render flag. Passing `--xrd` matters for LegacyCluster XRDs: without it the v2 render engine defaults to Modern schema, placing `resourceRefs` at `spec.crossplane.resourceRefs` instead of `spec.resourceRefs`, which breaks validation against the XRD schema.
+**CLI versions:** when a test case sets `patches.xrd`, xprin passes it to render as `--xrd` on the CLIs that support it (see [Crossplane CLI Versions](#crossplane-cli-versions)).
 
-**Function container reuse:** before building the render command, xprin patches the functions file(s) in the temp directory so that each function's Docker container is named deterministically (derived from its image reference) and left running after the call instead of being torn down. See [Function Container Reuse](#function-container-reuse) below for the full mechanism, and `--no-container-reuse` to disable it.
+**Function container reuse:** the function containers are reused across test cases, and kept running after each render. See [Function Container Reuse](#function-container-reuse), and `--no-container-reuse` to disable it.
 
 ### Phase 4: Validate (Optional)
 
 **What happens:**
-1. **CRD Check**: If `crds` are provided in inputs, validation proceeds
-2. **Command Execution**: Runs `crossplane resource validate` (or `crossplane beta validate` on legacy CLIs) with:
-   - Rendered output from Phase 3
-   - CRD paths provided in inputs
-3. **Output Capture**: Validation results are written to a file
-4. **Result Parsing**: Validation output is parsed to determine success/failure
+1. **Command Execution**: If `crds` are provided in inputs, runs `crossplane resource validate` (or `crossplane beta validate` on legacy CLIs) with the rendered output from Phase 3 and the CRD paths
+2. **Output Capture**: The validation results are written to a file, and parsed to determine success or failure
 
 **Output Files:**
 - `{{ .Outputs.Validate }}` - Raw Validate output file
@@ -177,7 +134,7 @@ flowchart TD
 - Validation failures are collected and reported at the end
 - This allows assertions to run even if validation fails, enabling better debugging
 
-**CLI version note:** the validate subcommand is auto-detected at startup. `crossplane resource validate` is used for CLI ≥ v2.3.0; `crossplane beta validate` is used for older CLIs. The subcommand can be overridden via `subcommands.validate` in the config file. Run `xprin check` to see which subcommand is active.
+**CLI versions:** the validate subcommand depends on the CLI, and can be set in the configuration (see [Crossplane CLI Versions](#crossplane-cli-versions)).
 
 **When it runs:**
 - Only if `crds` are provided in inputs
@@ -186,24 +143,13 @@ flowchart TD
 ### Phase 5: Assert
 
 **What happens:**
-1. **Assertion Execution**: All assertions are executed sequentially
-2. **Resource Loading**: For each assertion, the relevant rendered resources are loaded
-3. **Evaluation**: Each assertion is evaluated against the rendered resources
-4. **Result Collection**: All assertion results (pass/fail) are collected
+1. **Assertion Execution**: All assertions are executed sequentially, each against the rendered resources
+2. **Result Collection**: All assertion results (pass/fail) are collected
 
-**Assertion engines:** xprin supports three engines (see [Assertions](assertions.md)):
+**Assertion engines:** xprin supports three engines (the types, the `resource` patterns and the field paths are in [Assertions](assertions.md)):
 - **xprin**: Count, existence, field type/value checks on rendered resources
 - **diff**: Golden-file comparison using unified diff (line-by-line)
 - **dyff**: Golden-file comparison using structural YAML diff (document-aware)
-
-**xprin assertion types** (examples):
-- **Count**: Validates number of rendered resources (optionally only those matching a `resource` pattern)
-- **Exists**: Checks that at least one resource matching the pattern exists (supports exact name, kind only, or glob pattern)
-- **NotExists**: Checks that no resource matching the pattern exists (supports exact name, kind, or pattern)
-- **FieldType**: Validates field type on each matching resource (`string`, `number`, `boolean`, `array`, `object`, `null`)
-- **FieldExists**: Checks if a field exists at a given path in each matching resource
-- **FieldNotExists**: Checks if a field does not exist at a given path in each matching resource
-- **FieldValue**: Validates field value using operators (`==`, `is`) in each matching resource
 
 **Error Handling:**
 - All assertions are evaluated even if some fail
@@ -211,42 +157,32 @@ flowchart TD
 - If assertions fail, the test **continues** to post-test hooks
 - This allows cleanup and additional validation even when assertions fail
 
-**Resource Access:**
-- Assertions access rendered resources from the temp directory
-- Resources are identified by exact `Kind/name`, kind only (`Kind`), or shell-style patterns (e.g. `SecurityGroup/group-*`, `*/*`); see [Assertions – Resource field: patterns](assertions.md#resource-field-patterns-globbing)
-- Field paths use dot notation (e.g., `spec.replicas`, `metadata.labels.app`)
-
 **Output Files:**
 - `{{ .Outputs.Assertions }}` - Assertions output path
 
-### Phase 6: Finish
+### Phase 6: Post-test Hooks (Optional)
 
-**What happens:**
-1. **Post-test Hooks**: All post-test hooks are executed sequentially
-2. **Save Internal Artifacts** (if test has ID): The outputs are saved as internal artifacts, for the test cases that need it
-3. **Cleanup**: Temp directory is cleaned up
+**What happens:** All post-test hooks are executed sequentially, after the assertions (see [Hooks Execution](#hooks-execution)).
 
-**Template Variables Available:**
-- All input variables (same as pre-test hooks)
-- `{{ .Outputs.XR }}` - Path to XR file
-- `{{ .Outputs.Render }}` - Path to full rendered output
-- `{{ .Outputs.Validate }}` - Path to validation output (if validation ran)
-- `{{ .Outputs.Assertions }}` - Path to assertions output (assertions.txt; if assertions ran)
-- `{{ .Outputs.RenderCount }}` - Number of rendered resources
-- `{{ index .Outputs.Rendered "Kind/Name" }}` - Individual resource paths
-- `{{ .Tests.{test-id}.Outputs.* }}` - Cross-test references (for the test cases listed in `needs`)
-
-**Save Internal Artifacts:**
-- Only happens if test case has an `id` field
-- All outputs are saved as internal artifacts, in a directory shared by the test cases of the testsuite file
-- They are organized by test ID: `internal-artifacts/{test-id}/`
-- They are available to the test cases that list it in `needs`, via `.Tests.{test-id}.Outputs.*` (see [Test Chaining](#test-chaining))
-- The directory is cleaned up after all tests complete
+**Template Variables:** see [Available Variables](#available-variables).
 
 **Error Handling:**
-- Post-test hooks always run, even if previous phases failed
-- This ensures cleanup can happen regardless of test outcome
+- Post-test hooks run even if validation or assertions failed, so that cleanup can happen; they don't run after a hard failure (setup or render, see [Error Handling Behavior](#error-handling-behavior))
 - Hook failures are collected and reported
+
+**When it runs:**
+- Only if post-test hooks are defined (in `common` or test case level)
+
+### Phase 7: Finish
+
+**What happens:**
+1. **Save Internal Artifacts** (if test has ID): The outputs are saved as internal artifacts, for the test cases that need it
+2. **Export External Artifacts** (if `--artifacts-dir` is set): The inputs and the outputs of the test case are exported to a persistent directory
+3. **Cleanup**: Temp directory is cleaned up
+
+**Save Internal Artifacts:** only for a test case with an `id`. Its outputs are available to the test cases that list it in `needs`, via `.Tests.{test-id}.Outputs.*` (see [Test Chaining](#test-chaining) and [Artifacts](#artifacts)).
+
+**Export External Artifacts:** only with `--artifacts-dir` (`xprin test` only), also when a phase failed, so that the failure can be inspected (see [Artifacts](#artifacts)).
 
 ## Error Handling Behavior
 
@@ -287,6 +223,7 @@ These failures are collected and reported, but execution continues:
 
 - All errors are collected throughout execution
 - Errors are reported at the end of test execution
+- `xprin test` ends with `FAIL` and exit code 1 when any test case fails or any testsuite file can't be loaded
 - Verbose mode (`-v`) shows detailed error messages
 - Debug mode (`--debug`) shows even more detail
 
@@ -388,29 +325,28 @@ Template variables use Go's `text/template` package for dynamic content.
 
 ### Available Variables
 
-**Repository Variables:**
-- `{{ .Repositories.name }}` - Path to repository from configuration
+| Variable | Description | Where it can be used |
+|---|---|---|
+| `{{ .Repositories.name }}` | Path of a repository from the configuration | Input fields and hooks |
+| `{{ .Inputs.XR }}` | XR file path (not in pre-test hooks with a Claim input: the conversion comes after) | Hooks |
+| `{{ .Inputs.Claim }}` | Claim file path (with a Claim input) | Hooks |
+| `{{ .Inputs.Composition }}` | Composition file path | Hooks |
+| `{{ .Inputs.Functions }}` | Functions file or directory path | Hooks |
+| `{{ .Inputs.CRDs }}` | List of CRD file paths | Hooks |
+| `{{ .Inputs.ContextFiles }}` | Map of context keys to file paths | Hooks |
+| `{{ .Inputs.ContextValues }}` | Map of context keys to inline values | Hooks |
+| `{{ .Inputs.ObservedResources }}` | Observed resources file path | Hooks |
+| `{{ .Inputs.ExtraResources }}` | Extra resources file path | Hooks |
+| `{{ .Inputs.FunctionCredentials }}` | Function credentials file path | Hooks |
+| `{{ .Tests.<id>.Outputs.* }}` | Outputs of a test case listed in `needs`, which must have an `id` and have completed (see [Test Chaining](#test-chaining)) | Input fields and hooks |
+| `{{ .Outputs.XR }}` | XR file path | Post-test hooks only |
+| `{{ .Outputs.Render }}` | Full rendered output path | Post-test hooks only |
+| `{{ index .Outputs.Rendered "Kind/Name" }}` | Path of an individual rendered resource | Post-test hooks only |
+| `{{ .Outputs.RenderCount }}` | Number of rendered resources | Post-test hooks only |
+| `{{ .Outputs.Validate }}` | Validation output path, if validation ran | Post-test hooks only |
+| `{{ .Outputs.Assertions }}` | Assertions output path (`assertions.txt`), if assertions ran | Post-test hooks only |
 
-**Input Variables:**
-- `{{ .Inputs.XR }}` - XR file path
-- `{{ .Inputs.Claim }}` - Claim file path
-- `{{ .Inputs.Composition }}` - Composition file path
-- `{{ .Inputs.Functions }}` - Functions directory path
-- All other input fields are available via `{{ .Inputs.FieldName }}`
-
-**Output Variables** (post-test hooks only):
-- `{{ .Outputs.XR }}` - XR file path
-- `{{ .Outputs.Render }}` - Full rendered output path
-- `{{ .Outputs.Validate }}` - Validation output path
-- `{{ .Outputs.Assertions }}` - Assertions output path (assertions.txt; if assertions ran)
-- `{{ .Outputs.RenderCount }}` - Number of rendered resources
-- `{{ index .Outputs.Rendered "Kind/Name" }}` - Individual resource paths
-
-**Cross-test References:**
-- `{{ .Tests.{test-id}.Outputs.* }}` - Access outputs from previous tests
-- Only available for tests with `id` field
-- Only available to the test cases that list it in `needs`
-- Only available after the referenced test has completed
+Everything can be used in post-test hooks. `.Inputs` points to the copies of the inputs in the temp directory, so it is for hooks, and `.Outputs` exists only after the render, so only post-test hooks can use it.
 
 ### Template Functions
 
@@ -521,24 +457,9 @@ A test case can only use (`.Tests.<id>`) the outputs of the test cases it lists 
 #### How It Works
 
 1. **Test ID**: The test case that is used must have an `id` field
-2. **Internal Artifacts**: After test completes, its outputs are saved as internal artifacts, in `internal-artifacts/{test-id}/`. They are not the external artifacts that `--artifacts-dir` exports (the inputs and the outputs of every test case, see [Resource Cleanup](#resource-cleanup))
+2. **Internal Artifacts**: After test completes, its outputs are saved as internal artifacts (see [Artifacts](#artifacts))
 3. **Cross-test References**: The test cases that list it in `needs` can reference its outputs via `.Tests.{test-id}.Outputs.*`
-4. **Cleanup**: The directory of the internal artifacts is cleaned up after all tests complete
-
-#### Internal Artifact Structure
-
-```
-internal-artifacts/
-  {test-id-1}/
-    xr.yaml
-    render.yaml
-    validate.txt (if validation ran)
-    rendered/
-      Kind1-Name1.yaml
-      Kind2-Name2.yaml
-  {test-id-2}/
-    ...
-```
+4. **Cleanup**: The internal artifacts are removed when the testsuite file finishes
 
 #### Use Cases
 
@@ -575,7 +496,7 @@ Hooks provide a way to execute arbitrary shell commands at specific points in th
 
 ### Execution Environment
 
-- **Working Directory**: Temp directory for the test case
+- **Working Directory**: The directory of the testsuite file. The copies of the inputs, and the outputs, in the temp directory of the test case are reached through `{{ .Inputs.* }}` and `{{ .Outputs.* }}`
 - **Environment Variables**: Inherited from parent process
 - **Template Expansion**: Hook commands are expanded with template variables before execution
 - **Sequential Execution**: Hooks run one after another, in order
@@ -596,10 +517,7 @@ Hooks provide a way to execute arbitrary shell commands at specific points in th
 - Any modifications made in pre-test hooks will be used in subsequent phases (render, validate, etc.)
 - The original files in your repository remain unchanged
 
-**Available Variables:**
-- Input variables (XR, Claim, Composition, etc.) - all point to copied files in temp directory
-- Repository variables
-- Cross-test references (from previous tests)
+**Available Variables:** see [Available Variables](#available-variables).
 
 **Error Handling:**
 - If any pre-test hook fails (non-zero exit), test fails immediately
@@ -615,61 +533,17 @@ Hooks provide a way to execute arbitrary shell commands at specific points in th
 - Comparison with previous tests
 - External tool integration (Kyverno, UpTest, etc.)
 
-**Available Variables:**
-- All input variables
-- All output variables (Render, Validate, RenderCount, etc.)
-- Cross-test references
+**Available Variables:** see [Available Variables](#available-variables).
 
 **Error Handling:**
-- Post-test hooks always run, even if previous phases failed
-- Hook failures are collected and reported
-- Test can still pass if only post-test hooks fail (depending on other failures)
+- Post-test hooks run even if validation or assertions failed, so that cleanup can happen
+- Hook failures are collected and reported, and a failed post-test hook fails the test case
 
 ## Assertions Execution
 
-> **📖 Complete Guide**: For comprehensive documentation on all assertion engines (xprin, diff, dyff), types, examples, and usage, see [Assertions](assertions.md).
+Assertions run after validation (or after rendering, when there are no CRDs), on the rendered resources in the temp directory. Three engines are supported: **xprin** (in-process count/existence/field checks), **diff** (golden-file unified diff, [go-difflib](https://github.com/pmezard/go-difflib)) and **dyff** (golden-file structural YAML diff, [dyff](https://github.com/homeport/dyff)). They are all evaluated, even when some fail, and reported together; the test case then continues to the post-test hooks.
 
-Assertions provide declarative validation of rendered resources without writing custom scripts. Three engines are supported:
-- **xprin**: in-process count/existence/field checks
-- **diff**: golden-file unified diff, [go-difflib](https://github.com/pmezard/go-difflib)
-- **dyff**: golden-file structural YAML diff, [dyff](https://github.com/homeport/dyff)
-
-### Execution Order
-
-1. All assertions are executed sequentially
-2. Each assertion is evaluated independently
-3. Results are collected (pass/fail with messages)
-4. All results are reported at the end
-
-### Resource Access
-
-- Assertions read rendered resources from the temp directory
-- Resources are parsed as YAML/JSON
-- Resources are indexed by `Kind/name` for quick lookup
-
-### Field Path Resolution
-
-Field paths use dot notation:
-- `metadata.name` - Top-level field
-- `spec.replicas` - Nested field
-- `metadata.labels.app` - Deeply nested field
-
-Field access handles:
-- Missing fields (returns null/error)
-- Array indexing (not directly supported, use array operations)
-- Null values (treated as `null` type)
-
-### Type System
-
-Assertions use a simplified type system:
-- `string` - Text values
-- `number` - Numeric values (integers and floats)
-- `boolean` - True/false values
-- `array` - List values
-- `object` - Map/dict values
-- `null` - Null/empty values
-
-Type checking is done at runtime based on actual YAML/JSON values.
+See [Assertions](assertions.md) for the engines, the types, the [field path syntax](assertions.md#field-path-syntax), the [execution and error handling](assertions.md#execution-and-error-handling), and examples.
 
 ## update-goldens Execution Flow
 
@@ -677,7 +551,7 @@ Type checking is done at runtime based on actual YAML/JSON values.
 
 ```mermaid
 flowchart TD
-    A{"assertions.diff or<br/>assertions.dyff, or needed<br/>by a test case that has them?"}
+    L["Load<br/>Dependency graph<br/>What has to run"] --> A{"assertions.diff or<br/>assertions.dyff, or needed<br/>by a test case that has them?"}
     A -->|No| B["SKIP"]
     A -->|Yes| C["Setup<br/>Pre-test Hooks"]
     C --> D[Convert Claim to XR]
@@ -685,7 +559,10 @@ flowchart TD
     D --> F[Render]
     E --> F
     F --> G["Write render output<br/>to expected: paths"]
+    G --> H["Save Internal Artifacts<br/>(if test has ID)"]
 
+    style L fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style H fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
     style A fill:#f3f4f6,stroke:#9ca3af,stroke-width:2px,color:#000
     style B fill:#6b7280,stroke:#374151,stroke-width:2px,color:#fff
     style C fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
@@ -735,80 +612,56 @@ The graph is made of the [`needs`](#dependencies-between-test-cases-needs) of th
 - A testsuite file that doesn't use `needs` has no dependencies to show, so all its test cases are at the top level. If it uses `.Tests` anyway, it relies on the deprecated automatic detection, whose dependencies are not shown: list them in `needs` to see them (see [Migrating](#migrating-from-automatic-detection-deprecated)).
 - Dependencies that are not declared in `needs` are not shown, for example a hook that relies on files or state left behind by another test case.
 
-## Internal Architecture
+## Artifacts
 
-### Component Separation
+xprin keeps files for two purposes, and calls them internal and external artifacts.
 
-xprin follows a separation of concerns:
+- **Internal artifacts** are the outputs of a test case that has an `id`, saved so that the test cases that list it in `needs` can use them (`.Tests.<id>.Outputs.*`). They are temporary, removed when the testsuite file finishes, and you don't need to look at them.
+- **External artifacts** are for you to inspect a run: with `--artifacts-dir <dir>`, xprin exports the inputs and the outputs of every test case to `<dir>/xprin-artifacts-<timestamp>/`, also for the test cases that failed. After each testsuite file it prints the path (`artifacts: <path>`) to stderr.
 
-1. **Processor** (`internal/testexecution/processor/`): Handles target discovery, loading, and initial template rendering
-2. **Runner** (`internal/testexecution/runner/runner.go`): Orchestrates test execution, calls conversion, patching, hooks, assertions, and external tools
-3. **Engine** (`internal/engine/`): Formats output, manages results, handles presentation
-4. **Assertions** (`internal/testexecution/runner/assertions.go`): Executes declarative assertions
-5. **Graph** (`internal/graph/`): Builds the dependency graph of the test cases from their `needs`; `xprin graph` prints it, and the Runner runs the test cases in its order
-6. **Helpers** (`cmd/xprin-helpers/`): External tools for Claim conversion and XR patching
+```
+➜ xprin test tests/... --artifacts-dir /tmp/xprin-debug
+...
+artifacts: /tmp/xprin-debug/xprin-artifacts-20260101120000/tests/aws_xprin
 
-### Temp Directory Management
+➜ find /tmp/xprin-debug -maxdepth 4
+/tmp/xprin-debug/xprin-artifacts-20260101120000/tests/aws_xprin/01_first_loop/inputs
+/tmp/xprin-debug/xprin-artifacts-20260101120000/tests/aws_xprin/01_first_loop/outputs
+/tmp/xprin-debug/xprin-artifacts-20260101120000/tests/aws_xprin/02_second_loop/inputs
+...
+```
 
-- Each test case gets its own temp directory
-- Temp directories are created under system temp (e.g., `/tmp/xprin-*`)
-- All operations happen in temp directory (inputs are copied, not modified)
-- Temp directories are cleaned up after test completion
+The directory of a testsuite file mirrors its path from where you ran xprin, without the extension, and there is one directory per test case, numbered in the order they ran. A skipped test case has nothing to export.
 
-### External Tool Integration
+xprin doesn't save the results of a run. The result of each test case is kept in memory while its testsuite file runs, and printed as soon as the test case ends; the line of the file is printed at the end. To keep the files of a run, use `--artifacts-dir`: `assertions.txt`, in the outputs of a test case, has the results of its assertions.
 
-xprin integrates with external tools:
-
-1. **crossplane CLI**: For render and validate commands
-2. **xprin-helpers**: For Claim conversion and XR patching
-3. **Docker**: For Composition Functions execution (handled by crossplane)
-
-All external tools are executed as subprocesses with captured output.
-
-## Performance Considerations
-
-### Parallel Execution
-
-- Currently, tests run sequentially (one after another)
-- Future: Could support parallel execution for independent tests
-- Test chaining requires sequential execution
-
-### Caching
-
-- No caching of render/validate *results* — every test case's render and validate output is computed fresh, regardless of whether an identical input was rendered before
-- Temp directories (inputs/outputs) are always fresh per test case
-- Composition function *containers* are reused across the whole invocation — see "Function Container Reuse" below. This caches container startup, not render output.
-
-### Function Container Reuse
+## Function Container Reuse
 
 By default, `xprin test` reuses one Docker container per unique composition function image for the entire invocation, instead of starting and tearing down a container for every single `crossplane render` call.
 
-**Only function containers are reused.** With Crossplane CLI v2.3+, `crossplane render` also starts a Crossplane controller container on every call. That one can't be reused: `crossplane render` has no option to name, keep or reuse it (unlike the function containers), so it is started and removed by render itself for every test case, with or without `--no-container-reuse`.
+**Only function containers are reused.** With Crossplane CLI v2.3+, `crossplane render` also starts a Crossplane controller container on every call. That one can't be reused: `crossplane render` has no option to name, keep or reuse it, so it is started and removed by render itself for every test case, with or without `--no-container-reuse`.
 
 **How it works:**
-1. Before each test case's render call, xprin reads the function image reference (`spec.package`) from each `Function` resource in that test case's functions file(s).
-2. It computes a container name deterministically from that image reference (so the same image always maps to the same container name, and different images never collide) and patches the function's annotations in the temp copy of the functions file:
-   - `render.crossplane.io/runtime-docker-name` — reuse the container if it's already running, otherwise create it
-   - `render.crossplane.io/runtime-docker-cleanup: Orphan` — don't remove it after this render call
-3. The first test case anywhere in the run that uses a given image pays to start its container; every later test case that uses the same image reuses it directly, regardless being in the same or another testsuite file.
-4. If you've already set `render.crossplane.io/runtime-docker-name` or `render.crossplane.io/runtime-docker-cleanup` yourself on a `Function` resource, xprin leaves your annotations untouched.
-5. With Crossplane CLI v2.3+, `crossplane render` runs its Crossplane controller container and creates a new, uniquely-named Docker network for every call, connecting only the containers it creates to it. A container reused from an earlier call would be left on that earlier network and unreachable, so xprin creates one `xprin-net-<run-id>` network for the invocation and passes it to every render call via `--crossplane-docker-network`. Older CLIs have no such flag and don't need it.
-6. All containers created during the invocation, and the shared network, are removed once, when `xprin test` finishes, whether it succeeded or failed.
+1. For each test case, xprin reads the `Function` resources in its functions file(s), and adds two annotations to the copy in the temp directory: `render.crossplane.io/runtime-docker-name`, which names the container after its image, and `render.crossplane.io/runtime-docker-cleanup: Orphan`, which keeps it running after the render. If you set either one yourself, xprin leaves yours alone.
+2. The first test case in the run that uses an image pays for it: the image is pulled if it isn't on the machine yet (with or without reuse), and the container is started, so this test case is slower. Every later one that uses the same image reuses the running container, in the same or another testsuite file: there is nothing to start, and the function is already warm.
+3. With Crossplane CLI v2.3+, xprin also passes one shared Docker network to every render call, so that a reused container stays reachable.
+4. All the containers (and the network) are removed once, when `xprin test` finishes, whether it succeeded or failed.
+
+**What it saves:** on this repository's own examples (22 testsuite files), a run took 72s without reuse and 35s with it, and created 2 function containers instead of 90.
 
 **Why this is safe:** Crossplane composition functions are stateless by contract. In a real cluster, the same function container already serves many unrelated reconciles over its lifetime without restarting. Reusing a container across test cases relies on the same guarantee.
 
 **Disabling it:** pass `--no-container-reuse` (to `xprin test` or `xprin update-goldens`) to fall back to a fresh container per render call, matching the pre-reuse behavior. You might want this if you suspect a function under test isn't actually stateless, or to rule out container reuse while debugging an unrelated issue.
 
-**A known edge case:** if `xprin test` is killed abruptly (e.g. `SIGKILL`, out-of-memory), the cleanup step doesn't run and a container (and the shared network) can be left behind. They're identifiable by their `xprin-<run-id>-<hash>` / `xprin-net-<run-id>` names and safe to remove manually (`docker rm -f`, `docker network rm`).
+**A known edge case:** if `xprin test` is killed abruptly (e.g. `SIGKILL`, out-of-memory), the cleanup step doesn't run and a container (and the shared network) can be left behind. Their names start with `xprin-`, and they are safe to remove manually (`docker rm -f`, `docker network rm`).
 
-### Resource Cleanup
+## Crossplane CLI Versions
 
-- Temp directories are cleaned up immediately after test completion
-- The directory of the internal artifacts (the outputs shared between test cases) is cleaned up after all tests complete
-- The `--artifacts-dir` flag exports the inputs and the outputs of every test case, the external artifacts, from the temp directory to a persistent one for inspection
-- Composition function containers (and the shared Docker network, on Crossplane CLI v2.3+) are reused across test cases and suite files, then removed once the whole `xprin test` invocation finishes (see "Function Container Reuse" above)
+xprin runs the `crossplane` binary of your [configuration](configuration.md) as a command, and adapts to its version: v1, v2, and v2.3 and later, where some commands were renamed (`crossplane resource validate` instead of `crossplane beta validate`). It detects what the binary supports when it starts, and `xprin check` shows the result. You can also set the render and validate commands yourself in `subcommands`, which always wins over the detection, so a CLI that xprin doesn't know yet still works (see [Configuration](configuration.md#subcommands)).
+
+`--crossplane-version` selects the version of the Crossplane controller image. It is used by validate on every CLI version (as `--crossplane-image`, when a test case has CRDs), but by render only with Crossplane CLI v2.3.0 and later (as `--crossplane-version`): older CLIs ignore it for render.
 
 ---
 
 **Next Steps:**
-- Learn about helper utilities in [xprin-helpers](xprin-helpers.md)
+- See what happens under the hood in [Architecture](architecture.md)

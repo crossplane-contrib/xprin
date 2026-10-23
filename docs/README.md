@@ -13,11 +13,14 @@ Follow this path for a complete learning journey:
 3. **[Examples](../examples/README.md)** - Step-by-step examples with real outputs
 4. **[Test Suite Specification](testsuite-specification.md)** - Complete reference for all test suite fields and options
 5. **[Assertions](assertions.md)** - Complete guide to declarative resource validation
-6. **[How It Works](how-it-works.md)** - Deep dive into how xprin works under the hood
-7. **[xprin-helpers](xprin-helpers.md)** - Helper utilities overview
+6. **[How It Works](how-it-works.md)** - How xprin behaves: loading, phases, errors, test chaining, artifacts
+7. **[Architecture](architecture.md)** - What happens under the hood: the flow of a run, the packages and the components
+8. **[xprin-helpers](xprin-helpers.md)** - Helper utilities overview
    - [convert-claim-to-xr](xprin-helpers/convert-claim-to-xr.md) - Convert Claims to XRs
    - [check-testsuite-needs](xprin-helpers/check-testsuite-needs.md) - Check that testsuite files list the `needs` they use
    - [patch-xr](xprin-helpers/patch-xr.md) - Apply patches to XRs
+
+Want to work on xprin itself? See [Contributing](../CONTRIBUTING.md), which points to the [Architecture](architecture.md).
 
 ## Quick Reference
 

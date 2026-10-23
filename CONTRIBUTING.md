@@ -12,6 +12,8 @@
 2. Build: `earthly +build`
 3. Run xprin locally: `go run ./cmd/xprin test <testsuite-file>`
 
+Before touching the code, read the [How It Works](docs/how-it-works.md) and [Architecture](docs/architecture.md): it shows the flow of a run, and the packages and components behind each step.
+
 ## Testing
 
 ```shell

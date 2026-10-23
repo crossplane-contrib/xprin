@@ -64,7 +64,7 @@ The `--xrd` flag for `crossplane render` is also auto-detected. When a test case
 
 | CLI | `patches.xrd` behaviour |
 |-----|-------------------------|
-| `crossplane/cli` v2.0+ | XRD defaults applied via `xprin-helpers patch-xr` **and** `--xrd` passed to `crossplane render` |
+| `crossplane/cli` v2.0+ | `--xrd` passed to `crossplane render`, which applies the XRD defaults (the `patch-xr` step is skipped for the XRD) |
 | `crossplane/crossplane` v1.x | XRD defaults applied via `xprin-helpers patch-xr` only (`--xrd` not supported by this CLI) |
 
 Additionally, passing `--xrd` to `crossplane render` matters in v2+ for **LegacyCluster XRDs**. Without it, the v2 render engine defaults to Modern schema, placing `resourceRefs` at `spec.crossplane.resourceRefs` instead of `spec.resourceRefs`. This causes validation to fail against the XRD schema. Providing `--xrd` lets the engine detect the correct scope and produce output that matches the XRD.
