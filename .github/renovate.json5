@@ -66,6 +66,18 @@
     },
     {
       customType: 'regex',
+      description: 'Bump dyff version in the Earthfile',
+      managerFilePatterns: [
+        '/^Earthfile$/',
+      ],
+      matchStrings: [
+        'ARG DYFF_VERSION=(?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'homeport/dyff',
+    },
+    {
+      customType: 'regex',
       description: 'Bump E2E Crossplane v1 version in Earthfile',
       managerFilePatterns: [
         '/^Earthfile$/',

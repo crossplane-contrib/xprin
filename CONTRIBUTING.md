@@ -34,6 +34,8 @@ If you change example files that affect e2e test output, regenerate the expected
 earthly -P +e2e-regen-expected
 ```
 
+The outputs of the examples in `examples/README.md` are generated too, see [examples-gen](docs/contributing/examples-gen.md) to regenerate them.
+
 ## PR Process
 
 1. Rebase on `upstream/main`

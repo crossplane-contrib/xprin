@@ -320,3 +320,68 @@ e2e-regen-expected-v2:
   END
   SAVE ARTIFACT expected
 
+# go-build-examples-gen builds the tool that fills the outputs of the examples (see docs/contributing/examples-gen.md).
+go-build-examples-gen:
+  FROM +go-modules
+  CACHE --id go-build --sharing shared /root/.cache/go-build
+  COPY --dir cmd/ internal/ .
+  RUN CGO_ENABLED=0 go build -o examples-gen ./cmd/examples-gen
+  SAVE ARTIFACT examples-gen
+
+# dyff-setup is used by other targets to setup the dyff CLI, which the hooks of the examples call.
+dyff-setup:
+  ARG DYFF_VERSION=v1.12.0
+  ARG NATIVEPLATFORM
+  FROM --platform=${NATIVEPLATFORM} alpine:3.24
+  RUN apk add --no-cache bash curl jq
+  RUN curl -sL https://raw.githubusercontent.com/homeport/dyff/main/scripts/download-latest.sh | bash -s ${DYFF_VERSION}
+  SAVE ARTIFACT /usr/local/bin/dyff
+
+# regen-examples regenerates examples/README.md outputs, with the Crossplane CLI v2 and v1, and merges them (see docs/contributing/examples-gen.md)
+regen-examples:
+  ARG REGENERATE_ALL
+  ARG REGENERATE_MATCH
+  FROM alpine:3.24
+  RUN apk add --no-cache bash git
+  WORKDIR /work
+  COPY examples/README.md README.md
+  COPY (+regen-examples-v2/README.v2.md --REGENERATE_ALL=$REGENERATE_ALL --REGENERATE_MATCH=$REGENERATE_MATCH) README.v2.md
+  COPY (+regen-examples-v1/README.v1.md --REGENERATE_ALL=$REGENERATE_ALL --REGENERATE_MATCH=$REGENERATE_MATCH) README.v1.md
+  COPY cmd/examples-gen/merge-examples.sh .
+  RUN ./merge-examples.sh
+  SAVE ARTIFACT README.md AS LOCAL examples/README.md
+
+# regen-examples-v2 regenerates the outputs of the examples/README.md blocks that have no tag, with the current Crossplane CLI
+regen-examples-v2:
+  ARG REGENERATE_ALL
+  ARG REGENERATE_MATCH
+  FROM +regen-examples-run --REGENERATE_ALL=$REGENERATE_ALL --REGENERATE_MATCH=$REGENERATE_MATCH --CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_CLI --TAG=
+  SAVE ARTIFACT /Users/myuser/repos/xprin/examples/README.md README.v2.md
+
+# regen-examples-v1 regenerates the outputs of the examples/README.md blocks that are tagged v1, with the Crossplane CLI v1
+regen-examples-v1:
+  ARG REGENERATE_ALL
+  ARG REGENERATE_MATCH
+  FROM +regen-examples-run --REGENERATE_ALL=$REGENERATE_ALL --REGENERATE_MATCH=$REGENERATE_MATCH --CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_V1 --TAG=v1
+  SAVE ARTIFACT /Users/myuser/repos/xprin/examples/README.md README.v1.md
+
+# regen-examples-run is used by the regen-examples targets to run examples-gen with a Crossplane CLI version
+regen-examples-run:
+  ARG REGENERATE_ALL
+  ARG REGENERATE_MATCH
+  ARG TAG
+  ARG CROSSPLANE_CLI_VERSION
+  FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
+  ENV REGENERATE_ALL=$REGENERATE_ALL
+  ENV REGENERATE_MATCH=$REGENERATE_MATCH
+  ENV TAG=$TAG
+  RUN apk add --no-cache bash yq
+  COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$CROSSPLANE_CLI_VERSION) /usr/local/bin/crossplane
+  COPY +go-build/xprin /usr/local/bin/xprin
+  COPY +go-build-examples-gen/examples-gen /usr/local/bin/examples-gen
+  COPY +dyff-setup/dyff /usr/local/bin/dyff
+  WORKDIR /Users/myuser/repos/xprin
+  COPY --dir examples/ ./
+  WITH DOCKER
+    RUN (xprin test examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml > /dev/null || true) && examples-gen $([ "$REGENERATE_ALL" = "true" ] && echo --regenerate-all) ${REGENERATE_MATCH:+"--regenerate-match=$REGENERATE_MATCH"} ${TAG:+"--tag=$TAG"} examples/README.md
+  END
