@@ -7,15 +7,16 @@ set -euo pipefail
 
 root="$(pwd)"
 # Strip project root prefix so paths become relative (expected output uses relative paths), also in the lines of the
-# golden files of update-goldens ("        [✓] <path>" or "        [!] <path>: <reason>", under "Golden Files:").
+# golden files of update-goldens ("        [✓] <assertion name>: <path>" or "        [!] <assertion name>: <path>: <reason>",
+# under "Golden Files:"): the first path after the name.
 # When root is "/", must only strip one leading slash; otherwise "s|/|...|g" would replace every "/".
 if [ "$root" = "/" ]; then
     root_sed='s|^/||'
-    golden_sed='s|^(        \[[✓!]\] )/|\1|'
+    golden_sed='/^        \[[✓!]\] /s|: /|: |'
 else
     root_escaped="${root//\//\\/}"
     root_sed="s|^${root_escaped}/||"
-    golden_sed="s|^(        \[[✓!]\] )${root_escaped}/|\1|"
+    golden_sed="/^        \[[✓!]\] /s|: ${root_escaped}/|: |"
 fi
 
 sed_args=(

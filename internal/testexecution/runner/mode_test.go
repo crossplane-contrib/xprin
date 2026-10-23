@@ -165,7 +165,7 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusPass(), got.Status)
-		assert.Equal(t, []string{"a.yaml"}, writtenGoldenFiles(got))
+		assert.Equal(t, []string{"g: a.yaml"}, writtenGoldenFiles(got))
 		assert.Equal(t, []string{"/tmp/outputs -> /saved-outputs/a"}, *copied)
 		assert.Equal(t, "/saved-outputs/a/rendered.yaml", got.Outputs.Render)
 
