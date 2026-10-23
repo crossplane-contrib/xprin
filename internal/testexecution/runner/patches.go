@@ -56,7 +56,8 @@ func (r *Runner) copyInput(env *testCaseEnv, src, inputType string) (string, err
 
 // copyToPath copies a file or directory to the given destination path, creating parent directories as needed.
 // Use this when the destination path must be chosen by the caller (e.g. to avoid overwriting same-named files).
-func (r *Runner) copyToPath(src, dest string) (string, error) {
+// inputType is the kind of input, for the debug output.
+func (r *Runner) copyToPath(src, dest, inputType string) (string, error) {
 	if err := r.fs.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
 		return "", fmt.Errorf("failed to create directory for %s: %w", dest, err)
 	}
@@ -66,7 +67,7 @@ func (r *Runner) copyToPath(src, dest string) (string, error) {
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Copied to: %s\n", dest)
+		utils.DebugPrintf("Copied %s to: %s\n", inputType, dest)
 	}
 
 	return dest, nil
