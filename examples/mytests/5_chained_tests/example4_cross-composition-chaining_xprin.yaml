@@ -20,7 +20,7 @@ tests:
   patches:
     xrd: ../../gcp/xrd.yaml
   inputs:
-    xr: {{ index .Tests.base_final.Outputs.Rendered "XGCPInfrastructure/platform-base-gcp" }}
+    xr: '{{ index .Tests.base_final.Outputs.Rendered "XGCPInfrastructure/platform-base-gcp" }}'
     composition: ../../gcp/composition.yaml
     functions: ../../gcp/functions.yaml
     crds:
@@ -34,7 +34,7 @@ tests:
   patches:
     xrd: ../../aws/xrd.yaml
   inputs:
-    xr: {{ index .Tests.base_final.Outputs.Rendered "XAWSInfrastructure/platform-base-aws" }}
+    xr: '{{ index .Tests.base_final.Outputs.Rendered "XAWSInfrastructure/platform-base-aws" }}'
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
     crds:

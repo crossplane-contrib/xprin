@@ -348,6 +348,19 @@ Template variables use Go's `text/template` package for dynamic content.
 
 Everything can be used in post-test hooks. `.Inputs` points to the copies of the inputs in the temp directory, so it is for hooks, and `.Outputs` exists only after the render, so only post-test hooks can use it.
 
+### Quoting Templates in YAML
+
+A YAML value that *starts* with `{{` must be quoted, otherwise YAML reads it as a flow mapping, and the test suite is not valid YAML (editors and the [JSON Schema](ide-integration.md) report it as broken, and parsing fails before xprin expands the template):
+
+```yaml
+inputs:
+  xr: '{{ .Tests.first.Outputs.XR }}'                                  # quoted: OK
+  functions: '{{ .Repositories.myrepo }}/functions'                    # quoted: OK
+  # xr: {{ .Tests.first.Outputs.XR }}                                  # unquoted: broken
+```
+
+Use single quotes, as templates often contain double quotes (e.g. `'{{ index .Outputs.Rendered "Kind/Name" }}'`). A template in the middle of a value, such as `run: ./script.sh {{ .Inputs.XR }}`, doesn't need quotes.
+
 ### Template Functions
 
 Standard Go template functions are available:
@@ -383,7 +396,7 @@ inputs:
 
 ```yaml
 inputs:
-  functions: {{ .Repositories.myrepo }}/functions
+  functions: '{{ .Repositories.myrepo }}/functions'
 ```
 
 - Template is expanded first, then resolved as absolute or relative

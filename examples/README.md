@@ -821,6 +821,8 @@ Test cases can depend on each other. A test case lists the IDs of the test cases
 
 When a test case has an `id` field, its outputs are also stored and become available to the test cases that list it in `needs`, via the `.Tests` template variable. This allows you to chain tests together, using outputs from one test as inputs to another.
 
+**Quote the template in YAML:** a value that *starts* with `{{` must be quoted, e.g. `xr: '{{ .Tests.aws_first.Outputs.XR }}'`. Unquoted, it is not valid YAML (YAML reads it as a flow mapping), so editors and the JSON Schema report the file as broken. Use single quotes, as the templates often contain double quotes. See [Quoting Templates in YAML](../docs/how-it-works.md#quoting-templates-in-yaml).
+
 The examples build up: first a dependency alone, then what happens when a test case fails, then using the outputs, then chaining compositions.
 
 ### Example 1: Dependencies with `needs`

@@ -17,7 +17,7 @@ tests:
   needs:
   - aws_first
   inputs:
-    xr: {{ .Tests.aws_first.Outputs.XR }}
+    xr: '{{ .Tests.aws_first.Outputs.XR }}'
     observed-resources: ../../aws/observed
   hooks:
     pre-test:

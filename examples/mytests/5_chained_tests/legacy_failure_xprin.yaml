@@ -12,11 +12,11 @@ common:
 tests:
 - name: "Legacy: a typo in the ID"
   inputs:
-    xr: {{ .Tests.legacy_frist.Outputs.XR }}
+    xr: '{{ .Tests.legacy_frist.Outputs.XR }}'
 
 - name: "Legacy: uses a test case that is listed below it"
   inputs:
-    xr: {{ .Tests.legacy_last.Outputs.XR }}
+    xr: '{{ .Tests.legacy_last.Outputs.XR }}'
 
 - name: "Legacy: a typo in the ID, in a hook"
   inputs:
