@@ -105,7 +105,8 @@
       "properties": {
         "inputs": {
           "$ref": "#/$defs/Inputs",
-          "description": "Common inputs (composition, Claim/XR, etc.) for all testcases (Optional)"
+          "description": "Common inputs (composition, Claim/XR, etc.) for all testcases (Optional)",
+          "x-xprin-required-merged": true
         },
         "patches": {
           "$ref": "#/$defs/Patches",
@@ -167,19 +168,25 @@
       "properties": {
         "claim": {
           "type": "string",
-          "description": "Path to Claim file (one of Claim or XR must be set, either in the test case or in the common inputs)"
+          "description": "Path to Claim file (one of Claim or XR must be set, either in the test case or in the common inputs)",
+          "x-xprin-required-merged": true,
+          "x-xprin-required-one-of": "xr"
         },
         "xr": {
           "type": "string",
-          "description": "Path to XR file (one of Claim or XR must be set, either in the test case or in the common inputs)"
+          "description": "Path to XR file (one of Claim or XR must be set, either in the test case or in the common inputs)",
+          "x-xprin-required-merged": true,
+          "x-xprin-required-one-of": "claim"
         },
         "composition": {
           "type": "string",
-          "description": "Path to composition file (Required unless specified in the common inputs)"
+          "description": "Path to composition file (Required unless specified in the common inputs)",
+          "x-xprin-required-merged": true
         },
         "functions": {
           "type": "string",
-          "description": "Path to functions file or directory (Required unless specified in the common inputs)"
+          "description": "Path to functions file or directory (Required unless specified in the common inputs)",
+          "x-xprin-required-merged": true
         },
         "crds": {
           "items": {
@@ -262,7 +269,8 @@
         },
         "inputs": {
           "$ref": "#/$defs/Inputs",
-          "description": "Inputs of a testcase (Required unless specified in the common inputs)"
+          "description": "Inputs of a testcase (Required unless specified in the common inputs)",
+          "x-xprin-required-merged": true
         },
         "patches": {
           "$ref": "#/$defs/Patches",

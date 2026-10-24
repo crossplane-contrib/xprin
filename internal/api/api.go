@@ -75,35 +75,35 @@ type Assertions struct {
 
 // Common represents the common configuration for a testsuite file.
 type Common struct {
-	Inputs     Inputs     `json:"inputs,omitempty"`     // Common inputs (composition, Claim/XR, etc.) for all testcases (Optional)
-	Patches    Patches    `json:"patches,omitempty"`    // Common XR patching configuration for all testcases (Optional)
-	Hooks      Hooks      `json:"hooks,omitempty"`      // Common hooks for all testcases (Optional)
-	Assertions Assertions `json:"assertions,omitempty"` // Common assertions to validate rendered resources for all testcases (Optional)
+	Inputs     Inputs     `json:"inputs,omitempty"     jsonschema_extras:"x-xprin-required-merged=true"` // Common inputs (composition, Claim/XR, etc.) for all testcases (Optional)
+	Patches    Patches    `json:"patches,omitempty"`                                                     // Common XR patching configuration for all testcases (Optional)
+	Hooks      Hooks      `json:"hooks,omitempty"`                                                       // Common hooks for all testcases (Optional)
+	Assertions Assertions `json:"assertions,omitempty"`                                                  // Common assertions to validate rendered resources for all testcases (Optional)
 }
 
 // TestCase represents a single test case.
 type TestCase struct {
-	Name       string     `json:"name"`                                         // Descriptive name for the testcase (Required)
-	ID         string     `json:"id,omitempty"`                                 // Unique identifier for the testcase (Optional)
-	Needs      []string   `json:"needs,omitempty"      jsonschema:"minItems=1"` // IDs of the testcases that this one depends on (Optional)
-	Inputs     Inputs     `json:"inputs,omitempty"`                             // Inputs of a testcase (Required unless specified in the common inputs)
-	Patches    Patches    `json:"patches,omitempty"`                            // XR patching configuration (Optional)
-	Hooks      Hooks      `json:"hooks,omitempty"`                              // Execution hooks (Optional)
-	Assertions Assertions `json:"assertions,omitempty"`                         // Assertions to validate rendered resources (Optional)
+	Name       string     `json:"name"`                                                                  // Descriptive name for the testcase (Required)
+	ID         string     `json:"id,omitempty"`                                                          // Unique identifier for the testcase (Optional)
+	Needs      []string   `json:"needs,omitempty"      jsonschema:"minItems=1"`                          // IDs of the testcases that this one depends on (Optional)
+	Inputs     Inputs     `json:"inputs,omitempty"     jsonschema_extras:"x-xprin-required-merged=true"` // Inputs of a testcase (Required unless specified in the common inputs)
+	Patches    Patches    `json:"patches,omitempty"`                                                     // XR patching configuration (Optional)
+	Hooks      Hooks      `json:"hooks,omitempty"`                                                       // Execution hooks (Optional)
+	Assertions Assertions `json:"assertions,omitempty"`                                                  // Assertions to validate rendered resources (Optional)
 }
 
 // Inputs represents the inputs for a test case or common configuration.
 type Inputs struct {
-	Claim               string            `json:"claim,omitempty"`                // Path to Claim file (one of Claim or XR must be set, either in the test case or in the common inputs)
-	XR                  string            `json:"xr,omitempty"`                   // Path to XR file (one of Claim or XR must be set, either in the test case or in the common inputs)
-	Composition         string            `json:"composition,omitempty"`          // Path to composition file (Required unless specified in the common inputs)
-	Functions           string            `json:"functions,omitempty"`            // Path to functions file or directory (Required unless specified in the common inputs)
-	CRDs                []string          `json:"crds,omitempty"`                 // Paths to CRD files (Optional)
-	ContextFiles        map[string]string `json:"context-files,omitempty"`        // Map of context keys to file paths (Optional)
-	ContextValues       map[string]string `json:"context-values,omitempty"`       // Map of context keys to inline values (Optional)
-	ObservedResources   string            `json:"observed-resources,omitempty"`   // Path to observed resources file (Optional)
-	ExtraResources      string            `json:"extra-resources,omitempty"`      // Path to extra resources file (Optional)
-	FunctionCredentials string            `json:"function-credentials,omitempty"` // Path to function credentials file (Optional)
+	Claim               string            `json:"claim,omitempty"                jsonschema_extras:"x-xprin-required-merged=true,x-xprin-required-one-of=xr"`    // Path to Claim file (one of Claim or XR must be set, either in the test case or in the common inputs)
+	XR                  string            `json:"xr,omitempty"                   jsonschema_extras:"x-xprin-required-merged=true,x-xprin-required-one-of=claim"` // Path to XR file (one of Claim or XR must be set, either in the test case or in the common inputs)
+	Composition         string            `json:"composition,omitempty"          jsonschema_extras:"x-xprin-required-merged=true"`                               // Path to composition file (Required unless specified in the common inputs)
+	Functions           string            `json:"functions,omitempty"            jsonschema_extras:"x-xprin-required-merged=true"`                               // Path to functions file or directory (Required unless specified in the common inputs)
+	CRDs                []string          `json:"crds,omitempty"`                                                                                                // Paths to CRD files (Optional)
+	ContextFiles        map[string]string `json:"context-files,omitempty"`                                                                                       // Map of context keys to file paths (Optional)
+	ContextValues       map[string]string `json:"context-values,omitempty"`                                                                                      // Map of context keys to inline values (Optional)
+	ObservedResources   string            `json:"observed-resources,omitempty"`                                                                                  // Path to observed resources file (Optional)
+	ExtraResources      string            `json:"extra-resources,omitempty"`                                                                                     // Path to extra resources file (Optional)
+	FunctionCredentials string            `json:"function-credentials,omitempty"`                                                                                // Path to function credentials file (Optional)
 }
 
 // HasConnectionSecret returns true if ConnectionSecret is explicitly set to true.
