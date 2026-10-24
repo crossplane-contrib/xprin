@@ -6,11 +6,12 @@ This directory contains step-by-step examples to help you learn how to use `xpri
 
 ## Table of Contents
 
+- [Check Your Setup](#check-your-setup)
 - [Basic Examples](#basic-examples)
 - [Multiple Test Cases](#multiple-test-cases)
 - [Patching XRs](#patching-xrs)
 - [Hooks](#hooks)
-- [Chained Tests / Artifacts](#chained-tests--artifacts)
+- [Chained Tests](#chained-tests)
 - [Assertions](#assertions)
 
 See [How to Run Tests](../docs/getting-started.md#how-to-run-tests) in the getting started documentation for details on running tests. The basic pattern is:
@@ -18,6 +19,61 @@ See [How to Run Tests](../docs/getting-started.md#how-to-run-tests) in the getti
 ```bash
 xprin test examples/mytests/...
 ```
+
+---
+
+## Check Your Setup
+
+`xprin check` verifies the dependencies and the settings, and tells which Crossplane CLI it found. xprin adapts to it: the Crossplane CLI v1 and v2 differ in the commands (for example `render --xrd`, or `beta validate` against `resource validate`) and in what they do, and xprin runs the right ones (see [Crossplane CLI Versions](../docs/how-it-works.md#crossplane-cli-versions)). These examples run with the Crossplane CLI v2 (2.3 or newer), and show the output of v1 where it differs.
+
+```bash
+xprin check
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin check
+No global configuration file provided. Using detected dependencies and default settings...
+
+Dependencies:
+- crossplane: /usr/local/bin/crossplane (from PATH)
+
+Subcommands:
+- render: render --include-full-xr
+- validate: resource validate --error-on-missing-schemas
+
+INFO: Crossplane CLI detected as v2+, current (>= v2.3.0)
+INFO: crossplane version --client: v2.5.0
+
+OK: dependencies and settings verified
+```
+
+</details>
+
+<details>
+<summary><strong>Output with the Crossplane CLI v1</strong></summary>
+
+<!-- examples-gen: v1 -->
+```
+➜ xprin check
+No global configuration file provided. Using detected dependencies and default settings...
+
+Dependencies:
+- crossplane: /usr/local/bin/crossplane (from PATH)
+
+Subcommands:
+- render: render --include-full-xr
+- validate: beta validate --error-on-missing-schemas
+
+INFO: Crossplane CLI detected as v1
+INFO: crossplane version --client: v1.20.13
+
+OK: dependencies and settings verified
+```
+
+</details>
 
 ---
 
@@ -42,7 +98,7 @@ xprin test examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml
 
 ```
 ➜ xprin test examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml
-ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	2.150s
+ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.507s
 ```
 
 </details>
@@ -53,9 +109,9 @@ ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	2.150s
 ```
 ➜ xprin test examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml -v
 === RUN   Initial reconciliation loop (using XR)
---- PASS: Initial reconciliation loop (using XR) (0.75s)
+--- PASS: Initial reconciliation loop (using XR) (0.48s)
 PASS
-ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.757s
+ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.484s
 ```
 
 </details>
@@ -66,13 +122,13 @@ ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.757s
 ```
 ➜ xprin test examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml --debug
 DEBUG: Processing testsuite file examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml
-DEBUG: Created testsuite artifacts directory: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testsuite-artifacts-864435356
+DEBUG: Created internal artifacts directory: /tmp/xprin-internal-artifacts-152756207
 DEBUG: Using testsuite file directory for relative path resolution: examples/mytests/1_simple_tests
 DEBUG: Found 1 test case
 DEBUG: Starting test case 'Initial reconciliation loop (using XR)'
-DEBUG: Created temporary directory for test case: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956
-DEBUG: - Inputs: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956/inputs
-DEBUG: - Outputs: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956/outputs
+DEBUG: Created temporary directory for test case: /tmp/xprin-testcase-389004930
+DEBUG: - Inputs: /tmp/xprin-testcase-389004930/inputs
+DEBUG: - Outputs: /tmp/xprin-testcase-389004930/outputs
 DEBUG: Test specification:
 DEBUG:   Inputs:
 DEBUG:   - XR: ../../aws/xr.yaml
@@ -83,15 +139,15 @@ DEBUG:   Inputs:
 DEBUG:   - XR: /Users/myuser/repos/xprin/examples/aws/xr.yaml
 DEBUG:   - Composition: /Users/myuser/repos/xprin/examples/aws/composition.yaml
 DEBUG:   - Functions: /Users/myuser/repos/xprin/examples/aws/functions.yaml
-DEBUG: Copied xr to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956/inputs/xr/xr.yaml
-DEBUG: Copied composition to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956/inputs/composition/composition.yaml
-DEBUG: Copied functions to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956/inputs/functions/functions.yaml
-DEBUG: Using provided XR file: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956/inputs/xr/xr.yaml
-DEBUG: Running render command: crossplane render --include-full-xr ...
-DEBUG: Wrote rendered output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3575798956/outputs/rendered.yaml
-DEBUG: Skipped validate command "crossplane resource validate --error-on-missing-schemas" because no CRDs were specified
+DEBUG: Copied xr to: /tmp/xprin-testcase-389004930/inputs/xr/xr.yaml
+DEBUG: Copied composition to: /tmp/xprin-testcase-389004930/inputs/composition/composition.yaml
+DEBUG: Copied functions to: /tmp/xprin-testcase-389004930/inputs/functions/functions.yaml
+DEBUG: Using provided XR file: /tmp/xprin-testcase-389004930/inputs/xr/xr.yaml
+DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-docker-network=xprin-net-15e6f88b /tmp/xprin-testcase-389004930/inputs/xr/xr.yaml /tmp/xprin-testcase-389004930/inputs/composition/composition.yaml /tmp/xprin-testcase-389004930/inputs/functions/functions.yaml
+DEBUG: Wrote rendered output to: /tmp/xprin-testcase-389004930/outputs/rendered.yaml
+DEBUG: Skipped validate command "/usr/local/bin/crossplane resource validate --error-on-missing-schemas" because no CRDs were specified
 DEBUG: Test case 'Initial reconciliation loop (using XR)' completed with status: PASS
-ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.736s
+ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.506s
 ```
 
 </details>
@@ -102,13 +158,13 @@ ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.736s
 ```
 ➜ xprin test examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml -v --debug
 DEBUG: Processing testsuite file examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml
-DEBUG: Created testsuite artifacts directory: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testsuite-artifacts-1203146703
+DEBUG: Created internal artifacts directory: /tmp/xprin-internal-artifacts-376558074
 DEBUG: Using testsuite file directory for relative path resolution: examples/mytests/1_simple_tests
 DEBUG: Found 1 test case
 DEBUG: Starting test case 'Initial reconciliation loop (using XR)'
-DEBUG: Created temporary directory for test case: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052
-DEBUG: - Inputs: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052/inputs
-DEBUG: - Outputs: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052/outputs
+DEBUG: Created temporary directory for test case: /tmp/xprin-testcase-829220625
+DEBUG: - Inputs: /tmp/xprin-testcase-829220625/inputs
+DEBUG: - Outputs: /tmp/xprin-testcase-829220625/outputs
 DEBUG: Test specification:
 DEBUG:   Inputs:
 DEBUG:   - XR: ../../aws/xr.yaml
@@ -119,18 +175,18 @@ DEBUG:   Inputs:
 DEBUG:   - XR: /Users/myuser/repos/xprin/examples/aws/xr.yaml
 DEBUG:   - Composition: /Users/myuser/repos/xprin/examples/aws/composition.yaml
 DEBUG:   - Functions: /Users/myuser/repos/xprin/examples/aws/functions.yaml
-DEBUG: Copied xr to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052/inputs/xr/xr.yaml
-DEBUG: Copied composition to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052/inputs/composition/composition.yaml
-DEBUG: Copied functions to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052/inputs/functions/functions.yaml
-DEBUG: Using provided XR file: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052/inputs/xr/xr.yaml
-DEBUG: Running render command: crossplane render --include-full-xr ...
-DEBUG: Wrote rendered output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-3495228052/outputs/rendered.yaml
-DEBUG: Skipped validate command "crossplane resource validate --error-on-missing-schemas" because no CRDs were specified
+DEBUG: Copied xr to: /tmp/xprin-testcase-829220625/inputs/xr/xr.yaml
+DEBUG: Copied composition to: /tmp/xprin-testcase-829220625/inputs/composition/composition.yaml
+DEBUG: Copied functions to: /tmp/xprin-testcase-829220625/inputs/functions/functions.yaml
+DEBUG: Using provided XR file: /tmp/xprin-testcase-829220625/inputs/xr/xr.yaml
+DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-docker-network=xprin-net-20ce3a4c /tmp/xprin-testcase-829220625/inputs/xr/xr.yaml /tmp/xprin-testcase-829220625/inputs/composition/composition.yaml /tmp/xprin-testcase-829220625/inputs/functions/functions.yaml
+DEBUG: Wrote rendered output to: /tmp/xprin-testcase-829220625/outputs/rendered.yaml
+DEBUG: Skipped validate command "/usr/local/bin/crossplane resource validate --error-on-missing-schemas" because no CRDs were specified
 DEBUG: Test case 'Initial reconciliation loop (using XR)' completed with status: PASS
 === RUN   Initial reconciliation loop (using XR)
---- PASS: Initial reconciliation loop (using XR) (0.90s)
+--- PASS: Initial reconciliation loop (using XR) (0.51s)
 PASS
-ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.906s
+ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.514s
 ```
 
 </details>
@@ -141,12 +197,12 @@ ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.906s
 ```
 ➜ xprin test examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml -v --show-render
 === RUN   Initial reconciliation loop (using XR)
---- PASS: Initial reconciliation loop (using XR) (0.76s)
+--- PASS: Initial reconciliation loop (using XR) (0.49s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
 PASS
-ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.769s
+ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.489s
 ```
 
 </details>
@@ -157,14 +213,38 @@ ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.769s
 ```
 ➜ xprin test examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml -v --show-validate
 === RUN   Initial reconciliation loop (using XR)
---- PASS: Initial reconciliation loop (using XR) (0.98s)
+--- PASS: Initial reconciliation loop (using XR) (0.47s)
 PASS
-ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.985s
+ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.468s
 ```
 
 </details>
 
 Note: No validation results are shown because, as mentioned in the debug output, validation was skipped (no CRDs were specified).
+
+To inspect a run afterwards, `--artifacts-dir` exports the inputs and the outputs of every test case (the external artifacts) to a directory of your choice, one per test case (see [Artifacts](../docs/how-it-works.md#artifacts)):
+
+<details>
+<summary>Export the artifacts (--artifacts-dir)</summary>
+
+```
+➜ xprin test examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml --artifacts-dir /tmp/xprin-debug
+ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.498s
+artifacts: /tmp/xprin-debug/xprin-artifacts-20261023130617/examples/mytests/1_simple_tests/example1_using-xr_xprin
+
+➜ find /tmp/xprin-debug -maxdepth 7
+/tmp/xprin-debug
+/tmp/xprin-debug/xprin-artifacts-20261023130617
+/tmp/xprin-debug/xprin-artifacts-20261023130617/examples
+/tmp/xprin-debug/xprin-artifacts-20261023130617/examples/mytests
+/tmp/xprin-debug/xprin-artifacts-20261023130617/examples/mytests/1_simple_tests
+/tmp/xprin-debug/xprin-artifacts-20261023130617/examples/mytests/1_simple_tests/example1_using-xr_xprin
+/tmp/xprin-debug/xprin-artifacts-20261023130617/examples/mytests/1_simple_tests/example1_using-xr_xprin/01_Initial_reconciliation_loop_(using_XR)
+/tmp/xprin-debug/xprin-artifacts-20261023130617/examples/mytests/1_simple_tests/example1_using-xr_xprin/01_Initial_reconciliation_loop_(using_XR)/inputs
+/tmp/xprin-debug/xprin-artifacts-20261023130617/examples/mytests/1_simple_tests/example1_using-xr_xprin/01_Initial_reconciliation_loop_(using_XR)/outputs
+```
+
+</details>
 
 ### Example 2: Simple Test using Claim
 
@@ -184,13 +264,13 @@ xprin test examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml
 ```
 ➜ xprin test examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml --debug
 DEBUG: Processing testsuite file examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml
-DEBUG: Created testsuite artifacts directory: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testsuite-artifacts-3784384366
+DEBUG: Created internal artifacts directory: /tmp/xprin-internal-artifacts-908425348
 DEBUG: Using testsuite file directory for relative path resolution: examples/mytests/1_simple_tests
 DEBUG: Found 1 test case
 DEBUG: Starting test case 'Initial reconciliation loop (using Claim)'
-DEBUG: Created temporary directory for test case: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591
-DEBUG: - Inputs: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591/inputs
-DEBUG: - Outputs: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591/outputs
+DEBUG: Created temporary directory for test case: /tmp/xprin-testcase-479652883
+DEBUG: - Inputs: /tmp/xprin-testcase-479652883/inputs
+DEBUG: - Outputs: /tmp/xprin-testcase-479652883/outputs
 DEBUG: Test specification:
 DEBUG:   Inputs:
 DEBUG:   - Claim: ../../aws/claim.yaml
@@ -201,16 +281,16 @@ DEBUG:   Inputs:
 DEBUG:   - Claim: /Users/myuser/repos/xprin/examples/aws/claim.yaml
 DEBUG:   - Composition: /Users/myuser/repos/xprin/examples/aws/composition.yaml
 DEBUG:   - Functions: /Users/myuser/repos/xprin/examples/aws/functions.yaml
-DEBUG: Copied claim to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591/inputs/claim/claim.yaml
-DEBUG: Copied composition to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591/inputs/composition/composition.yaml
-DEBUG: Copied functions to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591/inputs/functions/functions.yaml
+DEBUG: Copied claim to: /tmp/xprin-testcase-479652883/inputs/claim/claim.yaml
+DEBUG: Copied composition to: /tmp/xprin-testcase-479652883/inputs/composition/composition.yaml
+DEBUG: Copied functions to: /tmp/xprin-testcase-479652883/inputs/functions/functions.yaml
 DEBUG: Converting Claim to XR
-DEBUG: Wrote converted XR to temporary file: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591/inputs/xr.yaml
-DEBUG: Running render command: crossplane render ...
-DEBUG: Wrote rendered output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-2561622591/outputs/rendered.yaml
-DEBUG: Skipped validate command "crossplane resource validate --error-on-missing-schemas" because no CRDs were specified
+DEBUG: Wrote converted XR to temporary file: /tmp/xprin-testcase-479652883/inputs/xr.yaml
+DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-docker-network=xprin-net-8d4da2a0 /tmp/xprin-testcase-479652883/inputs/xr.yaml /tmp/xprin-testcase-479652883/inputs/composition/composition.yaml /tmp/xprin-testcase-479652883/inputs/functions/functions.yaml
+DEBUG: Wrote rendered output to: /tmp/xprin-testcase-479652883/outputs/rendered.yaml
+DEBUG: Skipped validate command "/usr/local/bin/crossplane resource validate --error-on-missing-schemas" because no CRDs were specified
 DEBUG: Test case 'Initial reconciliation loop (using Claim)' completed with status: PASS
-ok      examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml 0.904s
+ok	examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml	0.555s
 ```
 
 </details>
@@ -221,12 +301,12 @@ ok      examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml 0.904s
 ```
 ➜ xprin test examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml -v --show-render --show-validate
 === RUN   Initial reconciliation loop (using Claim)
---- PASS: Initial reconciliation loop (using Claim) (0.76s)
+--- PASS: Initial reconciliation loop (using Claim) (0.50s)
     Render:
-        ├── XAWSInfrastructure/platform-aws-wg9vx
-        └── SecurityGroup/platform-aws-wg9vx-sg
+        ├── XAWSInfrastructure/platform-aws-fxnfl
+        └── SecurityGroup/platform-aws-fxnfl-sg
 PASS
-ok	examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml	0.768s
+ok	examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml	0.499s
 ```
 
 </details>
@@ -249,13 +329,13 @@ xprin test examples/mytests/1_simple_tests/example3_validate_xprin.yaml
 ```
 ➜ xprin test examples/mytests/1_simple_tests/example3_validate_xprin.yaml --debug
 DEBUG: Processing testsuite file examples/mytests/1_simple_tests/example3_validate_xprin.yaml
-DEBUG: Created testsuite artifacts directory: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testsuite-artifacts-825609063
+DEBUG: Created internal artifacts directory: /tmp/xprin-internal-artifacts-728102659
 DEBUG: Using testsuite file directory for relative path resolution: examples/mytests/1_simple_tests
 DEBUG: Found 1 test case
 DEBUG: Starting test case 'Initial reconciliation loop (runs both render and validate)'
-DEBUG: Created temporary directory for test case: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768
-DEBUG: - Inputs: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs
-DEBUG: - Outputs: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/outputs
+DEBUG: Created temporary directory for test case: /tmp/xprin-testcase-184759430
+DEBUG: - Inputs: /tmp/xprin-testcase-184759430/inputs
+DEBUG: - Outputs: /tmp/xprin-testcase-184759430/outputs
 DEBUG: Test specification:
 DEBUG:   Inputs:
 DEBUG:   - XR: ../../aws/xr.yaml
@@ -272,18 +352,18 @@ DEBUG:   - Functions: /Users/myuser/repos/xprin/examples/aws/functions.yaml
 DEBUG:   - CRDs:
 DEBUG:     - /Users/myuser/repos/xprin/examples/aws/xrd.yaml
 DEBUG:     - /Users/myuser/repos/xprin/examples/aws/crossplane.yaml
-DEBUG: Copied xr to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/xr/xr.yaml
-DEBUG: Copied composition to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/composition/composition.yaml
-DEBUG: Copied functions to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/functions/functions.yaml
-DEBUG: Copied crds to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/crds/xrd.yaml
-DEBUG: Copied crds to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/crds/crossplane.yaml
-DEBUG: Using provided XR file: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/inputs/xr/xr.yaml
-DEBUG: Running render command: crossplane render --include-full-xr ...
-DEBUG: Wrote rendered output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/outputs/rendered.yaml
-DEBUG: Running validate command: crossplane resource validate --error-on-missing-schemas ...
-DEBUG: Wrote validation output to: /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-371846768/outputs/validate.txt
+DEBUG: Copied xr to: /tmp/xprin-testcase-184759430/inputs/xr/xr.yaml
+DEBUG: Copied composition to: /tmp/xprin-testcase-184759430/inputs/composition/composition.yaml
+DEBUG: Copied functions to: /tmp/xprin-testcase-184759430/inputs/functions/functions.yaml
+DEBUG: Copied crds to: /tmp/xprin-testcase-184759430/inputs/crds/xrd.yaml
+DEBUG: Copied crds to: /tmp/xprin-testcase-184759430/inputs/crds/crossplane.yaml
+DEBUG: Using provided XR file: /tmp/xprin-testcase-184759430/inputs/xr/xr.yaml
+DEBUG: Running render command: /usr/local/bin/crossplane render --include-full-xr --crossplane-docker-network=xprin-net-e1af4481 /tmp/xprin-testcase-184759430/inputs/xr/xr.yaml /tmp/xprin-testcase-184759430/inputs/composition/composition.yaml /tmp/xprin-testcase-184759430/inputs/functions/functions.yaml
+DEBUG: Wrote rendered output to: /tmp/xprin-testcase-184759430/outputs/rendered.yaml
+DEBUG: Running validate command: /usr/local/bin/crossplane resource validate --error-on-missing-schemas /tmp/xprin-testcase-184759430/inputs/crds /tmp/xprin-testcase-184759430/outputs/rendered.yaml
+DEBUG: Wrote validation output to: /tmp/xprin-testcase-184759430/outputs/validate.txt
 DEBUG: Test case 'Initial reconciliation loop (runs both render and validate)' completed with status: PASS
-ok	examples/mytests/1_simple_tests/example3_validate_xprin.yaml	1.572s
+ok	examples/mytests/1_simple_tests/example3_validate_xprin.yaml	1.312s
 ```
 
 </details>
@@ -303,6 +383,35 @@ ok	examples/mytests/1_simple_tests/example3_validate_xprin.yaml	1.572s
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 PASS
 ok	examples/mytests/1_simple_tests/example3_validate_xprin.yaml	1.338s
+```
+
+</details>
+
+### Example 4: Test with validation failures
+
+**File**: [`mytests/1_simple_tests/example4_validate-failure_xprin.yaml`](mytests/1_simple_tests/example4_validate-failure_xprin.yaml)
+
+Example 3 passes the validation. This example shows the two ways that it fails, in the same test case. The XR doesn't match its XRD: `spec.sshPublicKey` can only be `qa_ssh_key`, and the XR sets another value, which is a schema validation error. And the CRDs of the provider are not given, so the `SecurityGroup` that the composition renders has no schema: xprin validates with `--error-on-missing-schemas`, so a resource without a schema fails the validation instead of being skipped. The render works, the test case fails, and the `Validate:` section says which resources failed and why:
+
+```bash
+xprin test examples/mytests/1_simple_tests/example4_validate-failure_xprin.yaml
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin test examples/mytests/1_simple_tests/example4_validate-failure_xprin.yaml
+--- FAIL: Validation fails: a value that the XRD doesn't allow, and the provider CRDs are missing (0.60s)
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws : spec.sshPublicKey: Unsupported value: "prod_ssh_key": supported values: "qa_ssh_key"
+        [!] could not find CRD/XRD for: ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup
+        Total 2 resources: 1 missing schemas, 0 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+FAIL
+FAIL	examples/mytests/1_simple_tests/example4_validate-failure_xprin.yaml	0.598s
+FAIL
+2026/10/24 13:32:18 processing completed with errors
 ```
 
 </details>
@@ -329,27 +438,52 @@ xprin test examples/mytests/2_multiple_testcases/example1_multiple-reconciliatio
 ```
 ➜ xprin test examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml -v --show-render --show-validate
 === RUN   Initial reconciliation loop
---- PASS: Initial reconciliation loop (1.32s)
+--- PASS: Initial reconciliation loop (1.15s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
     Validate:
-        [✓] demo.aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 === RUN   Second reconciliation loop
---- PASS: Second reconciliation loop (1.35s)
+--- PASS: Second reconciliation loop (0.89s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         ├── Cluster/platform-aws-rds
         └── SecurityGroup/platform-aws-sg
     Validate:
-        [✓] demo.aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
         [✓] rds.aws.upbound.io/v1beta1, Kind=Cluster, platform-aws-rds validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
 PASS
-ok	examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml	2.576s
+ok	examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml	2.044s
+```
+
+</details>
+
+The function containers are reused across the test cases, and the testsuite files, of a run: the first test case that uses a function image pays for pulling it (if it isn't on the machine yet) and starting its container, and the next ones reuse the running container. With `--no-container-reuse`, every render starts and removes a fresh container instead (see [Function Container Reuse](../docs/how-it-works.md#function-container-reuse)). Compare the times of the second test case:
+
+<details>
+<summary>Without <code>--no-container-reuse</code> (the default) and with it</summary>
+
+```
+➜ xprin test examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml -v
+=== RUN   Initial reconciliation loop
+--- PASS: Initial reconciliation loop (1.21s)
+=== RUN   Second reconciliation loop
+--- PASS: Second reconciliation loop (0.90s)
+PASS
+ok	examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml	2.105s
+
+➜ xprin test examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml -v --no-container-reuse
+=== RUN   Initial reconciliation loop
+--- PASS: Initial reconciliation loop (1.39s)
+=== RUN   Second reconciliation loop
+--- PASS: Second reconciliation loop (1.42s)
+PASS
+ok	examples/mytests/2_multiple_testcases/example1_multiple-reconciliation-loops_xprin.yaml	2.813s
 ```
 
 </details>
@@ -372,27 +506,27 @@ xprin test examples/mytests/2_multiple_testcases/example2_multiple-reconciliatio
 ```
 ➜ xprin test examples/mytests/2_multiple_testcases/example2_multiple-reconciliation-loops-using-common_xprin.yaml -v --show-render --show-validate
 === RUN   Initial reconciliation loop
---- PASS: Initial reconciliation loop (1.29s)
+--- PASS: Initial reconciliation loop (1.14s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
     Validate:
-        [✓] demo.aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 === RUN   Second reconciliation loop
---- PASS: Second reconciliation loop (1.43s)
+--- PASS: Second reconciliation loop (0.90s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         ├── Cluster/platform-aws-rds
         └── SecurityGroup/platform-aws-sg
     Validate:
-        [✓] demo.aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
         [✓] rds.aws.upbound.io/v1beta1, Kind=Cluster, platform-aws-rds validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
 PASS
-ok	examples/mytests/2_multiple_testcases/example2_multiple-reconciliation-loops-using-common_xprin.yaml	2.674s
+ok	examples/mytests/2_multiple_testcases/example2_multiple-reconciliation-loops-using-common_xprin.yaml	2.043s
 ```
 
 Note: This produces identical output to Example 1, demonstrating that `common.inputs` is purely a convenience feature for reducing repetition. Note that if an input is defined in both `common.inputs` and at the test case level, the test case value takes precedence.
@@ -403,35 +537,41 @@ Note: This produces identical output to Example 1, demonstrating that `common.in
 
 ## Patching XRs
 
-Examples demonstrating how to use patches to apply XRD defaults to XRs before validation.
+Examples demonstrating how to use `patches` with an XRD.
 
-### Example 1: Patch XR with XRD Defaults
+### Example 1: Patch XR with the XRD (legacy XRD)
 
-**File**: [`mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml`](mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml)
+**File**: [`mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml`](mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml)
 
-This example demonstrates how to use `patches.xrd` to apply default values from an XRD to an XR. When an XR/Claim doesn't have a required field specified, schema validation will fail. However, if `patches.xrd` is defined, it populates the field with the default value from the XRD before validation.
+The XR of this example doesn't set `spec.team`, which its XRD requires and defaults to `devops`, and the XRD is a legacy one (`apiextensions.crossplane.io/v1`, with a Claim). Both test cases render the same XR, and the second one gives the XRD with `patches.xrd`. `crossplane render` needs the XRD to apply the defaults and to know the scope of the XR, and the Crossplane CLI v1 and v2 do that differently, so does xprin:
+
+- **v2 (2.3 or newer)**: xprin passes `patches.xrd` to `crossplane render` as `--xrd`. Without it, render takes the XRD as one of the Modern scope, and puts `resourceRefs` at `spec.crossplane.resourceRefs`, which the legacy XRD doesn't have: the first test case fails the validation (`spec.crossplane` is an unknown field).
+- **v1**: `crossplane render` has no `--xrd`. xprin applies the defaults of the XRD to the XR itself before it renders it. Without it, the first test case fails the validation (`spec.team` is required, and the XR doesn't have it).
+
+In both versions the first test case fails and the second one passes, with `--debug` to see the difference:
 
 ```bash
-➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml -v --show-render --show-validate
+xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml -v --show-render --show-validate
+xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml --debug 2>&1 | grep -oE '(Crossplane CLI v1 detected.*|Applying XRD defaults|--xrd=[^ ]+)'
 ```
 
 <details>
 <summary><strong>Output</strong></summary>
 
 ```
-➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml -v --show-render --show-validate
-=== RUN   Validation fails without XRD defaults
---- FAIL: Validation fails without XRD defaults (1.57s)
+➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml -v --show-render --show-validate
+=== RUN   Validation fails without patches.xrd (legacy XRD)
+--- FAIL: Validation fails without patches.xrd (legacy XRD) (1.29s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
     Validate:
-        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws : spec.team: Required value
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws : spec.crossplane: Invalid value: "crossplane": unknown field: "crossplane"
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 1 success cases, 1 failure cases
-        crossplane: error: cannot validate resources: could not validate all resources
-=== RUN   Validation passes with XRD defaults applied
---- PASS: Validation passes with XRD defaults applied (1.32s)
+        crossplane: error: could not validate all resources
+=== RUN   Validation passes with patches.xrd (legacy XRD)
+--- PASS: Validation passes with patches.xrd (legacy XRD) (1.04s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
@@ -440,12 +580,54 @@ This example demonstrates how to use `patches.xrd` to apply default values from 
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 FAIL
-FAIL	examples/mytests/3_patch_xr/example1_patch-xr-xrd-defaults_xprin.yaml	2.894s
+FAIL	examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml	2.326s
+FAIL
+2026/10/23 14:05:25 processing completed with errors
+
+➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml --debug 2>&1 | grep -oE '(Crossplane CLI v1 detected.*|Applying XRD defaults|--xrd=[^ ]+)'
+--xrd=/tmp/xprin-testcase-783691409/inputs/xrd/xrd_legacy.yaml
 ```
 
 </details>
 
-Note: Patches can also be specified in the `common.patches` section. If patches are defined at both the common and test case level, the test case level patches take precedence.
+<details>
+<summary><strong>Output with the Crossplane CLI v1</strong></summary>
+
+<!-- examples-gen: v1 -->
+```
+➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml -v --show-render --show-validate
+=== RUN   Validation fails without patches.xrd (legacy XRD)
+--- FAIL: Validation fails without patches.xrd (legacy XRD) (1.92s)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws : spec.team: Required value
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 2 resources: 0 missing schemas, 1 success cases, 1 failure cases
+        crossplane: error: cannot validate resources: could not validate all resources
+=== RUN   Validation passes with patches.xrd (legacy XRD)
+--- PASS: Validation passes with patches.xrd (legacy XRD) (0.69s)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
+FAIL
+FAIL	examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml	2.608s
+FAIL
+2026/10/23 14:06:04 processing completed with errors
+
+➜ xprin test examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml --debug 2>&1 | grep -oE '(Crossplane CLI v1 detected.*|Applying XRD defaults|--xrd=[^ ]+)'
+Crossplane CLI v1 detected; patches.xrd will not be passed as --xrd to render
+Applying XRD defaults
+```
+
+</details>
+
+Note: Patches can also be specified in the `common.patches` section. If patches are defined at both the common and test case level, the test case level prevails.
 
 ---
 
@@ -469,7 +651,7 @@ xprin test examples/mytests/4_hooks/example1_hooks_xprin.yaml -v --show-hooks
 ```
 ➜ xprin test examples/mytests/4_hooks/example1_hooks_xprin.yaml -v --show-hooks
 === RUN   Test with pre-test and post-test hooks
---- PASS: Test with pre-test and post-test hooks (1.29s)
+--- PASS: Test with pre-test and post-test hooks (0.52s)
     Pre-test Hooks:
         [✓] Prepare test environment
             Setting up test environment...
@@ -484,7 +666,7 @@ xprin test examples/mytests/4_hooks/example1_hooks_xprin.yaml -v --show-hooks
         [✓] Cleanup
             Cleaning up test environment...
 PASS
-ok	examples/mytests/4_hooks/example1_hooks_xprin.yaml	1.289s
+ok	examples/mytests/4_hooks/example1_hooks_xprin.yaml	0.524s
 ```
 
 </details>
@@ -509,7 +691,7 @@ xprin test examples/mytests/4_hooks/example2_pre-test-hooks_xprin.yaml -v --show
 ```
 ➜ xprin test examples/mytests/4_hooks/example2_pre-test-hooks_xprin.yaml -v --show-render --show-validate --show-hooks
 === RUN   Without modifying XR status
---- PASS: Without modifying XR status (1.34s)
+--- PASS: Without modifying XR status (1.18s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
@@ -518,24 +700,26 @@ xprin test examples/mytests/4_hooks/example2_pre-test-hooks_xprin.yaml -v --show
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 === RUN   With XR status modified in pre-test hook
---- PASS: With XR status modified in pre-test hook (1.38s)
+--- PASS: With XR status modified in pre-test hook (0.88s)
     Pre-test Hooks:
         [✓] Show XR path
-            /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-.../inputs/xr/xr.yaml
+            /tmp/xprin-testcase-524360000/inputs/xr/xr.yaml
         [✓] Show Composition path
-            /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-.../inputs/composition/composition.yaml
+            /tmp/xprin-testcase-524360000/inputs/composition/composition.yaml
         [✓] Set RDS status in XR
     Render:
         ├── XAWSInfrastructure/platform-aws
-        ├── Instance/platform-aws-ec2
+        ├── Instance/platform-aws-primary-ec2
+        ├── Instance/platform-aws-secondary-ec2
         └── SecurityGroup/platform-aws-sg
     Validate:
         [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
-        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-ec2 validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-primary-ec2 validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=Instance, platform-aws-secondary-ec2 validated successfully
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
-        Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
+        Total 4 resources: 0 missing schemas, 4 success cases, 0 failure cases
 PASS
-ok	examples/mytests/4_hooks/example2_pre-test-hooks_xprin.yaml	2.774s
+ok	examples/mytests/4_hooks/example2_pre-test-hooks_xprin.yaml	2.059s
 ```
 
 </details>
@@ -564,10 +748,18 @@ xprin test examples/mytests/4_hooks/example3_post-test-hooks_xprin.yaml -v --sho
 ```
 ➜ xprin test examples/mytests/4_hooks/example3_post-test-hooks_xprin.yaml -v --show-hooks
 === RUN   Initial reconciliation loop
---- PASS: Initial reconciliation loop (1.46s)
+--- FAIL: Initial reconciliation loop (1.45s)
     Post-test Hooks:
         [✓] Inspect XR status
             conditions:
+              - lastTransitionTime: "2024-01-01T00:00:00Z"
+                reason: WatchCircuitClosed
+                status: "True"
+                type: Responsive
+              - lastTransitionTime: "2024-01-01T00:00:00Z"
+                reason: ReconcileSuccess
+                status: "True"
+                type: Synced
               - lastTransitionTime: "2024-01-01T00:00:00Z"
                 message: 'Unready resources: sg'
                 reason: Creating
@@ -576,36 +768,54 @@ xprin test examples/mytests/4_hooks/example3_post-test-hooks_xprin.yaml -v --sho
         [✓] Show render count
             2
         [✓] Show render output path
-            /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-204705582/outputs/rendered.yaml
+            /tmp/xprin-testcase-961589126/outputs/rendered.yaml
         [✓] Show specific rendered resource
-            /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-204705582/outputs/rendered-securitygroup-platform-aws-sg.yaml
-        [✓] Compare input and output XRs
+            /tmp/xprin-testcase-961589126/outputs/rendered-securitygroup-platform-aws-sg.yaml
+        [x] Compare input and output XRs [exit code: 1]
                  _        __  __
-               _| |_   _ / _|/ _|  between /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-204705582/inputs/xr/xr.yaml
-             / _' | | | | |_| |_       and /var/folders/st/_skftlwn3bb8z_vk249n6qy80000gn/T/xprin-testcase-204705582/outputs/xr.yaml
+               _| |_   _ / _|/ _|  between /tmp/xprin-testcase-961589126/inputs/xr/xr.yaml
+             / _' | | | | |_| |_       and /tmp/xprin-testcase-961589126/outputs/xr.yaml
             | (_| | |_| |  _|  _|
-             \__,_|\__, |_| |_|   returned one difference
+             \__,_|\__, |_| |_|   returned two differences
                     |___/
             
             (root level)
             + one map entry added:
               status:
                 conditions:
+                - type: Responsive
+                  lastTransitionTime: "2024-01-01T00:00:00Z"
+                  reason: WatchCircuitClosed
+                  status: True
+                - type: Synced
+                  lastTransitionTime: "2024-01-01T00:00:00Z"
+                  reason: ReconcileSuccess
+                  status: True
                 - type: Ready
                   lastTransitionTime: "2024-01-01T00:00:00Z"
                   message: "Unready resources: sg"
                   reason: Creating
                   status: False
             
-PASS
-ok	examples/mytests/4_hooks/example3_post-test-hooks_xprin.yaml	1.464s
+            spec
+              + one map entry added:
+                crossplane:
+                  resourceRefs:
+                  - apiVersion: ec2.aws.upbound.io/v1beta1
+                    kind: SecurityGroup
+                    name: platform-aws-sg
+            
+FAIL
+FAIL	examples/mytests/4_hooks/example3_post-test-hooks_xprin.yaml	1.446s
+FAIL
+2026/10/23 20:20:02 processing completed with errors
 ```
 
 </details>
 
 ---
 
-## Chained Tests / Artifacts
+## Chained Tests
 
 Test cases can depend on each other. A test case lists the IDs of the test cases it depends on in `needs`: it runs after them, and only if they passed (if one failed, or was skipped, it is skipped, and the reason is printed under it).
 
@@ -633,11 +843,10 @@ xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-
 <details>
 <summary><strong>Output</strong></summary>
 
-```bash
+```
 ➜ xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-render --show-validate
-
 === RUN   Initial reconciliation loop
---- PASS: Initial reconciliation loop (1.33s)
+--- PASS: Initial reconciliation loop (1.18s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
@@ -646,7 +855,7 @@ xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 === RUN   Second reconciliation loop
---- PASS: Second reconciliation loop (1.34s)
+--- PASS: Second reconciliation loop (0.90s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         ├── Cluster/platform-aws-rds
@@ -657,7 +866,7 @@ xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
 === RUN   Third reconciliation loop
---- PASS: Third reconciliation loop (1.35s)
+--- PASS: Third reconciliation loop (0.90s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         ├── Cluster/platform-aws-rds
@@ -668,7 +877,7 @@ xprin test examples/mytests/5_chained_tests/example1_needs_xprin.yaml -v --show-
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
 PASS
-ok	examples/mytests/5_chained_tests/example1_needs_xprin.yaml	4.021s
+ok	examples/mytests/5_chained_tests/example1_needs_xprin.yaml	2.979s
 ```
 
 </details>
@@ -695,11 +904,10 @@ xprin test examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml -v
 <details>
 <summary><strong>Output</strong></summary>
 
-```bash
+```
 ➜ xprin test examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml -v --show-render --show-validate --show-assertions
-
 === RUN   Initial reconciliation loop
---- FAIL: Initial reconciliation loop (1.33s)
+--- FAIL: Initial reconciliation loop (1.20s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
@@ -717,7 +925,9 @@ xprin test examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml -v
 --- SKIP: Third reconciliation loop (0.00s)
     [!] needs skipped test case "aws_second"
 FAIL
-FAIL	examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml	1.35s
+FAIL	examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml	1.201s
+FAIL
+2026/10/23 13:06:55 processing completed with errors
 ```
 
 </details>
@@ -731,7 +941,7 @@ FAIL	examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml	1.35s
 This example demonstrates how to use outputs from a previous test as input to a subsequent test. The first test runs an initial reconciliation loop and stores its result with id `aws_first`. The second test uses `{{ .Tests.aws_first.Outputs.XR }}` to reference the XR output from the first test, enabling you to test multiple reconciliation loops in sequence.
 
 **Key Points:**
-- The first test has `id: aws_first`, which makes its outputs available as artifacts to later tests
+- The first test has `id: aws_first`, which makes its outputs available to later tests
 - The second test uses `{{ .Tests.aws_first.Outputs.XR }}` to reference the XR output from the first test
 - The second test lists `aws_first` in `needs`: a test case can only use (`.Tests`) the outputs of the test cases it lists
 - The outputs are available in the hooks too (the second test has a `pre-test` hook that checks that the XR of the first one exists)
@@ -744,11 +954,10 @@ xprin test examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.
 <details>
 <summary><strong>Output</strong></summary>
 
-```bash
+```
 ➜ xprin test examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml -v --show-render --show-validate
-
 === RUN   Initial reconciliation loop
---- PASS: Initial reconciliation loop (1.33s)
+--- PASS: Initial reconciliation loop (1.18s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
@@ -757,7 +966,7 @@ xprin test examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 === RUN   Second reconciliation loop
---- PASS: Second reconciliation loop (1.34s)
+--- PASS: Second reconciliation loop (0.89s)
     Render:
         ├── XAWSInfrastructure/platform-aws
         ├── Cluster/platform-aws-rds
@@ -768,7 +977,7 @@ xprin test examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
 PASS
-ok	examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml	2.668s
+ok	examples/mytests/5_chained_tests/example3_chained-test-outputs_xprin.yaml	2.065s
 ```
 
 </details>
@@ -791,11 +1000,10 @@ This example demonstrates cross-composition chaining, where one composition rend
 <details>
 <summary><strong>Output</strong></summary>
 
-```bash
+```
 ➜ xprin test examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml -v --show-render --show-validate
-
 === RUN   Base layer final loop
---- PASS: Base layer final loop (0.86s)
+--- PASS: Base layer final loop (2.12s)
     Render:
         ├── XBaseInfrastructure/platform-base
         ├── XAWSInfrastructure/platform-base-aws
@@ -808,7 +1016,7 @@ This example demonstrates cross-composition chaining, where one composition rend
         [✓] kubernetes.crossplane.io/v1alpha2, Kind=Object, platform-base-base-namespace validated successfully
         Total 4 resources: 0 missing schemas, 4 success cases, 0 failure cases
 === RUN   GCP layer first loop
---- PASS: GCP layer first loop (0.95s)
+--- PASS: GCP layer first loop (4.23s)
     Render:
         ├── XGCPInfrastructure/platform-base-gcp
         └── Firewall/platform-base-gcp-firewall
@@ -817,7 +1025,7 @@ This example demonstrates cross-composition chaining, where one composition rend
         [✓] compute.gcp.upbound.io/v1beta1, Kind=Firewall, platform-base-gcp-firewall validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 === RUN   AWS layer first loop
---- PASS: AWS layer first loop (1.28s)
+--- PASS: AWS layer first loop (0.92s)
     Render:
         ├── XAWSInfrastructure/platform-base-aws
         └── SecurityGroup/platform-base-aws-sg
@@ -826,7 +1034,7 @@ This example demonstrates cross-composition chaining, where one composition rend
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-base-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
 PASS
-ok	examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml	3.09s
+ok	examples/mytests/5_chained_tests/example4_cross-composition-chaining_xprin.yaml	2.577s
 ```
 
 </details>
@@ -861,13 +1069,65 @@ The base layer comes first. The GCP and AWS chains each need it, but not each ot
 
 ---
 
-### What happens when `needs` goes wrong
+### Example 6: Mistakes in the use of `needs`
 
-The files under [`mytests/0_e2e/`](mytests/0_e2e/) and [`mytests/5_chained_tests/`](mytests/5_chained_tests/) also act as the acceptance tests of `needs`:
+**File**: [`mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml`](mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml)
 
-- [`failures_xprin.yaml`](mytests/0_e2e/failures_xprin.yaml) (the `Needs:` test cases at the end): more cases of skipped test cases (see Example 2). A test case that uses the outputs of another one without listing it fails with an error that says it has to be listed. A typo in the ID and a typo in the output fail too, with the error of the template.
-- [`broken_needs_xprin.yaml`](mytests/0_e2e/broken_needs_xprin.yaml): `needs` that make the file invalid: an ID that doesn't exist, test cases that need each other (a cycle), and a test case that needs itself. All the problems are reported together.
-- [`legacy_success_xprin.yaml`](mytests/5_chained_tests/legacy_success_xprin.yaml) and [`legacy_failure_xprin.yaml`](mytests/5_chained_tests/legacy_failure_xprin.yaml): the old way (deprecated), without `needs`: the dependency is detected from `.Tests`. It works and xprin prints a warning, but a typo in the ID, or a test case listed below, fail. These files are removed in xprin 0.7.0.
+A test case can only use the outputs of the test cases that it lists in `needs`. Using the outputs of one that it doesn't list fails with an error that says it has to be listed. A typo in the ID, or in the name of the output, fails with the error of the template:
+
+```bash
+xprin test examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin test examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml
+--- FAIL: Uses the outputs of a test case without listing it (fails: it has to be listed in needs) (0.00s)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+--- FAIL: A typo in the ID at the template variable (0.00s)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.frist.Outputs.XR>: map has no entry for key "frist"
+--- FAIL: A typo in the name of the output (0.00s)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.first.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
+FAIL
+FAIL	examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml	0.550s
+FAIL
+2026/10/23 13:38:19 processing completed with errors
+```
+
+</details>
+
+### Example 7: `needs` that make the file invalid
+
+**File**: [`mytests/5_chained_tests/example7_needs-invalid_xprin.yaml`](mytests/5_chained_tests/example7_needs-invalid_xprin.yaml)
+
+Some `needs` make the testsuite file invalid: an ID that doesn't exist, test cases that need each other (a cycle), and a test case that needs itself. No test case runs, and all the problems are reported together:
+
+```bash
+xprin test examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin test examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml
+# examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml
+invalid testsuite file:
+- test case "Second loop, with a typo in needs" needs "frist", but no test case has that ID
+- needs cycle: third -> fourth -> third
+- needs cycle: fifth -> fifth
+FAIL	examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml	[invalid testsuite file]
+FAIL
+2026/10/23 13:38:19 processing completed with errors
+```
+
+</details>
+
+### The old way (deprecated)
+
+[`legacy_success_xprin.yaml`](mytests/5_chained_tests/legacy_success_xprin.yaml) and [`legacy_failure_xprin.yaml`](mytests/5_chained_tests/legacy_failure_xprin.yaml) are the old way, without `needs`: the dependency is detected from `.Tests`. It works and xprin prints a warning, but a typo in the ID, or a test case listed below, fail. These files are removed in xprin 0.7.0.
 
 ---
 
@@ -901,7 +1161,7 @@ xprin test examples/mytests/6_assertions/example1_assertions_xprin.yaml -v --sho
 ```
 ➜ xprin test examples/mytests/6_assertions/example1_assertions_xprin.yaml -v --show-assertions
 === RUN   Second reconciliation loop
---- PASS: Second reconciliation loop (1.45s)
+--- PASS: Second reconciliation loop (0.49s)
     Assertions:
         [✓] Number of all rendered resources (including XR) - found 3 resources (as expected)
         [✓] Exactly 1 resource of a certain Kind/Name should exist - found 1 resources (as expected): SecurityGroup/platform-aws-sg
@@ -923,7 +1183,7 @@ xprin test examples/mytests/6_assertions/example1_assertions_xprin.yaml -v --sho
         [✓] RDS backupRetentionPeriod should equal 1 - field spec.forProvider.backupRetentionPeriod == 1 on resource Cluster/platform-aws-rds
         Total: 18 assertions, 18 successful, 0 failed, 0 errors
 PASS
-ok	examples/mytests/6_assertions/example1_assertions_xprin.yaml	1.450s
+ok	examples/mytests/6_assertions/example1_assertions_xprin.yaml	0.490s
 ```
 
 </details>
@@ -944,7 +1204,61 @@ This example demonstrates wildcard pattern matching in resource identifiers (e.g
 xprin test examples/mytests/6_assertions/example2_assertions_pattern_xprin.yaml -v --show-assertions
 ```
 
-### Example 3: Diff and Dyff (golden-file) assertions
+### Example 3: Generating golden files with update-goldens
+
+**File**: [`mytests/6_assertions/example3_golden_file_xprin.yaml`](mytests/6_assertions/example3_golden_file_xprin.yaml)
+
+Golden files don't have to be written by hand. `xprin update-goldens` runs the render of each test case that has `assertions.diff` or `assertions.dyff` entries, and writes the result to their `expected:` paths. This is the workflow:
+
+1. Write the `diff` or `dyff` assertions, with the `expected:` paths of the golden files that don't exist yet (here, we delete the two golden files that the next example uses).
+2. Run `xprin update-goldens`. It lists the files it wrote under `Golden Files:`.
+3. Check the generated file, and commit it: it is the baseline now.
+4. Run `xprin test`: the assertions pass against the golden files that were just generated (the next example).
+
+```bash
+rm examples/mytests/6_assertions/golden_full_render.yaml examples/mytests/6_assertions/golden_single_resource.yaml
+xprin update-goldens examples/mytests/6_assertions/example3_golden_file_xprin.yaml
+head -15 examples/mytests/6_assertions/golden_single_resource.yaml
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ rm examples/mytests/6_assertions/golden_full_render.yaml examples/mytests/6_assertions/golden_single_resource.yaml
+
+➜ xprin update-goldens examples/mytests/6_assertions/example3_golden_file_xprin.yaml
+--- PASS: Successful assertions against golden files (0.52s)
+    Golden Files:
+        [✓] Full render matches golden (using diff): /Users/myuser/repos/xprin/examples/mytests/6_assertions/golden_full_render.yaml
+        [✓] Cluster resource matches golden (using diff): /Users/myuser/repos/xprin/examples/mytests/6_assertions/golden_single_resource.yaml
+        [✓] Full render matches golden (using dyff): /Users/myuser/repos/xprin/examples/mytests/6_assertions/golden_full_render.yaml
+        [✓] Cluster resource matches golden (using dyff): /Users/myuser/repos/xprin/examples/mytests/6_assertions/golden_single_resource.yaml
+ok	examples/mytests/6_assertions/example3_golden_file_xprin.yaml	0.516s
+
+➜ head -15 examples/mytests/6_assertions/golden_single_resource.yaml
+apiVersion: rds.aws.upbound.io/v1beta1
+kind: Cluster
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: rds
+  labels:
+    crossplane.io/composite: platform-aws
+  name: platform-aws-rds
+  ownerReferences:
+  - apiVersion: aws.example.com/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XAWSInfrastructure
+    name: platform-aws
+    uid: 2de955c7-6718-5df2-94b0-e2a41302d6ba
+```
+
+</details>
+
+Run `xprin update-goldens` again whenever the render output changes on purpose, and review the diff of the golden files in your version control.
+
+### Example 4: Diff and Dyff (golden-file) assertions
 
 **File**: [`mytests/6_assertions/example3_golden_file_xprin.yaml`](mytests/6_assertions/example3_golden_file_xprin.yaml)
 
@@ -953,8 +1267,7 @@ xprin test examples/mytests/6_assertions/example2_assertions_pattern_xprin.yaml 
 
 This example has a single test that **passes** when the render output matches the golden files. It uses `golden_full_render.yaml` (full render) and `golden_single_resource.yaml` (one resource: `Cluster/platform-aws-rds`). Each assertion has `name` and `expected` (path to the golden file, relative to the test suite file). The optional `resource` field (e.g. `Cluster/platform-aws-rds`) compares that resource’s file instead of the full render.
 
-**First-time setup — generate the golden files:**  
-The file includes a commented-out preliminary test “Generate golden files”. Uncomment that test, run the suite once, then comment it back out. That run will create `golden_full_render.yaml` and `golden_single_resource.yaml` in the same directory.
+**Golden files:** they are the ones that [Example 3](#example-3-generating-golden-files-with-update-goldens) generates, and they are in the repository too.
 
 **To see failure output:**  
 Edit one of the golden files (e.g. change a value) and run the test again; the assertion will fail and show the diff or dyff output.

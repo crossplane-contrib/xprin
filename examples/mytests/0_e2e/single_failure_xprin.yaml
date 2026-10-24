@@ -1,8 +1,0 @@
-tests:
-- name: "Validation failure (missing CRD)"
-  inputs:
-    xr: ../../aws/xr.yaml
-    composition: ../../aws/composition.yaml
-    functions: ../../aws/functions.yaml
-    crds:
-    - ../../aws/crossplane.yaml

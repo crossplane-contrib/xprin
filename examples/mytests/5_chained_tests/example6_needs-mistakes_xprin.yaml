@@ -1,0 +1,26 @@
+common:
+  inputs:
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+
+tests:
+- name: "First loop"
+  id: first
+  inputs:
+    xr: ../../aws/xr.yaml
+
+- name: "Uses the outputs of a test case without listing it (fails: it has to be listed in needs)"
+  inputs:
+    xr: '{{ .Tests.first.Outputs.XR }}'
+
+- name: "A typo in the ID at the template variable"
+  needs:
+  - first
+  inputs:
+    xr: '{{ .Tests.frist.Outputs.XR }}'
+
+- name: "A typo in the name of the output"
+  needs:
+  - first
+  inputs:
+    xr: '{{ .Tests.first.Outputs.XRR }}'

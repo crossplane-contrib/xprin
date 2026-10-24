@@ -9,6 +9,7 @@
 FAIL
 FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
 ok	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
+ok	examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml	X.XXXs
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors
 --- FAIL: Render failure (claim used as XR) (X.XXXs)
@@ -138,14 +139,8 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
 --- SKIP: Needs: a test case that needs the one that was skipped and the one that failed (skipped) (X.XXXs)
     [!] needs skipped test case "skipped"
     [!] needs failed test case "broken"
---- FAIL: Needs: uses the outputs of a test case without listing it (fails, it has to be listed in needs) (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
 --- FAIL: Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs) (X.XXXs)
     [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
---- FAIL: Needs: a typo in the ID at the template variable (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.succes.Outputs.XR>: map has no entry for key "succes"
---- FAIL: Needs: a typo in the output (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.success.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
 --- FAIL: Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs) (X.XXXs)
     Pre-test Hooks:
         [!] Uses the outputs of a test case it does not list
@@ -160,5 +155,13 @@ FAIL	examples/mytests/0_e2e/failures_xprin.yaml	X.XXXs
     [!] missing mandatory field: functions (it can be specified either in the test case or in the common inputs)
 FAIL
 FAIL	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
+--- FAIL: Uses the outputs of a test case without listing it (fails: it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+--- FAIL: A typo in the ID at the template variable (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.frist.Outputs.XR>: map has no entry for key "frist"
+--- FAIL: A typo in the name of the output (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.first.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
+FAIL
+FAIL	examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml	X.XXXs
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors

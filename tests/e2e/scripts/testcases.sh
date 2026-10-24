@@ -19,30 +19,30 @@ testcase_001="examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml examp
 testcase_002="examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml examples/mytests/2_multiple_testcases/example2_multiple-reconciliation-loops-using-common_xprin.yaml -v"
 
 # Combination of successful and failed testsuite files (Non-Verbose)
-testcase_003="examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml examples/mytests/0_e2e/single_failure_xprin.yaml examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml"
+testcase_003="examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml examples/mytests/1_simple_tests/example4_validate-failure_xprin.yaml examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml"
 testcase_003_exit=1
 
 # Combination of successful and failed testsuite files (Verbose)
-testcase_004="examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml examples/mytests/0_e2e/single_failure_xprin.yaml examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml -v"
+testcase_004="examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml examples/mytests/1_simple_tests/example4_validate-failure_xprin.yaml examples/mytests/1_simple_tests/example2_using-claim_xprin.yaml -v"
 testcase_004_exit=1
 
 # Multiple Failures - Combined File (Non-Verbose)
-testcase_005="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml"
+testcase_005="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml"
 testcase_005_exit=1
 testcase_005_update_goldens=true
 
 # Multiple Failures - Combined File (Verbose)
-testcase_006="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml examples/mytests/5_chained_tests/legacy_failure_xprin.yaml -v"
+testcase_006="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml examples/mytests/5_chained_tests/legacy_failure_xprin.yaml -v"
 testcase_006_exit=1
 testcase_006_update_goldens=true
 
 # Multiple Failures - Combined File (Verbose, show flags)
-testcase_007="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_007="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
 testcase_007_exit=1
 testcase_007_update_goldens=true
 
 # Invalid testsuite file
-testcase_008="examples/mytests/0_e2e/generated_invalid_xprin.yaml examples/mytests/0_e2e/generated_empty_needs_xprin.yaml examples/mytests/0_e2e/broken_needs_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_008="examples/mytests/0_e2e/generated_invalid_xprin.yaml examples/mytests/0_e2e/generated_empty_needs_xprin.yaml examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
 testcase_008_exit=1
 
 # Successful with hooks/validate/assertions (Verbose, show flags) + update-goldens verification
@@ -59,7 +59,7 @@ testcase_011_tiers="v1 v2"
 testcase_011_update_goldens=true
 
 # Validations with combinations of incomplete / complete XR and with / without patches.xrd (XRD v1)
-testcase_012="examples/mytests/0_e2e/validations_xrd_v1_xprin.yaml --debug"
+testcase_012="examples/mytests/3_patch_xr/example1_patch-xr-legacy-xrd_xprin.yaml --debug"
 testcase_012_tiers="v1 v2legacy v2"
 testcase_012_exit_v1=1
 testcase_012_exit_v2=1
