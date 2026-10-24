@@ -59,21 +59,11 @@ func run(outPath string) error {
 	schema.Title = "xprin"
 	schema.Description = "xprin test suite files (xprin.yaml or *_xprin.yaml)"
 
-	data, err := json.Marshal(schema)
-	if err != nil {
-		return fmt.Errorf("marshal schema: %w", err)
-	}
-
-	var full map[string]any
-	if err := json.Unmarshal(data, &full); err != nil {
-		return fmt.Errorf("unmarshal schema: %w", err)
-	}
-
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o750); err != nil {
 		return fmt.Errorf("mkdir out: %w", err)
 	}
 
-	enc, err := json.MarshalIndent(full, "", "  ")
+	enc, err := json.MarshalIndent(schema, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal indent: %w", err)
 	}
