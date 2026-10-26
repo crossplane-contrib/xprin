@@ -26,6 +26,7 @@
   - [Failed Test Run](#failed-test-run)
   - [Show Rendered Resources](#show-rendered-resources)
   - [Show Validation Results](#show-validation-results)
+  - [Show All Results](#show-all-results)
 - [Integration Examples](#integration-examples)
   - [With CI/CD Pipeline](#with-cicd-pipeline)
 
@@ -91,6 +92,9 @@ xprin test tests/advanced_xprin.yaml -v --show-hooks
 
 # Show assertion results (requires -v)
 xprin test tests/advanced_xprin.yaml -v --show-assertions
+
+# Show all results at once: shorthand for --show-render --show-validate --show-hooks --show-assertions (requires -v)
+xprin test tests/advanced_xprin.yaml -v --show-all
 
 # Debug mode (shows detailed execution information)
 xprin test tests/basic_xprin.yaml --debug
@@ -493,6 +497,16 @@ ok      tests/hello_xprin.yaml     4.422s
 PASS
 ok      tests/hello_xprin.yaml     5.193s
 ```
+
+### Show All Results
+
+`--show-all` enables `--show-render`, `--show-validate`, `--show-hooks` and `--show-assertions` in one go. Like the individual flags, it requires `-v`. Combining it with individual `--show-*` flags is allowed, but they have no extra effect.
+
+```bash
+➜ xprin test -v --show-all tests/hello_xprin.yaml
+```
+
+The output contains the Pre-test Hooks, Render, Validate, Assertions and Post-test Hooks sections of each test case (see the [README](../README.md) for a complete example).
 
 ## Integration Examples
 

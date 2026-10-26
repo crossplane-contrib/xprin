@@ -34,6 +34,7 @@ import (
 // Cmd represents the test subcommand.
 type Cmd struct {
 	Targets           []string            `arg:""                                                                                                                                                                                                            help:"One or more test targets: individual files (e.g., 'tests/aws_xprin.yaml'), directories (e.g., 'tests/aws/'), or recursive directories (e.g., 'tests/aws/...'). Files must be named 'xprin.yaml' or '*_xprin.yaml'"`
+	ShowAll           bool                `help:"Enable all --show-* flags. Requires --verbose."                                                                                                                                                             name:"show-all"`
 	ShowRender        bool                `help:"Display a list of the rendered resources in Kind/Name format. Requires --verbose."                                                                                                                          name:"show-render"`
 	ShowValidate      bool                `help:"Display validation results for each resource. Requires --verbose."                                                                                                                                          name:"show-validate"`
 	ShowHooks         bool                `help:"Display the execution hooks for each test case. Requires --verbose."                                                                                                                                        name:"show-hooks"`
@@ -66,20 +67,24 @@ func (c *Cmd) AfterApply() error {
 
 // Run executes the test subcommand.
 func (c *Cmd) Run(_ *kong.Context) error {
-	// Warn if render flag is used without -v
-	if c.ShowRender && !c.Verbose {
+	// Warn if a show flag is used without -v
+	if c.ShowAll && !c.Verbose {
+		utils.WarningPrintf("--show-all requires -v (verbose mode) to display results.\n")
+	}
+
+	if c.ShowRender && !c.ShowAll && !c.Verbose {
 		utils.WarningPrintf("--show-render requires -v (verbose mode) to display results.\n")
 	}
 
-	if c.ShowValidate && !c.Verbose {
+	if c.ShowValidate && !c.ShowAll && !c.Verbose {
 		utils.WarningPrintf("--show-validate requires -v (verbose mode) to display results.\n")
 	}
 
-	if c.ShowHooks && !c.Verbose {
+	if c.ShowHooks && !c.ShowAll && !c.Verbose {
 		utils.WarningPrintf("--show-hooks requires -v (verbose mode) to display results.\n")
 	}
 
-	if c.ShowAssertions && !c.Verbose {
+	if c.ShowAssertions && !c.ShowAll && !c.Verbose {
 		utils.WarningPrintf("--show-assertions requires -v (verbose mode) to display results.\n")
 	}
 
@@ -112,10 +117,10 @@ func (c *Cmd) Run(_ *kong.Context) error {
 // newOptions creates a testexecutionOptions.Options struct from a Command and Config.
 func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionOptions.Options {
 	opts := testexecutionOptions.FromConfig(cfg)
-	opts.ShowRender = c.ShowRender
-	opts.ShowValidate = c.ShowValidate
-	opts.ShowHooks = c.ShowHooks
-	opts.ShowAssertions = c.ShowAssertions
+	opts.ShowRender = c.ShowAll || c.ShowRender
+	opts.ShowValidate = c.ShowAll || c.ShowValidate
+	opts.ShowHooks = c.ShowAll || c.ShowHooks
+	opts.ShowAssertions = c.ShowAll || c.ShowAssertions
 	opts.Verbose = c.Verbose
 	opts.Quiet = c.Quiet
 	opts.Debug = c.Debug
