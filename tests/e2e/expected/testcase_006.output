@@ -122,16 +122,16 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
 === RUN   Assertion failure
 --- FAIL: Assertion failure (X.XXXs)
     Assertions:
-        [x] Resource count should be zero - expected 0 resources, got 2
-        [!] FieldExists with wrong resource name - no rendered resource matched the given name Cluster/doesnotexist
-        [x] FieldExists with non-existent field - field spec.forProvider.nonExistentField does not exist on resource SecurityGroup/platform-aws-sg
-        [x] Count with pattern expects too many Pods - expected 99 resources, got 0
-        [x] Exists with pattern finds nothing - resource Deployment/will-never-exist-* not found
-        [!] FieldExists pattern matches nothing - no rendered resource matched the given name Cluster/no-such-name-*
-        [x] NotExists should fail - SecurityGroup exists - resources found (should not exist): SecurityGroup/platform-aws-sg
-        [x] FieldNotExists should fail - metadata.name exists - field metadata.name exists (should not exist) on resource SecurityGroup/platform-aws-sg
-        [x] FieldType should fail - wrong type - field metadata.name has type string, expected number on resource SecurityGroup/platform-aws-sg
-        [x] FieldValue should fail - wrong value - field metadata.name is platform-aws-sg, expected == wrong-value on resource SecurityGroup/platform-aws-sg
+        [x] Resource count should be zero: expected 0 resources, got 2
+        [!] FieldExists with wrong resource name: no rendered resource matched the given name Cluster/doesnotexist
+        [x] FieldExists with non-existent field: field spec.forProvider.nonExistentField does not exist on resource SecurityGroup/platform-aws-sg
+        [x] Count with pattern expects too many Pods: expected 99 resources, got 0
+        [x] Exists with pattern finds nothing: resource Deployment/will-never-exist-* not found
+        [!] FieldExists pattern matches nothing: no rendered resource matched the given name Cluster/no-such-name-*
+        [x] NotExists should fail - SecurityGroup exists: resources found (should not exist): SecurityGroup/platform-aws-sg
+        [x] FieldNotExists should fail - metadata.name exists: field metadata.name exists (should not exist) on resource SecurityGroup/platform-aws-sg
+        [x] FieldType should fail - wrong type: field metadata.name has type string, expected number on resource SecurityGroup/platform-aws-sg
+        [x] FieldValue should fail - wrong value: field metadata.name is platform-aws-sg, expected == wrong-value on resource SecurityGroup/platform-aws-sg
         [x] Full render matches golden (using diff)
             --- golden_full_render.yaml
             +++ rendered.yaml
@@ -154,8 +154,8 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
             -    region: eu-central-1
             +    region: us-west-2
 
-        [!] Failed to get golden file - read expected file: open /examples/mytests/0_e2e/doesnotexist.yaml: no such file or directory
-        [!] Wrong resource name - resource "SecurityGroup/doesnotexist" not found in render output
+        [!] Failed to get golden file: read expected file: open /examples/mytests/0_e2e/doesnotexist.yaml: no such file or directory
+        [!] Wrong resource name: resource "SecurityGroup/doesnotexist" not found in render output
         [x] Full render matches golden (using dyff)
                  _        __  __
                _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_full_render.yaml, two documents
@@ -182,8 +182,8 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
             - eu-central-1
             + us-west-2
 
-        [!] Failed to get golden file - read expected file: open /examples/mytests/0_e2e/doesnotexist.yaml: no such file or directory
-        [!] Wrong resource name - resource "SecurityGroup/doesnotexist" not found in render output
+        [!] Failed to get golden file: read expected file: open /examples/mytests/0_e2e/doesnotexist.yaml: no such file or directory
+        [!] Wrong resource name: resource "SecurityGroup/doesnotexist" not found in render output
         Total: 19 assertions, 1 successful, 12 failed, 6 errors
 === RUN   Failed validation and assertion
 --- FAIL: Failed validation and assertion (X.XXXs)
@@ -192,7 +192,7 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
         Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
         crossplane: error: could not validate all resources, schema(s) missing
     Assertions:
-        [x] Failed assertion - expected 0 resources, got 2
+        [x] Failed assertion: expected 0 resources, got 2
         Total: 2 assertions, 1 successful, 1 failed, 0 errors
 === RUN   Failed validation, assertion, and post-test hook
 --- FAIL: Failed validation, assertion, and post-test hook (X.XXXs)
@@ -201,7 +201,7 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
         Total 2 resources: 1 missing schemas, 1 success cases, 0 failure cases
         crossplane: error: could not validate all resources, schema(s) missing
     Assertions:
-        [x] Failed assertion - expected 0 resources, got 2
+        [x] Failed assertion: expected 0 resources, got 2
         Total: 2 assertions, 1 successful, 1 failed, 0 errors
     Post-test Hooks:
         [x] Failed post-test hook [exit code: 2]

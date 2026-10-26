@@ -916,7 +916,7 @@ xprin test examples/mytests/5_chained_tests/example2_needs-failure_xprin.yaml -v
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 2 resources: 0 missing schemas, 2 success cases, 0 failure cases
     Assertions:
-        [x] Number of resources (wrong on purpose, to make the test fail) - expected 0 resources, got 2
+        [x] Number of resources (wrong on purpose, to make the test fail): expected 0 resources, got 2
         Total: 1 assertions, 0 successful, 1 failed, 0 errors
 === RUN   Second reconciliation loop
 --- SKIP: Second reconciliation loop (0.00s)
@@ -1163,24 +1163,24 @@ xprin test examples/mytests/6_assertions/example1_assertions_xprin.yaml -v --sho
 === RUN   Second reconciliation loop
 --- PASS: Second reconciliation loop (0.49s)
     Assertions:
-        [✓] Number of all rendered resources (including XR) - found 3 resources (as expected)
-        [✓] Exactly 1 resource of a certain Kind/Name should exist - found 1 resources (as expected): SecurityGroup/platform-aws-sg
-        [✓] Exactly 0 resources of a certain Kind/Name (basically - resource should not exist) - found 0 resources (as expected)
-        [✓] At least 1 SecurityGroup should exist - resources found: SecurityGroup/platform-aws-sg
-        [✓] RDS cluster named platform-aws-rds should exist - resources found: Cluster/platform-aws-rds
-        [✓] EC2 with a certain name should not exist - resource EC2/platform-aws-ec2 not found (as expected)
-        [✓] No EC2 instances should exist - resource EC2 not found (as expected)
-        [✓] SecurityGroup should have a name - field metadata.name exists on resource SecurityGroup/platform-aws-sg
-        [✓] RDS should not have deprecated field - field spec.deprecatedField does not exist (as expected) on resource Cluster/platform-aws-rds
-        [✓] SecurityGroup description should be string - field spec.forProvider.description has expected type string on resource SecurityGroup/platform-aws-sg
-        [✓] RDS backupRetentionPeriod should be number - field spec.forProvider.backupRetentionPeriod has expected type number on resource Cluster/platform-aws-rds
-        [✓] RDS vpcSecurityGroupIds should be array - field spec.forProvider.vpcSecurityGroupIds has expected type array on resource Cluster/platform-aws-rds
-        [✓] SecurityGroup metadata labels should be object - field metadata.labels has expected type object on resource SecurityGroup/platform-aws-sg
-        [✓] RDS masterPasswordSecretRef should be object - field spec.forProvider.masterPasswordSecretRef has expected type object on resource Cluster/platform-aws-rds
-        [✓] RDS storageEncrypted should be boolean - field spec.forProvider.storageEncrypted has expected type boolean on resource Cluster/platform-aws-rds
-        [✓] XR optionalNote should be null - field spec.optionalNote has expected type null on resource XAWSInfrastructure/platform-aws
-        [✓] RDS should be Aurora PostgreSQL - field spec.forProvider.engine is aurora-postgresql on resource Cluster/platform-aws-rds
-        [✓] RDS backupRetentionPeriod should equal 1 - field spec.forProvider.backupRetentionPeriod == 1 on resource Cluster/platform-aws-rds
+        [✓] Number of all rendered resources (including XR): found 3 resources (as expected)
+        [✓] Exactly 1 resource of a certain Kind/Name should exist: found 1 resources (as expected): SecurityGroup/platform-aws-sg
+        [✓] Exactly 0 resources of a certain Kind/Name (basically - resource should not exist): found 0 resources (as expected)
+        [✓] At least 1 SecurityGroup should exist: resources found: SecurityGroup/platform-aws-sg
+        [✓] RDS cluster named platform-aws-rds should exist: resources found: Cluster/platform-aws-rds
+        [✓] EC2 with a certain name should not exist: resource EC2/platform-aws-ec2 not found (as expected)
+        [✓] No EC2 instances should exist: resource EC2 not found (as expected)
+        [✓] SecurityGroup should have a name: field metadata.name exists on resource SecurityGroup/platform-aws-sg
+        [✓] RDS should not have deprecated field: field spec.deprecatedField does not exist (as expected) on resource Cluster/platform-aws-rds
+        [✓] SecurityGroup description should be string: field spec.forProvider.description has expected type string on resource SecurityGroup/platform-aws-sg
+        [✓] RDS backupRetentionPeriod should be number: field spec.forProvider.backupRetentionPeriod has expected type number on resource Cluster/platform-aws-rds
+        [✓] RDS vpcSecurityGroupIds should be array: field spec.forProvider.vpcSecurityGroupIds has expected type array on resource Cluster/platform-aws-rds
+        [✓] SecurityGroup metadata labels should be object: field metadata.labels has expected type object on resource SecurityGroup/platform-aws-sg
+        [✓] RDS masterPasswordSecretRef should be object: field spec.forProvider.masterPasswordSecretRef has expected type object on resource Cluster/platform-aws-rds
+        [✓] RDS storageEncrypted should be boolean: field spec.forProvider.storageEncrypted has expected type boolean on resource Cluster/platform-aws-rds
+        [✓] XR optionalNote should be null: field spec.optionalNote has expected type null on resource XAWSInfrastructure/platform-aws
+        [✓] RDS should be Aurora PostgreSQL: field spec.forProvider.engine is aurora-postgresql on resource Cluster/platform-aws-rds
+        [✓] RDS backupRetentionPeriod should equal 1: field spec.forProvider.backupRetentionPeriod == 1 on resource Cluster/platform-aws-rds
         Total: 18 assertions, 18 successful, 0 failed, 0 errors
 PASS
 ok	examples/mytests/6_assertions/example1_assertions_xprin.yaml	0.490s

@@ -104,9 +104,9 @@ Generate the golden file by running `xprin update-goldens examples/mytests/0_e2e
         [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
         Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
     Assertions:
-        [✓] Number of resources - found 3 resources (as expected)
-        [✓] SecurityGroup should exist - resources found: SecurityGroup/platform-aws-sg
-        [✓] Full render matches golden (using diff) - files match
+        [✓] Number of resources: found 3 resources (as expected)
+        [✓] SecurityGroup should exist: resources found: SecurityGroup/platform-aws-sg
+        [✓] Full render matches golden (using diff): files match
         Total: 3 assertions, 3 successful, 0 failed, 0 errors
     Post-test Hooks:
         [✓] this is a post-test hook
