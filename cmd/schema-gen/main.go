@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
-	"github.com/invopop/jsonschema"
 )
 
 func main() {
@@ -46,7 +45,7 @@ func main() {
 }
 
 func run(outPath string) error {
-	r := new(jsonschema.Reflector)
+	r := newXprinReflector()
 	if err := r.AddGoComments("github.com/crossplane-contrib/xprin", "internal/api"); err != nil {
 		return fmt.Errorf("reading comments: %w", err)
 	}
@@ -54,6 +53,10 @@ func run(outPath string) error {
 	schema := r.Reflect(&api.TestSuiteSpec{})
 	if schema == nil {
 		return errors.New("reflect returned nil")
+	}
+
+	if err := r.err(); err != nil {
+		return err
 	}
 
 	schema.Title = "xprin"

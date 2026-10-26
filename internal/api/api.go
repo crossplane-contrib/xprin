@@ -25,85 +25,85 @@ import (
 
 // TestSuiteSpec represents the structure of a testsuite YAML file used by xprin.
 type TestSuiteSpec struct {
-	Common Common     `json:"common,omitempty"` // Common config for all tests (Optional)
-	Tests  []TestCase `json:"tests"`            // List of test cases (Required)
+	Common Common     `json:"common,omitempty"` // Common config for all tests
+	Tests  []TestCase `json:"tests"`            // List of test cases
 }
 
 // Patches represents XR patching configuration.
 type Patches struct {
-	XRD                       string `json:"xrd,omitempty"`                         // Path to the XR's or Claim's XRD (Optional)
-	ConnectionSecret          *bool  `json:"connection-secret,omitempty"`           // When true, create a connection secret for the XR (Optional)
-	ConnectionSecretName      string `json:"connection-secret-name,omitempty"`      // Name of the connection secret (Optional)
-	ConnectionSecretNamespace string `json:"connection-secret-namespace,omitempty"` // Namespace of the connection secret (Optional)
+	XRD                       string `json:"xrd,omitempty"`                         // Path to the XR's or Claim's XRD
+	ConnectionSecret          *bool  `json:"connection-secret,omitempty"`           // When true, create a connection secret for the XR
+	ConnectionSecretName      string `json:"connection-secret-name,omitempty"`      // Name of the connection secret
+	ConnectionSecretNamespace string `json:"connection-secret-namespace,omitempty"` // Namespace of the connection secret
 }
 
 // Hooks represents the execution hooks configuration.
 type Hooks struct {
-	PreTest  []Hook `json:"pre-test,omitempty"`  // Hooks that are executed before the testcase (Optional)
-	PostTest []Hook `json:"post-test,omitempty"` // Hooks that are executed after the testcase (Optional)
+	PreTest  []Hook `json:"pre-test,omitempty"`  // Hooks that are executed before the testcase
+	PostTest []Hook `json:"post-test,omitempty"` // Hooks that are executed after the testcase
 }
 
 // Hook represents a single executable step with optional metadata.
 type Hook struct {
-	Name string `json:"name,omitempty"` // Descriptive name for the hook (Optional)
-	Run  string `json:"run"`            // Command to run (Required)
+	Name string `json:"name,omitempty"` // Descriptive name for the hook
+	Run  string `json:"run"`            // Command to run
 }
 
 // AssertionXprin represents a single xprin assertion (single-resource or Count).
 type AssertionXprin struct {
-	Name     string `json:"name"`                                                                                                                                      // Descriptive name for the assertion (Required)
-	Type     string `json:"type"               jsonschema:"enum=Count,enum=Exists,enum=NotExists,enum=FieldType,enum=FieldExists,enum=FieldNotExists,enum=FieldValue"` // Type of assertion (Required)
-	Resource string `json:"resource,omitempty"`                                                                                                                        // Resource identifier for resource-based assertions (format: Kind/Name e.g. "Cluster/platform-aws-rds") (Optional)
-	Field    string `json:"field,omitempty"`                                                                                                                           // Field path for field-based assertions (e.g., "metadata.name") (Optional)
-	Operator string `json:"operator,omitempty" jsonschema:"enum===,enum=is"`                                                                                           // Operator for field value assertions (== or is) (Optional)
-	Value    any    `json:"value,omitempty"`                                                                                                                           // Expected value for the assertion (Optional)
+	Name     string `json:"name"`                                                                                                                                      // Descriptive name for the assertion
+	Type     string `json:"type"               jsonschema:"enum=Count,enum=Exists,enum=NotExists,enum=FieldType,enum=FieldExists,enum=FieldNotExists,enum=FieldValue"` // Type of assertion
+	Resource string `json:"resource,omitempty"`                                                                                                                        // Resource identifier for resource-based assertions (format: Kind/Name e.g. "Cluster/platform-aws-rds")
+	Field    string `json:"field,omitempty"`                                                                                                                           // Field path for field-based assertions (e.g., "metadata.name")
+	Operator string `json:"operator,omitempty" jsonschema:"enum===,enum=is"`                                                                                           // Operator for field value assertions (== or is)
+	Value    any    `json:"value,omitempty"`                                                                                                                           // Expected value for the assertion
 }
 
 // AssertionGoldenFile represents a single golden-file assertion (compare actual output to expected file; used by diff and dyff).
 type AssertionGoldenFile struct {
-	Name     string `json:"name"`               // Descriptive name for the assertion (Required)
-	Expected string `json:"expected"`           // Path to golden (expected) file (Required)
-	Resource string `json:"resource,omitempty"` // Resource identifier for resource-based assertions (format: Kind/Name e.g. "Cluster/platform-aws-rds") (Optional)
+	Name     string `json:"name"`               // Descriptive name for the assertion
+	Expected string `json:"expected"`           // Path to golden (expected) file
+	Resource string `json:"resource,omitempty"` // Resource identifier for resource-based assertions (format: Kind/Name e.g. "Cluster/platform-aws-rds")
 }
 
 // Assertions represents assertions grouped by execution engine.
 type Assertions struct {
-	Xprin []AssertionXprin      `json:"xprin,omitempty"` // xprin assertions (in-process) (Optional)
-	Diff  []AssertionGoldenFile `json:"diff,omitempty"`  // diff assertions (go-native compare to golden file) (Optional)
-	Dyff  []AssertionGoldenFile `json:"dyff,omitempty"`  // dyff assertions (dyff between expected and actual) (Optional)
+	Xprin []AssertionXprin      `json:"xprin,omitempty"` // xprin assertions (in-process)
+	Diff  []AssertionGoldenFile `json:"diff,omitempty"`  // diff assertions (go-native compare to golden file)
+	Dyff  []AssertionGoldenFile `json:"dyff,omitempty"`  // dyff assertions (dyff between expected and actual)
 }
 
 // Common represents the common configuration for a testsuite file.
 type Common struct {
-	Inputs     Inputs     `json:"inputs,omitempty"     jsonschema_extras:"x-xprin-required-merged=true"` // Common inputs (composition, Claim/XR, etc.) for all testcases (Optional)
-	Patches    Patches    `json:"patches,omitempty"`                                                     // Common XR patching configuration for all testcases (Optional)
-	Hooks      Hooks      `json:"hooks,omitempty"`                                                       // Common hooks for all testcases (Optional)
-	Assertions Assertions `json:"assertions,omitempty"`                                                  // Common assertions to validate rendered resources for all testcases (Optional)
+	Inputs     Inputs     `json:"inputs,omitempty"     jsonschema_extras:"x-xprin-required-merged=true"` // Common inputs (composition, Claim/XR, etc.) for all testcases
+	Patches    Patches    `json:"patches,omitempty"`                                                     // Common XR patching configuration for all testcases
+	Hooks      Hooks      `json:"hooks,omitempty"`                                                       // Common hooks for all testcases
+	Assertions Assertions `json:"assertions,omitempty"`                                                  // Common assertions to validate rendered resources for all testcases
 }
 
 // TestCase represents a single test case.
 type TestCase struct {
-	Name       string     `json:"name"`                                                                  // Descriptive name for the testcase (Required)
-	ID         string     `json:"id,omitempty"`                                                          // Unique identifier for the testcase (Optional)
-	Needs      []string   `json:"needs,omitempty"      jsonschema:"minItems=1"`                          // IDs of the testcases that this one depends on (Optional)
-	Inputs     Inputs     `json:"inputs,omitempty"     jsonschema_extras:"x-xprin-required-merged=true"` // Inputs of a testcase (Required unless specified in the common inputs)
-	Patches    Patches    `json:"patches,omitempty"`                                                     // XR patching configuration (Optional)
-	Hooks      Hooks      `json:"hooks,omitempty"`                                                       // Execution hooks (Optional)
-	Assertions Assertions `json:"assertions,omitempty"`                                                  // Assertions to validate rendered resources (Optional)
+	Name       string     `json:"name"`                                                                  // Descriptive name for the testcase
+	ID         string     `json:"id,omitempty"`                                                          // Unique identifier for the testcase
+	Needs      []string   `json:"needs,omitempty"      jsonschema:"minItems=1"`                          // IDs of the testcases that this one depends on
+	Inputs     Inputs     `json:"inputs,omitempty"     jsonschema_extras:"x-xprin-required-merged=true"` // Inputs of a testcase
+	Patches    Patches    `json:"patches,omitempty"`                                                     // XR patching configuration
+	Hooks      Hooks      `json:"hooks,omitempty"`                                                       // Execution hooks
+	Assertions Assertions `json:"assertions,omitempty"`                                                  // Assertions to validate rendered resources
 }
 
 // Inputs represents the inputs for a test case or common configuration.
 type Inputs struct {
-	Claim               string            `json:"claim,omitempty"                jsonschema_extras:"x-xprin-required-merged=true,x-xprin-required-one-of=xr"`    // Path to Claim file (one of Claim or XR must be set, either in the test case or in the common inputs)
-	XR                  string            `json:"xr,omitempty"                   jsonschema_extras:"x-xprin-required-merged=true,x-xprin-required-one-of=claim"` // Path to XR file (one of Claim or XR must be set, either in the test case or in the common inputs)
-	Composition         string            `json:"composition,omitempty"          jsonschema_extras:"x-xprin-required-merged=true"`                               // Path to composition file (Required unless specified in the common inputs)
-	Functions           string            `json:"functions,omitempty"            jsonschema_extras:"x-xprin-required-merged=true"`                               // Path to functions file or directory (Required unless specified in the common inputs)
-	CRDs                []string          `json:"crds,omitempty"`                                                                                                // Paths to CRD files (Optional)
-	ContextFiles        map[string]string `json:"context-files,omitempty"`                                                                                       // Map of context keys to file paths (Optional)
-	ContextValues       map[string]string `json:"context-values,omitempty"`                                                                                      // Map of context keys to inline values (Optional)
-	ObservedResources   string            `json:"observed-resources,omitempty"`                                                                                  // Path to observed resources file (Optional)
-	ExtraResources      string            `json:"extra-resources,omitempty"`                                                                                     // Path to extra resources file (Optional)
-	FunctionCredentials string            `json:"function-credentials,omitempty"`                                                                                // Path to function credentials file (Optional)
+	Claim               string            `json:"claim,omitempty"                jsonschema_extras:"x-xprin-required-merged=true,x-xprin-required-one-of=xr"`    // Path to Claim file
+	XR                  string            `json:"xr,omitempty"                   jsonschema_extras:"x-xprin-required-merged=true,x-xprin-required-one-of=claim"` // Path to XR file
+	Composition         string            `json:"composition,omitempty"          jsonschema_extras:"x-xprin-required-merged=true"`                               // Path to composition file
+	Functions           string            `json:"functions,omitempty"            jsonschema_extras:"x-xprin-required-merged=true"`                               // Path to functions file or directory
+	CRDs                []string          `json:"crds,omitempty"`                                                                                                // Paths to CRD files
+	ContextFiles        map[string]string `json:"context-files,omitempty"`                                                                                       // Map of context keys to file paths
+	ContextValues       map[string]string `json:"context-values,omitempty"`                                                                                      // Map of context keys to inline values
+	ObservedResources   string            `json:"observed-resources,omitempty"`                                                                                  // Path to observed resources file
+	ExtraResources      string            `json:"extra-resources,omitempty"`                                                                                     // Path to extra resources file
+	FunctionCredentials string            `json:"function-credentials,omitempty"`                                                                                // Path to function credentials file
 }
 
 // HasConnectionSecret returns true if ConnectionSecret is explicitly set to true.
