@@ -1,54 +1,39 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/crossplane-contrib/xprin/internal/api/test-suite-spec",
+  "$ref": "#/$defs/TestSuiteSpec",
   "$defs": {
     "AssertionGoldenFile": {
-      "additionalProperties": false,
-      "description": "AssertionGoldenFile represents a single golden-file assertion (compare actual output to expected file; used by diff and dyff).",
       "properties": {
-        "expected": {
-          "description": "Path to golden (expected) file (Required)",
-          "type": "string"
-        },
         "name": {
-          "description": "Descriptive name for the assertion (Required)",
-          "type": "string"
+          "type": "string",
+          "description": "Descriptive name for the assertion (Required)"
+        },
+        "expected": {
+          "type": "string",
+          "description": "Path to golden (expected) file (Required)"
         },
         "resource": {
-          "description": "Resource identifier for resource-based assertions (format: Kind/Name e.g. \"Cluster/platform-aws-rds\") (Optional)",
-          "type": "string"
+          "type": "string",
+          "description": "Resource identifier for resource-based assertions (format: Kind/Name e.g. \"Cluster/platform-aws-rds\") (Optional)"
         }
       },
+      "additionalProperties": false,
+      "type": "object",
       "required": [
         "name",
         "expected"
       ],
-      "type": "object"
+      "description": "AssertionGoldenFile represents a single golden-file assertion (compare actual output to expected file; used by diff and dyff)."
     },
     "AssertionXprin": {
-      "additionalProperties": false,
-      "description": "AssertionXprin represents a single xprin assertion (single-resource or Count).",
       "properties": {
-        "field": {
-          "description": "Field path for field-based assertions (e.g., \"metadata.name\") (Optional)",
-          "type": "string"
-        },
         "name": {
-          "description": "Descriptive name for the assertion (Required)",
-          "type": "string"
-        },
-        "operator": {
-          "description": "Operator for field value assertions (== or is) (Optional)",
-          "enum": [
-            "==",
-            "is"
-          ],
-          "type": "string"
-        },
-        "resource": {
-          "description": "Resource identifier for resource-based assertions (format: Kind/Name e.g. \"Cluster/platform-aws-rds\") (Optional)",
-          "type": "string"
+          "type": "string",
+          "description": "Descriptive name for the assertion (Required)"
         },
         "type": {
-          "description": "Type of assertion (Required)",
+          "type": "string",
           "enum": [
             "Count",
             "Exists",
@@ -58,254 +43,277 @@
             "FieldNotExists",
             "FieldValue"
           ],
-          "type": "string"
+          "description": "Type of assertion (Required)"
+        },
+        "resource": {
+          "type": "string",
+          "description": "Resource identifier for resource-based assertions (format: Kind/Name e.g. \"Cluster/platform-aws-rds\") (Optional)"
+        },
+        "field": {
+          "type": "string",
+          "description": "Field path for field-based assertions (e.g., \"metadata.name\") (Optional)"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "==",
+            "is"
+          ],
+          "description": "Operator for field value assertions (== or is) (Optional)"
         },
         "value": {
           "description": "Expected value for the assertion (Optional)"
         }
       },
+      "additionalProperties": false,
+      "type": "object",
       "required": [
         "name",
         "type"
       ],
-      "type": "object"
+      "description": "AssertionXprin represents a single xprin assertion (single-resource or Count)."
     },
     "Assertions": {
-      "additionalProperties": false,
-      "description": "Assertions represents assertions grouped by execution engine.",
       "properties": {
-        "diff": {
-          "description": "diff assertions (go-native compare to golden file) (Optional)",
-          "items": {
-            "$ref": "#/$defs/AssertionGoldenFile"
-          },
-          "type": "array"
-        },
-        "dyff": {
-          "description": "dyff assertions (dyff between expected and actual) (Optional)",
-          "items": {
-            "$ref": "#/$defs/AssertionGoldenFile"
-          },
-          "type": "array"
-        },
         "xprin": {
-          "description": "xprin assertions (in-process) (Optional)",
           "items": {
             "$ref": "#/$defs/AssertionXprin"
           },
-          "type": "array"
+          "type": "array",
+          "description": "xprin assertions (in-process) (Optional)"
+        },
+        "diff": {
+          "items": {
+            "$ref": "#/$defs/AssertionGoldenFile"
+          },
+          "type": "array",
+          "description": "diff assertions (go-native compare to golden file) (Optional)"
+        },
+        "dyff": {
+          "items": {
+            "$ref": "#/$defs/AssertionGoldenFile"
+          },
+          "type": "array",
+          "description": "dyff assertions (dyff between expected and actual) (Optional)"
         }
       },
-      "type": "object"
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Assertions represents assertions grouped by execution engine."
     },
     "Common": {
-      "additionalProperties": false,
-      "description": "Common represents the common configuration for a testsuite file.",
       "properties": {
-        "assertions": {
-          "$ref": "#/$defs/Assertions",
-          "description": "Common assertions to validate rendered resources for all testcases (Optional)"
+        "inputs": {
+          "$ref": "#/$defs/Inputs",
+          "description": "Common inputs (composition, Claim/XR, etc.) for all testcases (Optional)",
+          "x-xprin-required-merged": true
+        },
+        "patches": {
+          "$ref": "#/$defs/Patches",
+          "description": "Common XR patching configuration for all testcases (Optional)"
         },
         "hooks": {
           "$ref": "#/$defs/Hooks",
           "description": "Common hooks for all testcases (Optional)"
         },
-        "inputs": {
-          "$ref": "#/$defs/Inputs",
-          "description": "Common inputs (composition, Claim/XR, etc.) for all testcases (Optional)"
-        },
-        "patches": {
-          "$ref": "#/$defs/Patches",
-          "description": "Common XR patching configuration for all testcases (Optional)"
+        "assertions": {
+          "$ref": "#/$defs/Assertions",
+          "description": "Common assertions to validate rendered resources for all testcases (Optional)"
         }
       },
-      "type": "object"
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Common represents the common configuration for a testsuite file."
     },
     "Hook": {
-      "additionalProperties": false,
-      "description": "Hook represents a single executable step with optional metadata.",
       "properties": {
         "name": {
-          "description": "Descriptive name for the hook (Optional)",
-          "type": "string"
+          "type": "string",
+          "description": "Descriptive name for the hook (Optional)"
         },
         "run": {
-          "description": "Command to run (Required)",
-          "type": "string"
+          "type": "string",
+          "description": "Command to run (Required)"
         }
       },
+      "additionalProperties": false,
+      "type": "object",
       "required": [
         "run"
       ],
-      "type": "object"
+      "description": "Hook represents a single executable step with optional metadata."
     },
     "Hooks": {
-      "additionalProperties": false,
-      "description": "Hooks represents the execution hooks configuration.",
       "properties": {
-        "post-test": {
-          "description": "Hooks that are executed after the testcase (Optional)",
-          "items": {
-            "$ref": "#/$defs/Hook"
-          },
-          "type": "array"
-        },
         "pre-test": {
-          "description": "Hooks that are executed before the testcase (Optional)",
           "items": {
             "$ref": "#/$defs/Hook"
           },
-          "type": "array"
+          "type": "array",
+          "description": "Hooks that are executed before the testcase (Optional)"
+        },
+        "post-test": {
+          "items": {
+            "$ref": "#/$defs/Hook"
+          },
+          "type": "array",
+          "description": "Hooks that are executed after the testcase (Optional)"
         }
       },
-      "type": "object"
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Hooks represents the execution hooks configuration."
     },
     "Inputs": {
-      "additionalProperties": false,
-      "description": "Inputs represents the inputs for a test case or common configuration.",
       "properties": {
         "claim": {
+          "type": "string",
           "description": "Path to Claim file (one of Claim or XR must be set, either in the test case or in the common inputs)",
-          "type": "string"
+          "x-xprin-required-merged": true,
+          "x-xprin-required-one-of": "xr"
+        },
+        "xr": {
+          "type": "string",
+          "description": "Path to XR file (one of Claim or XR must be set, either in the test case or in the common inputs)",
+          "x-xprin-required-merged": true,
+          "x-xprin-required-one-of": "claim"
         },
         "composition": {
+          "type": "string",
           "description": "Path to composition file (Required unless specified in the common inputs)",
-          "type": "string"
+          "x-xprin-required-merged": true
+        },
+        "functions": {
+          "type": "string",
+          "description": "Path to functions file or directory (Required unless specified in the common inputs)",
+          "x-xprin-required-merged": true
+        },
+        "crds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Paths to CRD files (Optional)"
         },
         "context-files": {
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Map of context keys to file paths (Optional)",
-          "type": "object"
+          "type": "object",
+          "description": "Map of context keys to file paths (Optional)"
         },
         "context-values": {
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Map of context keys to inline values (Optional)",
-          "type": "object"
+          "type": "object",
+          "description": "Map of context keys to inline values (Optional)"
         },
-        "crds": {
-          "description": "Paths to CRD files (Optional)",
+        "observed-resources": {
+          "type": "string",
+          "description": "Path to observed resources file (Optional)"
+        },
+        "extra-resources": {
+          "type": "string",
+          "description": "Path to extra resources file (Optional)"
+        },
+        "function-credentials": {
+          "type": "string",
+          "description": "Path to function credentials file (Optional)"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Inputs represents the inputs for a test case or common configuration."
+    },
+    "Patches": {
+      "properties": {
+        "xrd": {
+          "type": "string",
+          "description": "Path to the XR's or Claim's XRD (Optional)"
+        },
+        "connection-secret": {
+          "type": "boolean",
+          "description": "When true, create a connection secret for the XR (Optional)"
+        },
+        "connection-secret-name": {
+          "type": "string",
+          "description": "Name of the connection secret (Optional)"
+        },
+        "connection-secret-namespace": {
+          "type": "string",
+          "description": "Namespace of the connection secret (Optional)"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Patches represents XR patching configuration."
+    },
+    "TestCase": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Descriptive name for the testcase (Required)"
+        },
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the testcase (Optional)"
+        },
+        "needs": {
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": "array",
+          "minItems": 1,
+          "description": "IDs of the testcases that this one depends on (Optional)"
         },
-        "extra-resources": {
-          "description": "Path to extra resources file (Optional)",
-          "type": "string"
+        "inputs": {
+          "$ref": "#/$defs/Inputs",
+          "description": "Inputs of a testcase (Required unless specified in the common inputs)",
+          "x-xprin-required-merged": true
         },
-        "function-credentials": {
-          "description": "Path to function credentials file (Optional)",
-          "type": "string"
-        },
-        "functions": {
-          "description": "Path to functions file or directory (Required unless specified in the common inputs)",
-          "type": "string"
-        },
-        "observed-resources": {
-          "description": "Path to observed resources file (Optional)",
-          "type": "string"
-        },
-        "xr": {
-          "description": "Path to XR file (one of Claim or XR must be set, either in the test case or in the common inputs)",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "Patches": {
-      "additionalProperties": false,
-      "description": "Patches represents XR patching configuration.",
-      "properties": {
-        "connection-secret": {
-          "description": "When true, create a connection secret for the XR (Optional)",
-          "type": "boolean"
-        },
-        "connection-secret-name": {
-          "description": "Name of the connection secret (Optional)",
-          "type": "string"
-        },
-        "connection-secret-namespace": {
-          "description": "Namespace of the connection secret (Optional)",
-          "type": "string"
-        },
-        "xrd": {
-          "description": "Path to the XR's or Claim's XRD (Optional)",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "TestCase": {
-      "additionalProperties": false,
-      "description": "TestCase represents a single test case.",
-      "properties": {
-        "assertions": {
-          "$ref": "#/$defs/Assertions",
-          "description": "Assertions to validate rendered resources (Optional)"
+        "patches": {
+          "$ref": "#/$defs/Patches",
+          "description": "XR patching configuration (Optional)"
         },
         "hooks": {
           "$ref": "#/$defs/Hooks",
           "description": "Execution hooks (Optional)"
         },
-        "id": {
-          "description": "Unique identifier for the testcase (Optional)",
-          "type": "string"
-        },
-        "inputs": {
-          "$ref": "#/$defs/Inputs",
-          "description": "Inputs of a testcase (Required unless specified in the common inputs)"
-        },
-        "name": {
-          "description": "Descriptive name for the testcase (Required)",
-          "type": "string"
-        },
-        "needs": {
-          "description": "IDs of the testcases that this one depends on (Optional)",
-          "items": {
-            "type": "string"
-          },
-          "minItems": 1,
-          "type": "array"
-        },
-        "patches": {
-          "$ref": "#/$defs/Patches",
-          "description": "XR patching configuration (Optional)"
+        "assertions": {
+          "$ref": "#/$defs/Assertions",
+          "description": "Assertions to validate rendered resources (Optional)"
         }
       },
+      "additionalProperties": false,
+      "type": "object",
       "required": [
         "name"
       ],
-      "type": "object"
+      "description": "TestCase represents a single test case."
     },
     "TestSuiteSpec": {
-      "additionalProperties": false,
-      "description": "TestSuiteSpec represents the structure of a testsuite YAML file used by xprin.",
       "properties": {
         "common": {
           "$ref": "#/$defs/Common",
           "description": "Common config for all tests (Optional)"
         },
         "tests": {
-          "description": "List of test cases (Required)",
           "items": {
             "$ref": "#/$defs/TestCase"
           },
-          "type": "array"
+          "type": "array",
+          "description": "List of test cases (Required)"
         }
       },
+      "additionalProperties": false,
+      "type": "object",
       "required": [
         "tests"
       ],
-      "type": "object"
+      "description": "TestSuiteSpec represents the structure of a testsuite YAML file used by xprin."
     }
   },
-  "$id": "https://github.com/crossplane-contrib/xprin/internal/api/test-suite-spec",
-  "$ref": "#/$defs/TestSuiteSpec",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "xprin test suite files (xprin.yaml or *_xprin.yaml)",
-  "title": "xprin"
+  "title": "xprin",
+  "description": "xprin test suite files (xprin.yaml or *_xprin.yaml)"
 }
