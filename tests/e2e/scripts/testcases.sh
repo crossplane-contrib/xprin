@@ -37,16 +37,16 @@ testcase_006_exit=1
 testcase_006_update_goldens=true
 
 # Multiple Failures - Combined File (Verbose, show flags)
-testcase_007="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_007="examples/mytests/0_e2e/failures_xprin.yaml examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml -v --show-all"
 testcase_007_exit=1
 testcase_007_update_goldens=true
 
 # Invalid testsuite file
-testcase_008="examples/mytests/0_e2e/generated_invalid_xprin.yaml examples/mytests/0_e2e/generated_empty_needs_xprin.yaml examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_008="examples/mytests/0_e2e/generated_invalid_xprin.yaml examples/mytests/0_e2e/generated_empty_needs_xprin.yaml examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml -v --show-all"
 testcase_008_exit=1
 
 # Successful with hooks/validate/assertions (Verbose, show flags) + update-goldens verification
-testcase_009="examples/mytests/0_e2e/success_xprin.yaml examples/mytests/6_assertions/ -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_009="examples/mytests/0_e2e/success_xprin.yaml examples/mytests/6_assertions/ -v --show-all"
 testcase_009_update_goldens=true
 
 # Chained Outputs and Cross-Composition Chaining
@@ -54,7 +54,7 @@ testcase_010="examples/mytests/5_chained_tests/example1_needs_xprin.yaml example
 testcase_010_graph=true
 
 # Claim input with kind resolved from XRD (not 'X' + Claim kind) and reproducible name via --golden
-testcase_011="examples/mytests/0_e2e/claim_xprin.yaml -v --show-render --show-validate --show-hooks --show-assertions"
+testcase_011="examples/mytests/0_e2e/claim_xprin.yaml -v --show-all"
 testcase_011_tiers="v1 v2"
 testcase_011_update_goldens=true
 
@@ -65,5 +65,5 @@ testcase_012_exit_v1=1
 testcase_012_exit_v2=1
 
 # --artifacts-dir: complete test (hooks/render/validate/assertions) + silent shell checks on artifact structure
-testcase_013="examples/mytests/0_e2e/used_in_readme_xprin.yaml --artifacts-dir=/tmp/xprin-e2e-artifacts-test"
+testcase_013="examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml --artifacts-dir=/tmp/xprin-e2e-artifacts-test"
 testcase_013_update_goldens=true

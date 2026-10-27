@@ -1,6 +1,6 @@
 --- PASS: Successful test with hooks, validation, and assertions (X.XXXs)
     Golden Files:
-        [✓] Full render matches golden (using diff): examples/mytests/0_e2e/golden_full_render.yaml
-ok	examples/mytests/0_e2e/used_in_readme_xprin.yaml	X.XXXs
-ok	examples/mytests/0_e2e/used_in_readme_xprin.yaml	X.XXXs
-artifacts: /tmp/xprin-XXXXX/examples/mytests/0_e2e/used_in_readme_xprin
+        [✓] Full render matches golden (using diff): examples/mytests/7_show_all/golden_full_render.yaml
+ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	X.XXXs
+ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	X.XXXs
+artifacts: /tmp/xprin-XXXXX/examples/mytests/7_show_all/example1_used_in_readme_xprin

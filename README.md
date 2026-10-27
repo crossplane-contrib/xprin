@@ -81,14 +81,14 @@ tests:
       expected: golden_full_render.yaml
 ```
 
-Generate the golden file by running `xprin update-goldens examples/mytests/0_e2e/used_in_readme_xprin.yaml` once before your first test run. After that, `xprin test` compares against it on every run.
+Generate the golden file by running `xprin update-goldens examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml` once before your first test run. After that, `xprin test` compares against it on every run.
 </details>
 
 <details>
 <summary> The output is similar to `go test` </summary>
 
 ```
-➜ xprin test examples/mytests/0_e2e/used_in_readme_xprin.yaml -v --show-render --show-validate --show-assertions --show-hooks
+➜ xprin test examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml -v --show-all
 === RUN   Successful test with hooks, validation, and assertions
 --- PASS: Successful test with hooks, validation, and assertions (1.31s)
     Pre-test Hooks:
@@ -112,7 +112,7 @@ Generate the golden file by running `xprin update-goldens examples/mytests/0_e2e
         [✓] this is a post-test hook
             bye
 PASS
-ok      examples/mytests/0_e2e/used_in_readme_xprin.yaml        1.314s
+ok      examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml        1.314s
 ```
 </details>
 

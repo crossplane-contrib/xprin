@@ -13,6 +13,7 @@ This directory contains step-by-step examples to help you learn how to use `xpri
 - [Hooks](#hooks)
 - [Chained Tests](#chained-tests)
 - [Assertions](#assertions)
+- [Show All Results](#show-all-results)
 
 See [How to Run Tests](../docs/getting-started.md#how-to-run-tests) in the getting started documentation for details on running tests. The basic pattern is:
 
@@ -221,6 +222,8 @@ ok	examples/mytests/1_simple_tests/example1_using-xr_xprin.yaml	0.468s
 </details>
 
 Note: No validation results are shown because, as mentioned in the debug output, validation was skipped (no CRDs were specified).
+
+Tip: `--show-all` enables all the `--show-*` flags at once (`--show-render`, `--show-validate`, `--show-hooks` and `--show-assertions`), so `-v --show-all` gives the most detailed output.
 
 To inspect a run afterwards, `--artifacts-dir` exports the inputs and the outputs of every test case (the external artifacts) to a directory of your choice, one per test case (see [Artifacts](../docs/how-it-works.md#artifacts)):
 
@@ -1277,3 +1280,55 @@ Edit one of the golden files (e.g. change a value) and run the test again; the a
 ```bash
 xprin test examples/mytests/6_assertions/example3_golden_file_xprin.yaml -v --show-assertions
 ```
+
+---
+
+## Show All Results
+
+The examples above enable the sections of the verbose output one by one: `--show-render`, `--show-validate`, `--show-hooks` and `--show-assertions`. `--show-all` enables all of them at once, and like them it requires `-v`. Adding individual `--show-*` flags to it has no extra effect.
+
+This example uses a test that has pre-test hooks, CRDs for the validation, and assertions, so that every section is present. It compares the render with a golden file, so we generate it first (see [Example 3](#example-3-generating-golden-files-with-update-goldens) of the assertions).
+
+```bash
+xprin update-goldens examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml
+xprin test examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml -v --show-all
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin update-goldens examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml
+--- PASS: Successful test with hooks, validation, and assertions (0.58s)
+    Golden Files:
+        [✓] Full render matches golden (using diff): /Users/myuser/repos/xprin/examples/mytests/7_show_all/golden_full_render.yaml
+ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	0.579s
+
+➜ xprin test examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml -v --show-all
+=== RUN   Successful test with hooks, validation, and assertions
+--- PASS: Successful test with hooks, validation, and assertions (1.33s)
+    Pre-test Hooks:
+        [✓] this is a pre-test hook
+            hello
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        ├── Cluster/platform-aws-rds
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [✓] aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws validated successfully
+        [✓] rds.aws.upbound.io/v1beta1, Kind=Cluster, platform-aws-rds validated successfully
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
+    Assertions:
+        [✓] Number of resources - found 3 resources (as expected)
+        [✓] SecurityGroup should exist - resources found: SecurityGroup/platform-aws-sg
+        [✓] Full render matches golden (using diff) - files match
+        Total: 3 assertions, 3 successful, 0 failed, 0 errors
+    Post-test Hooks:
+        [✓] this is a post-test hook
+            bye
+PASS
+ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	1.334s
+```
+
+</details>

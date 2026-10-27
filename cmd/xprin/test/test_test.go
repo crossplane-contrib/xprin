@@ -273,3 +273,15 @@ func TestNewOptions_WithNilSubcommands(t *testing.T) {
 	assert.Equal(t, cmd.ShowHooks, options.ShowHooks)
 	assert.Equal(t, cmd.ShowAssertions, options.ShowAssertions)
 }
+
+// TestNewOptions_ShowAll tests that --show-all enables every --show-* option.
+func TestNewOptions_ShowAll(t *testing.T) {
+	cmd := &Cmd{ShowAll: true, Verbose: true}
+
+	options := cmd.newOptions(&internalcfg.Config{})
+
+	assert.True(t, options.ShowRender)
+	assert.True(t, options.ShowValidate)
+	assert.True(t, options.ShowHooks)
+	assert.True(t, options.ShowAssertions)
+}
