@@ -83,8 +83,10 @@ go-generate:
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY --dir cmd/ internal/ .
   COPY generate.go .
+  COPY docs/testsuite-specification.md docs/testsuite-specification.md
   RUN go generate -tags 'generate' .
   SAVE ARTIFACT data AS LOCAL data
+  SAVE ARTIFACT docs/testsuite-specification.md AS LOCAL docs/testsuite-specification.md
 
 # go-build builds xprin binaries for your native OS and architecture.
 # Set RELEASE_ARTIFACTS=true to output flat release-ready artifacts to _output/release/

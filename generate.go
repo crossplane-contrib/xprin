@@ -18,5 +18,6 @@ limitations under the License.
 */
 
 //go:generate go run github.com/crossplane-contrib/xprin/cmd/schema-gen -out data/xprin-testsuite.json
+//go:generate go run github.com/crossplane-contrib/xprin/cmd/schemadoc-gen -schema data/xprin-testsuite.json -doc docs/testsuite-specification.md
 
 package generate
