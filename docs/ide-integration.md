@@ -4,6 +4,10 @@ A [JSON Schema](https://json-schema.org/) for the xprin test suite format is pro
 
 **Schema file:** A single combined schema is provided at `data/xprin-testsuite.json` (in the xprin repository root). It is generated from the Go types in `internal/api` using [invopop/jsonschema](https://github.com/invopop/jsonschema). After changing the API types, regenerate with `earthly +generate` or `earthly +reviewable`. See [Test suite specification](testsuite-specification.md) for the full format.
 
+## Quote template variables
+
+A value that starts with `{{` must be quoted in the YAML, e.g. `xr: '{{ .Tests.first.Outputs.XR }}'`. Unquoted, it is not valid YAML (YAML reads it as a flow mapping), so the editor, and the schema validation with it, reports the file as broken. See [Quoting Templates in YAML](how-it-works.md#quoting-templates-in-yaml).
+
 ## Editor setup
 
 You can apply the setup below in this repo as well (e.g. create `.vscode/settings.json` to check the schema support on the provided [examples](../examples/)).

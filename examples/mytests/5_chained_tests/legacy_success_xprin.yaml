@@ -18,7 +18,7 @@ tests:
 
 - name: "Legacy: second loop, uses the outputs of the first without needs"
   inputs:
-    xr: {{ .Tests.legacy_first.Outputs.XR }}
+    xr: '{{ .Tests.legacy_first.Outputs.XR }}'
     observed-resources: ../../aws/observed
   hooks:
     pre-test:
