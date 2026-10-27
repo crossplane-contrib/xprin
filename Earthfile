@@ -5,7 +5,7 @@ PROJECT crossplane-contrib/xprin
 
 ARG --global GO_VERSION=1.26.8
 ARG --global E2E_CROSSPLANE_CLI=2.5.0
-ARG --global E2E_CROSSPLANE_V2=2.4.2
+ARG --global E2E_CROSSPLANE_V2=2.4.3
 
 # legacy
 ARG --global E2E_CROSSPLANE_V1=1.20.13
