@@ -47,7 +47,7 @@ func main() {
 func run(outPath string) error {
 	r := newXprinReflector()
 	if err := r.AddGoComments("github.com/crossplane-contrib/xprin", "internal/api"); err != nil {
-		return fmt.Errorf("reading comments: %w", err)
+		return fmt.Errorf("read comments: %w", err)
 	}
 
 	schema := r.Reflect(&api.TestSuiteSpec{})

@@ -2,7 +2,7 @@
 
 A [JSON Schema](https://json-schema.org/) for the xprin test suite format is provided so editors can offer autocompletion, validation, and hover documentation for `xprin.yaml` and `*_xprin.yaml` files.
 
-**Schema file:** A single combined schema is provided at `data/xprin-testsuite.json` (in the xprin repository root). It is generated from the Go types in `internal/api` using [invopop/jsonschema](https://github.com/invopop/jsonschema). After changing the API types, regenerate with `earthly +generate` or `earthly +reviewable`. See [Test suite specification](testsuite-specification.md) for the full format.
+**Schema file:** A single combined schema is provided at `data/xprin-testsuite.json` (in the xprin repository root). It is generated from the Go types in `internal/api` using [invopop/jsonschema](https://github.com/invopop/jsonschema). After changing the API types, regenerate with `earthly +generate` or `earthly +reviewable`, which also regenerates the tables of the [test suite specification](testsuite-specification.md). The hover text of a property is its Go comment, followed by a note that says whether it is required (for example `(Required)` or `(Optional)`), which `schema-gen` adds from the tags of the field. See the specification for the full format.
 
 ## Quote template variables
 

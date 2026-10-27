@@ -36,6 +36,8 @@ earthly -P +e2e-regen-expected
 
 The outputs of the examples in `examples/README.md` are generated too, see [examples-gen](docs/contributing/examples-gen.md) to regenerate them.
 
+The JSON schema (`data/xprin-testsuite.json`) and the tables, the index and the legend of the emojis of the [test suite specification](docs/testsuite-specification.md) are generated from the types of `internal/api`: after changing them, run `earthly +generate` (`earthly +reviewable` does it too). The comment of a field is its description, and `schema-gen` adds a note at the end of it that says if the field is required, so don't write one, see [IDE integration](docs/ide-integration.md).
+
 ## PR Process
 
 1. Rebase on `upstream/main`

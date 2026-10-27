@@ -28,7 +28,7 @@ import (
 // The keywords of the required categories, set by the jsonschema_extras tags of internal/api.
 const (
 	keyMerged = "x-xprin-required-merged" // true: the property has to be in common or in the test case
-	keyOneOf  = "x-xprin-required-one-of" // The alternative of the property: exactly one of the two has to be set
+	keyOneOf  = "x-xprin-required-one-of" // The sibling of the property: exactly one of the two has to be set
 )
 
 // noteRe matches the note that the xprinReflector adds at the end of a description.
@@ -103,15 +103,15 @@ func (info fieldInfo) note(comment string) (string, error) {
 
 	oneOf := info.extras[keyOneOf]
 
-	// The alternatives are properties of the same type, and they name this one back
-	for _, alt := range oneOf {
-		other, ok := info.sibling(alt)
+	// The siblings are properties of the same type, and they name this one back
+	for _, sib := range oneOf {
+		other, ok := info.sibling(sib)
 		if !ok {
-			return "", fmt.Errorf("its alternative %q is not a property of the same type", alt)
+			return "", fmt.Errorf("its sibling %q is not a property of the same type", sib)
 		}
 
 		if !slices.Contains(other.extras[keyOneOf], info.name) {
-			return "", fmt.Errorf("its alternative %q does not name %q back", alt, info.name)
+			return "", fmt.Errorf("its sibling %q does not name %q back", sib, info.name)
 		}
 	}
 
@@ -125,10 +125,10 @@ func requirementNote(name string, required, merged bool, oneOf []string) (string
 		return "", errors.New("it is required where it is, so it can't also be merged or one-of: it needs omitempty")
 	case required:
 		return "Required", nil
-	case len(oneOf) > 0 && !merged:
-		return "", fmt.Errorf("%s needs %s", keyOneOf, keyMerged)
-	case len(oneOf) > 0:
+	case len(oneOf) > 0 && merged:
 		return fmt.Sprintf("One of %s must be set, per testcase or in common", joinOr(append([]string{name}, oneOf...))), nil
+	case len(oneOf) > 0:
+		return fmt.Sprintf("One of %s must be set", joinOr(append([]string{name}, oneOf...))), nil
 	case merged:
 		return "Required per testcase or in common", nil
 	default:

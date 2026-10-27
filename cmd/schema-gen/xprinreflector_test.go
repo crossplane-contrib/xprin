@@ -43,16 +43,11 @@ type plain struct {
 	X string `json:"x,omitempty"`
 }
 
-type oneOfWithoutMerged struct {
-	X string `json:"x,omitempty" jsonschema_extras:"x-xprin-required-one-of=y"`
-	Y string `json:"y,omitempty" jsonschema_extras:"x-xprin-required-one-of=x"`
-}
-
-type alternativeMissing struct {
+type siblingMissing struct {
 	X string `json:"x,omitempty" jsonschema_extras:"x-xprin-required-merged=true,x-xprin-required-one-of=zzz"`
 }
 
-type alternativeDoesNotNameBack struct {
+type siblingDoesNotNameBack struct {
 	X string `json:"x,omitempty" jsonschema_extras:"x-xprin-required-merged=true,x-xprin-required-one-of=y"`
 	Y string `json:"y,omitempty" jsonschema_extras:"x-xprin-required-merged=true"`
 }
@@ -84,9 +79,8 @@ func TestXprinReflector_errors(t *testing.T) {
 		"a merged property without omitempty": {mergedNotOmitempty{}, x, "needs omitempty"},
 		"an unknown keyword":                  {unknownKeyword{}, x, "unknown keyword x-xprin-optional"},
 		"a merged that is not a boolean":      {notABoolean{}, x, keyMerged + " has to be true or false"},
-		"a one-of without merged":             {oneOfWithoutMerged{}, map[string]string{"X": "X", "Y": "Y"}, keyOneOf + " needs " + keyMerged},
-		"an alternative that doesn't exist":   {alternativeMissing{}, x, `its alternative "zzz" is not a property`},
-		"an alternative that doesn't name it": {alternativeDoesNotNameBack{}, map[string]string{"X": "X", "Y": "Y"}, `does not name "x" back`},
+		"a sibling that doesn't exist":        {siblingMissing{}, x, `its sibling "zzz" is not a property`},
+		"a sibling that doesn't name it":      {siblingDoesNotNameBack{}, map[string]string{"X": "X", "Y": "Y"}, `does not name "x" back`},
 		"a property without a comment":        {plain{}, nil, "it has no comment"},
 		"a note written in the comment":       {plain{}, map[string]string{"X": "X (Optional)"}, "schema-gen adds it"},
 	}
