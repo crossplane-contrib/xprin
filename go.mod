@@ -8,8 +8,8 @@ require (
 	github.com/alecthomas/assert/v2 v2.11.0
 	github.com/alecthomas/kong v1.16.1
 	github.com/crossplane/cli/v2 v2.5.0
-	github.com/crossplane/crossplane-runtime/v2 v2.4.2
-	github.com/crossplane/crossplane/apis/v2 v2.4.2
+	github.com/crossplane/crossplane-runtime/v2 v2.4.3
+	github.com/crossplane/crossplane/apis/v2 v2.4.3
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/gertd/go-pluralize v0.2.1
 	github.com/go-git/go-git/v5 v5.19.3
