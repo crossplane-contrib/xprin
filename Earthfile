@@ -8,7 +8,7 @@ ARG --global E2E_CROSSPLANE_CLI=2.5.0
 ARG --global E2E_CROSSPLANE_V2=2.4.2
 
 # legacy
-ARG --global E2E_CROSSPLANE_V1=1.20.13
+ARG --global E2E_CROSSPLANE_V1=1.20.14
 ARG --global E2E_CROSSPLANE_V2_LEGACY=2.2.6
 
 # reviewable checks that a branch is ready for review. Run it before opening a
