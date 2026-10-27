@@ -365,9 +365,9 @@ func TestTestCaseResult_Print(t *testing.T) {
 
 		output := buf.String()
 		assert.Contains(t, output, "Assertions:")
-		assert.Contains(t, output, "[✓] count-check - found 3 resources (as expected)")
-		assert.Contains(t, output, "[✓] resource-exists - resource S3Bucket/my-bucket found (as expected)")
-		assert.Contains(t, output, "[x] field-value - expected value 'test', got 'other'")
+		assert.Contains(t, output, "[✓] count-check: found 3 resources (as expected)")
+		assert.Contains(t, output, "[✓] resource-exists: resource S3Bucket/my-bucket found (as expected)")
+		assert.Contains(t, output, "[x] field-value: expected value 'test', got 'other'")
 		assert.Contains(t, output, "Total: 3 assertions, 2 successful, 1 failed, 0 errors")
 	})
 
@@ -775,7 +775,7 @@ func TestTestCaseResult_formatAssertionsOutput(t *testing.T) {
 		}
 		_, formatted := result.formatAssertionsOutput()
 
-		expected := "    Assertions:\n        [✓] count-check - found 3 resources (as expected)\n        [✓] resource-exists - resource S3Bucket/my-bucket found (as expected)\n        [x] field-value - expected value 'test', got 'other'\n        Total: 3 assertions, 2 successful, 1 failed, 0 errors\n"
+		expected := "    Assertions:\n        [✓] count-check: found 3 resources (as expected)\n        [✓] resource-exists: resource S3Bucket/my-bucket found (as expected)\n        [x] field-value: expected value 'test', got 'other'\n        Total: 3 assertions, 2 successful, 1 failed, 0 errors\n"
 		assert.Equal(t, expected, formatted)
 	})
 
@@ -795,7 +795,7 @@ func TestTestCaseResult_formatAssertionsOutput(t *testing.T) {
 		}
 		_, formatted := result.formatAssertionsOutput()
 
-		expected := "    Assertions:\n        [✓] single-check - all good\n        Total: 1 assertions, 1 successful, 0 failed, 0 errors\n"
+		expected := "    Assertions:\n        [✓] single-check: all good\n        Total: 1 assertions, 1 successful, 0 failed, 0 errors\n"
 		assert.Equal(t, expected, formatted)
 	})
 
@@ -809,7 +809,7 @@ func TestTestCaseResult_formatAssertionsOutput(t *testing.T) {
 		}
 		_, formatted := result.formatAssertionsOutput()
 
-		expected := "    Assertions:\n        [✓] pass-1 - passed\n        [x] fail-1 - failed\n        [✓] pass-2 - passed again\n        [x] fail-2 - failed again\n        Total: 4 assertions, 2 successful, 2 failed, 0 errors\n"
+		expected := "    Assertions:\n        [✓] pass-1: passed\n        [x] fail-1: failed\n        [✓] pass-2: passed again\n        [x] fail-2: failed again\n        Total: 4 assertions, 2 successful, 2 failed, 0 errors\n"
 		assert.Equal(t, expected, formatted)
 	})
 
@@ -821,7 +821,7 @@ func TestTestCaseResult_formatAssertionsOutput(t *testing.T) {
 		}
 		_, formatted := result.formatAssertionsOutput()
 
-		expected := "    Assertions:\n        [x] long-message - " + longMessage + "\n        Total: 1 assertions, 0 successful, 1 failed, 0 errors\n"
+		expected := "    Assertions:\n        [x] long-message: " + longMessage + "\n        Total: 1 assertions, 0 successful, 1 failed, 0 errors\n"
 		assert.Equal(t, expected, formatted)
 	})
 
@@ -850,7 +850,7 @@ func TestTestCaseResult_formatAssertionsOutput(t *testing.T) {
 		}
 		_, formatted := result.formatAssertionsOutput()
 
-		expected := "    Assertions:\n        [x] broken - something broke\n        Total: 1 assertions, 0 successful, 1 failed, 0 errors\n"
+		expected := "    Assertions:\n        [x] broken: something broke\n        Total: 1 assertions, 0 successful, 1 failed, 0 errors\n"
 		assert.Equal(t, expected, formatted)
 	})
 
@@ -863,7 +863,7 @@ func TestTestCaseResult_formatAssertionsOutput(t *testing.T) {
 		}
 		_, formatted := result.formatAssertionsOutput()
 
-		expected := "    Assertions:\n        [x] fail-one - expected 0, got 2\n        Total: 2 assertions, 1 successful, 1 failed, 0 errors\n"
+		expected := "    Assertions:\n        [x] fail-one: expected 0, got 2\n        Total: 2 assertions, 1 successful, 1 failed, 0 errors\n"
 		assert.Equal(t, expected, formatted)
 	})
 
@@ -876,7 +876,7 @@ func TestTestCaseResult_formatAssertionsOutput(t *testing.T) {
 		}
 		_, formatted := result.formatAssertionsOutput()
 
-		assert.Contains(t, formatted, "[!] error-one - resource SomeKind/some-name not found")
+		assert.Contains(t, formatted, "[!] error-one: resource SomeKind/some-name not found")
 		assert.Contains(t, formatted, "Total: 2 assertions, 1 successful, 0 failed, 1 error")
 	})
 
@@ -889,8 +889,8 @@ func TestTestCaseResult_formatAssertionsOutput(t *testing.T) {
 		raw, _ := result.formatAssertionsOutput()
 
 		assert.True(t, strings.HasPrefix(raw, "Assertions:\n"), "raw should start with Assertions: and newline, no leading spaces")
-		assert.Contains(t, raw, "[✓] count-check - found 3 resources (as expected)")
-		assert.Contains(t, raw, "[x] fail-one - expected 0, got 2")
+		assert.Contains(t, raw, "[✓] count-check: found 3 resources (as expected)")
+		assert.Contains(t, raw, "[x] fail-one: expected 0, got 2")
 		assert.Contains(t, raw, "Total: 2 assertions, 1 successful, 1 failed, 0 errors")
 	})
 }

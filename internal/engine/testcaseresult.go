@@ -498,7 +498,7 @@ func (tcr *TestCaseResult) formatAssertionsOutput() (raw, formatted string) {
 				fmt.Sprintf("%s %s", r.Status.Symbol, r.Name),
 				indentMultilineBody(multilineBodyIndent, r.Message))
 		} else {
-			rawLines = append(rawLines, fmt.Sprintf("%s %s - %s", r.Status.Symbol, r.Name, r.Message))
+			rawLines = append(rawLines, fmt.Sprintf("%s %s: %s", r.Status.Symbol, r.Name, r.Message))
 		}
 		// Formatted: only when section is shown, and include all or only non-pass
 		if showFormattedSection && (includeAllInFormatted || r.Status != StatusPass()) {
@@ -507,7 +507,7 @@ func (tcr *TestCaseResult) formatAssertionsOutput() (raw, formatted string) {
 					fmt.Sprintf("%s%s %s", spaces+spaces, r.Status.Symbol, r.Name),
 					indentMultilineBody(multilineBodyIndent, r.Message))
 			} else {
-				formattedLines = append(formattedLines, fmt.Sprintf("%s%s %s - %s", spaces+spaces, r.Status.Symbol, r.Name, r.Message))
+				formattedLines = append(formattedLines, fmt.Sprintf("%s%s %s: %s", spaces+spaces, r.Status.Symbol, r.Name, r.Message))
 			}
 		}
 	}

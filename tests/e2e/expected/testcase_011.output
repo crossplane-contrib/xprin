@@ -10,7 +10,7 @@ ok	examples/mytests/0_e2e/claim_xprin.yaml	X.XXXs
         ├── XGCPInfrastructure/platform-gcp-jz48b
         └── Firewall/platform-gcp-jz48b-firewall
     Assertions:
-        [✓] Full render matches golden, reproduced via --golden - files match
+        [✓] Full render matches golden, reproduced via --golden: files match
         Total: 1 assertions, 1 successful, 0 failed, 0 errors
 PASS
 ok	examples/mytests/0_e2e/claim_xprin.yaml	X.XXXs
