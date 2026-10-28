@@ -31,12 +31,12 @@ func TestNewTestSuiteResult(t *testing.T) {
 	t.Run("creates result with correct initial values", func(t *testing.T) {
 		result := NewTestSuiteResult("/path/to/test.yaml", true)
 
-		assert.Equal(t, "/path/to/test.yaml", result.FilePath)
-		assert.Equal(t, StatusPass(), result.Status)
-		assert.True(t, result.Verbose)
-		assert.False(t, result.StartTime.IsZero())
-		assert.Equal(t, time.Duration(0), result.Duration)
-		assert.Empty(t, result.Results)
+		assert.Equal(t, "/path/to/test.yaml", result.filePath)
+		assert.Equal(t, StatusPass(), result.status)
+		assert.True(t, result.verbose)
+		assert.False(t, result.startTime.IsZero())
+		assert.Equal(t, time.Duration(0), result.duration)
+		assert.Empty(t, result.results)
 	})
 }
 
@@ -48,9 +48,9 @@ func TestTestSuiteResult_AddResult(t *testing.T) {
 
 		suite.AddResult(testResult)
 
-		assert.Len(t, suite.Results, 1)
-		assert.Equal(t, StatusPass(), suite.Status)
-		assert.Equal(t, StatusPass(), suite.Results[0].Status)
+		assert.Len(t, suite.results, 1)
+		assert.Equal(t, StatusPass(), suite.status)
+		assert.Equal(t, StatusPass(), suite.results[0].Status)
 	})
 
 	t.Run("adds failing result and changes status to FAIL", func(t *testing.T) {
@@ -60,9 +60,9 @@ func TestTestSuiteResult_AddResult(t *testing.T) {
 
 		suite.AddResult(testResult)
 
-		assert.Len(t, suite.Results, 1)
-		assert.Equal(t, StatusFail(), suite.Status)
-		assert.Equal(t, StatusFail(), suite.Results[0].Status)
+		assert.Len(t, suite.results, 1)
+		assert.Equal(t, StatusFail(), suite.status)
+		assert.Equal(t, StatusFail(), suite.results[0].Status)
 	})
 
 	t.Run("adds multiple results and updates status correctly", func(t *testing.T) {
@@ -73,15 +73,15 @@ func TestTestSuiteResult_AddResult(t *testing.T) {
 		passResult.Complete()
 		suite.AddResult(passResult)
 
-		assert.Equal(t, StatusPass(), suite.Status)
+		assert.Equal(t, StatusPass(), suite.status)
 
 		// Add failing test
 		failResult := NewTestCaseResult("test2", "test2-id", false, false, false, false, false)
 		failResult.Fail(assert.AnError)
 		suite.AddResult(failResult)
 
-		assert.Equal(t, StatusFail(), suite.Status)
-		assert.Len(t, suite.Results, 2)
+		assert.Equal(t, StatusFail(), suite.status)
+		assert.Len(t, suite.results, 2)
 	})
 }
 
@@ -94,7 +94,7 @@ func TestTestSuiteResult_Complete(t *testing.T) {
 		returned := suite.Complete()
 
 		assert.Equal(t, suite, returned) // Should return self for chaining
-		assert.Positive(t, suite.Duration)
+		assert.Positive(t, suite.duration)
 	})
 }
 
@@ -154,6 +154,26 @@ func TestTestSuiteResult_Print(t *testing.T) {
 		// Should contain some form of the path
 		assert.True(t, strings.Contains(output, "test.yaml") || strings.Contains(output, "test"))
 	})
+
+	t.Run("prints the path relative to the working directory that was set", func(t *testing.T) {
+		suite := NewTestSuiteResult("/work/tests/a_xprin.yaml", false)
+		suite.SetWorkingDir("/work")
+
+		var buf bytes.Buffer
+		suite.Print(&buf)
+
+		assert.Contains(t, buf.String(), "ok\ttests/a_xprin.yaml\t")
+	})
+
+	t.Run("prints the path as it is when it is outside the working directory that was set", func(t *testing.T) {
+		suite := NewTestSuiteResult("/elsewhere/a_xprin.yaml", false)
+		suite.SetWorkingDir("/work")
+
+		var buf bytes.Buffer
+		suite.Print(&buf)
+
+		assert.Contains(t, buf.String(), "ok\t/elsewhere/a_xprin.yaml\t")
+	})
 }
 
 func TestTestSuiteResult_HasFailures(t *testing.T) {
@@ -171,13 +191,6 @@ func TestTestSuiteResult_HasFailures(t *testing.T) {
 		testResult := NewTestCaseResult("test1", "test1-id", false, false, false, false, false)
 		testResult.Fail(assert.AnError)
 		suite.AddResult(testResult)
-
-		assert.True(t, suite.HasFailures())
-	})
-
-	t.Run("returns true when status is FAIL", func(t *testing.T) {
-		suite := NewTestSuiteResult("test.yaml", false)
-		suite.Status = StatusFail()
 
 		assert.True(t, suite.HasFailures())
 	})
@@ -203,10 +216,10 @@ func TestTestSuiteResult_Integration(t *testing.T) {
 		suite.Complete()
 
 		// Test properties
-		assert.Len(t, suite.Results, 2)
-		assert.Equal(t, StatusFail(), suite.Status)
+		assert.Len(t, suite.results, 2)
+		assert.Equal(t, StatusFail(), suite.status)
 		assert.True(t, suite.HasFailures())
-		assert.Positive(t, suite.Duration)
+		assert.Positive(t, suite.duration)
 
 		// Test output
 		var buf bytes.Buffer

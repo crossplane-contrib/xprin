@@ -27,80 +27,89 @@ import (
 
 // TestSuiteResult represents the result of running a test suite file.
 type TestSuiteResult struct {
-	FilePath   string
-	WorkingDir string // Set by the runner from Options.WorkingDir; used to relativise FilePath for display.
-	Results    []TestCaseResult
-	Duration   time.Duration
-	Status     Status // StatusPass() or StatusFail() - overall status
-	StartTime  time.Time
-	Verbose    bool // Formatting flag for output
+	// What the constructor sets, and what the methods keep, so that nothing else changes it: the file, when the work
+	// on it started, the formatting flag, the test case results in the order they were added, the overall status
+	// (StatusPass() or StatusFail()), and the duration that Complete sets.
+	filePath  string
+	startTime time.Time
+	verbose   bool
+	results   []TestCaseResult
+	status    Status
+	duration  time.Duration
+
+	workingDir string // Set by SetWorkingDir; used to relativise the file path for display.
 }
 
 // NewTestSuiteResult creates a new test suite result.
 func NewTestSuiteResult(filePath string, verbose bool) *TestSuiteResult {
 	return &TestSuiteResult{
-		FilePath:  filePath,
-		Status:    StatusPass(), // Default to pass
-		StartTime: time.Now(),
-		Verbose:   verbose,
+		filePath:  filePath,
+		status:    StatusPass(), // Default to pass
+		startTime: time.Now(),
+		verbose:   verbose,
 	}
+}
+
+// SetWorkingDir sets the directory that the file path is shown relative to.
+func (tsr *TestSuiteResult) SetWorkingDir(workingDir string) {
+	tsr.workingDir = workingDir
 }
 
 // AddResult adds a test case result to the test suite.
 func (tsr *TestSuiteResult) AddResult(result *TestCaseResult) {
-	tsr.Results = append(tsr.Results, *result)
+	tsr.results = append(tsr.results, *result)
 
 	// Update overall status if any test failed
 	if result.Status == StatusFail() {
-		tsr.Status = StatusFail()
+		tsr.status = StatusFail()
 	}
 }
 
 // Complete finalizes the test suite result with total duration and returns the result for chaining.
 func (tsr *TestSuiteResult) Complete() *TestSuiteResult {
-	tsr.Duration = time.Since(tsr.StartTime)
+	tsr.duration = time.Since(tsr.startTime)
 	return tsr
 }
 
 // Print the file summary in Go test format.
 func (tsr *TestSuiteResult) Print(w io.Writer) {
 	// Convert absolute paths to relative paths when possible (matches Go's testing package behavior).
-	// Prefer the stored WorkingDir; fall back to os.Getwd() when not set (e.g. in tests).
-	displayPath := tsr.FilePath
+	// Prefer the stored working directory; fall back to os.Getwd() when not set (e.g. in tests).
+	displayPath := tsr.filePath
 
-	pwd := tsr.WorkingDir
+	pwd := tsr.workingDir
 	if pwd == "" {
 		pwd, _ = os.Getwd()
 	}
 
 	if pwd != "" {
-		if rel, err := filepath.Rel(pwd, tsr.FilePath); err == nil && !strings.HasPrefix(rel, "..") {
+		if rel, err := filepath.Rel(pwd, tsr.filePath); err == nil && !strings.HasPrefix(rel, "..") {
 			displayPath = rel
 		}
 	}
 
-	if tsr.Status == StatusFail() {
-		fmt.Fprintf(w, "%s\n%s\t%s\t%.3fs\n", StatusFail().Value, StatusFail().Value, displayPath, tsr.Duration.Seconds()) //nolint:errcheck // output function, error handling not practical
+	if tsr.status == StatusFail() {
+		fmt.Fprintf(w, "%s\n%s\t%s\t%.3fs\n", StatusFail().Value, StatusFail().Value, displayPath, tsr.duration.Seconds()) //nolint:errcheck // output function, error handling not practical
 	} else {
-		if tsr.Verbose {
+		if tsr.verbose {
 			fmt.Fprintln(w, StatusPass().Value) //nolint:errcheck // output function, error handling not practical
 		}
 
-		fmt.Fprintf(w, "ok\t%s\t%.3fs\n", displayPath, tsr.Duration.Seconds()) //nolint:errcheck // output function, error handling not practical
+		fmt.Fprintf(w, "ok\t%s\t%.3fs\n", displayPath, tsr.duration.Seconds()) //nolint:errcheck // output function, error handling not practical
 	}
 }
 
 // HasFailures returns true if any test failed.
 func (tsr *TestSuiteResult) HasFailures() bool {
-	return tsr.Status == StatusFail()
+	return tsr.status == StatusFail()
 }
 
 // GetCompletedTests returns a map of test ID to test case result for completed tests.
 func (tsr *TestSuiteResult) GetCompletedTests() map[string]*TestCaseResult {
 	completed := make(map[string]*TestCaseResult)
 
-	for i := range tsr.Results {
-		result := &tsr.Results[i]
+	for i := range tsr.results {
+		result := &tsr.results[i]
 		if result.ID != "" {
 			completed[result.ID] = result
 		}

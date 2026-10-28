@@ -21,16 +21,14 @@ import (
 	"errors"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/gertd/go-pluralize"
 )
 
-// report writes the results of a testsuite file as xprin test does.
-func report(out io.Writer, testSuiteFile string, res testSuiteCheckResult, verbose bool, elapsed time.Duration) {
-	testSuiteResult := engine.NewTestSuiteResult(testSuiteFile, verbose)
-
+// report writes the results of a testsuite file as xprin test does, and ends testSuiteResult, which was created when
+// the work on the file started.
+func report(out io.Writer, testSuiteResult *engine.TestSuiteResult, res testSuiteCheckResult, verbose bool) {
 	for _, check := range res {
 		testCaseResult := newTestCaseResult(check, verbose)
 		testCaseResult.Print(out)
@@ -38,9 +36,7 @@ func report(out io.Writer, testSuiteFile string, res testSuiteCheckResult, verbo
 		testSuiteResult.AddResult(testCaseResult)
 	}
 
-	// The time of everything, from before the file was loaded
-	testSuiteResult.Duration = elapsed
-	testSuiteResult.Print(out)
+	testSuiteResult.Complete().Print(out)
 }
 
 // newTestCaseResult returns the result of a test case, with the needs that it misses in a section.
