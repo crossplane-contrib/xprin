@@ -38,12 +38,11 @@ import (
 type Runner struct {
 	*testexecutionOptions.Options
 
-	fs                       afero.Fs
-	testSuite                *testsuite.TestSuite // the test suite that is run: its file, its spec and its dependency graph
-	output                   io.Writer
-	testSuiteSavedOutputsDir string
-	totalTestCases           int
-	mode                     runnerMode
+	fs        afero.Fs
+	testSuite *testsuite.TestSuite // the test suite that is run: its file, its spec and its dependency graph
+	output    io.Writer
+	mode      runnerMode
+	env       *testSuiteEnv
 	// Mockable function fields
 	runTestsFunc                      func() error
 	runTestCaseFunc                   func(api.TestCase) *engine.TestCaseResult
@@ -53,6 +52,17 @@ type Runner struct {
 	copy                              func(src, dest string, opts ...cp.Options) error
 	convertClaimToXRFunc              func(r *Runner, claimPath, xrdPath, goldenPath, outputPath string) (string, error)
 	patchXRFunc                       func(r *Runner, xrPath, outputPath string, patches api.Patches) (string, error)
+}
+
+// testSuiteEnv is the state of one run of a testsuite file, set by setupTestSuite.
+type testSuiteEnv struct {
+	savedOutputsDir string                   // the internal artifacts, the outputs that test cases share
+	testSuiteResult *engine.TestSuiteResult  // the result of the file, which the result of each test case is added to
+	testCaseResults []*engine.TestCaseResult // the result of each test case, by its positionInTestSuite, once it ran
+	// positionInOrder[positionInTestSuite] is where the test case at positionInTestSuite is in the order they run.
+	// That is the order of the dependency graph, which can differ from the order of the file.
+	// It starts at 0, and numbers the artifacts of the test cases.
+	positionInOrder []int
 }
 
 // testCaseEnv is the state of one test case run.
@@ -95,12 +105,29 @@ func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestS
 	return r
 }
 
-// RunTests runs all tests in a test suite.
+// RunTests runs all tests in a test suite, one after the other, in the order of their dependencies.
 func (r *Runner) RunTests() error {
 	if r.runTestsFunc != nil {
 		return r.runTestsFunc()
 	}
 
+	if err := r.setupTestSuite(); err != nil {
+		return err
+	}
+
+	// completeTestSuite removes it too: this is for a run that ends without it
+	defer r.removeSavedOutputsDir()
+
+	for _, positionInTestSuite := range r.testSuite.Graph.GetOrder() {
+		r.runAndStoreTestCase(positionInTestSuite)
+		r.printTestCaseResult(positionInTestSuite)
+	}
+
+	return r.completeTestSuite()
+}
+
+// setupTestSuite checks the testsuite file and makes the directories that the test cases use.
+func (r *Runner) setupTestSuite() (err error) {
 	// Validate that testSuiteFile and testSuiteSpec are set (they should be set in NewRunner)
 	if r.testSuite.File == "" {
 		return fmt.Errorf("testsuite file path is required")
@@ -111,19 +138,22 @@ func (r *Runner) RunTests() error {
 	}
 
 	// Create the directory of the internal artifacts, the outputs that test cases share (always created, cleaned up when testsuite finishes)
-	var err error
-
-	r.testSuiteSavedOutputsDir, err = afero.TempDir(r.fs, "", "xprin-internal-artifacts-")
+	savedOutputsDir, err := afero.TempDir(r.fs, "", "xprin-internal-artifacts-")
 	if err != nil {
 		return fmt.Errorf("failed to create internal artifacts directory: %w", err)
 	}
 
+	r.env = &testSuiteEnv{savedOutputsDir: savedOutputsDir}
+
+	// If it can't go on, nothing will call completeTestSuite to remove it
 	defer func() {
-		_ = r.fs.RemoveAll(r.testSuiteSavedOutputsDir)
+		if err != nil {
+			r.removeSavedOutputsDir()
+		}
 	}()
 
 	if r.Debug {
-		utils.DebugPrintf("Created internal artifacts directory: %s\n", r.testSuiteSavedOutputsDir)
+		utils.DebugPrintf("Created internal artifacts directory: %s\n", savedOutputsDir)
 	}
 
 	if r.Debug {
@@ -139,44 +169,37 @@ func (r *Runner) RunTests() error {
 	}
 
 	// Create test suite result
-	testSuiteResult := engine.NewTestSuiteResult(r.testSuite.File, r.Verbose)
-	testSuiteResult.SetWorkingDir(r.WorkingDir)
+	r.env.testSuiteResult = engine.NewTestSuiteResult(r.testSuite.File, r.Verbose)
+	r.env.testSuiteResult.SetWorkingDir(r.WorkingDir)
 
-	r.totalTestCases = len(r.testSuite.Spec.Tests)
+	totalTestCases := len(r.testSuite.Spec.Tests)
+	r.env.testCaseResults = make([]*engine.TestCaseResult, totalTestCases)
 
-	if r.ArtifactsBaseDir != "" && r.totalTestCases > 0 {
+	r.env.positionInOrder = make([]int, totalTestCases)
+	for positionInOrder, positionInTestSuite := range r.testSuite.Graph.GetOrder() {
+		r.env.positionInOrder[positionInTestSuite] = positionInOrder
+	}
+
+	if r.ArtifactsBaseDir != "" && totalTestCases > 0 {
 		if err := r.initArtifactsRunDir(); err != nil {
 			return err
 		}
 	}
 
-	// Loop through all test cases, in the order of their dependencies, and run them directly
-	for positionInOrder, positionInTestSuite := range r.testSuite.Graph.GetOrder() {
-		testCase := r.testSuite.Spec.Tests[positionInTestSuite]
-
-		// Run the test and let the engine handle everything
-		testCaseResult := r.runTestCase(testCase, positionInOrder+1, testSuiteResult)
-		testCaseResult.Print(r.output) // Print immediately as test completes
-		testSuiteResult.AddResult(testCaseResult)
-	}
-
-	// Complete the test suite result
-	testSuiteResult.Complete()
-
-	// Print only the file summary (not individual test results)
-	testSuiteResult.Print(r.output)
-
-	if r.ArtifactsRunDir != "" {
-		suiteArtifactsPath := filepath.Join(r.ArtifactsRunDir, artifactsRelPath(r.testSuite.File, r.WorkingDir))
-		fmt.Fprintf(os.Stderr, "artifacts: %s\n", suiteArtifactsPath)
-	}
-
-	// Return error if any tests failed
-	if testSuiteResult.HasFailures() {
-		return fmt.Errorf("tests failed in testsuite %s", filepath.Base(r.testSuite.File))
-	}
-
 	return nil
+}
+
+// runAndStoreTestCase runs the test case at positionInTestSuite and stores its result.
+// positionInTestSuite is the position of the test case in the tests of the file.
+// Different test cases can run at the same time, once the ones that each needs are done.
+func (r *Runner) runAndStoreTestCase(positionInTestSuite int) {
+	testCase := r.testSuite.Spec.Tests[positionInTestSuite]
+
+	// Run the test and let the engine handle everything
+	result := r.runTestCase(testCase, r.env.positionInOrder[positionInTestSuite]+1, r.env.testSuiteResult)
+
+	r.env.testCaseResults[positionInTestSuite] = result
+	r.env.testSuiteResult.AddResult(result)
 }
 
 // runTestCase executes a single test case and returns a complete TestCaseResult.
@@ -274,4 +297,42 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	}
 
 	return r.mode.runPhasesAfterRender(testCase, env, needsResults, result)
+}
+
+// printTestCaseResult prints the stored result of the test case at positionInTestSuite.
+// positionInTestSuite is the position of the test case in the tests of the file.
+// Not at the same time as another one: the output has the order of the calls.
+func (r *Runner) printTestCaseResult(positionInTestSuite int) {
+	r.env.testCaseResults[positionInTestSuite].Print(r.output)
+}
+
+// completeTestSuite prints the summary of the file, and returns an error if any test case failed.
+func (r *Runner) completeTestSuite() error {
+	defer r.removeSavedOutputsDir()
+
+	// Complete the test suite result
+	r.env.testSuiteResult.Complete()
+
+	// Print only the file summary (not individual test results)
+	r.env.testSuiteResult.Print(r.output)
+
+	if r.ArtifactsRunDir != "" {
+		suiteArtifactsPath := filepath.Join(r.ArtifactsRunDir, artifactsRelPath(r.testSuite.File, r.WorkingDir))
+		fmt.Fprintf(os.Stderr, "artifacts: %s\n", suiteArtifactsPath)
+	}
+
+	// Return error if any tests failed
+	if r.env.testSuiteResult.HasFailures() {
+		return fmt.Errorf("tests failed in testsuite %s", filepath.Base(r.testSuite.File))
+	}
+
+	return nil
+}
+
+// removeSavedOutputsDir removes the directory of the internal artifacts.
+// It is safe to call it more than once.
+func (r *Runner) removeSavedOutputsDir() {
+	if r.env != nil && r.env.savedOutputsDir != "" {
+		_ = r.fs.RemoveAll(r.env.savedOutputsDir)
+	}
 }

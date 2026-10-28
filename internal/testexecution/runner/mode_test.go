@@ -107,7 +107,7 @@ func TestUpdateGoldensModeSkips(t *testing.T) {
 func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 	newRunner := func() (*Runner, *[]string) {
 		r := newUpdateGoldensRunner(afero.NewMemMapFs())
-		r.testSuiteSavedOutputsDir = "/saved-outputs"
+		r.env = &testSuiteEnv{savedOutputsDir: "/saved-outputs"}
 
 		var copied []string
 

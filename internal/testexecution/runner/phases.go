@@ -634,7 +634,7 @@ func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *en
 		return nil
 	}
 
-	testCaseDir := filepath.Join(r.testSuiteSavedOutputsDir, testCase.ID)
+	testCaseDir := filepath.Join(r.env.savedOutputsDir, testCase.ID)
 	if err := r.copy(env.outputsDir, testCaseDir); err != nil {
 		return fmt.Errorf("failed to save outputs as internal artifacts: %w", err)
 	}
