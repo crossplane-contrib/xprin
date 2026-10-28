@@ -247,10 +247,9 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 		return result.Fail(err)
 	}
 
-	if r.Containers != nil {
-		if err := containers.ApplyReuse(r.fs, r.Containers, testCase.Inputs.Functions); err != nil {
-			return result.Fail(fmt.Errorf("failed to apply container reuse: %w", err))
-		}
+	// ApplyReuse does nothing when container reuse is disabled (r.Containers is nil)
+	if err := containers.ApplyReuse(r.fs, r.Containers, testCase.Inputs.Functions); err != nil {
+		return result.Fail(fmt.Errorf("failed to apply container reuse: %w", err))
 	}
 
 	crdsDir := filepath.Join(env.inputsDir, "crds")
