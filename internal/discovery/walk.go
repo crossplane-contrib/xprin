@@ -38,12 +38,22 @@ type Options struct {
 	Debug bool
 }
 
+// ErrFailed is the error of a Walk that found problems, or whose visits failed.
+var ErrFailed = errors.New("processing completed with errors")
+
+// finalFail prints the final FAIL line, and returns ErrFailed.
+func finalFail() error {
+	utils.OutputPrintf("FAIL\n")
+
+	return ErrFailed
+}
+
 // Visitor is called for every testsuite file that the targets resolve to.
 type Visitor func(testSuiteFile string) error
 
 // Walk resolves the targets (files, directories, or recursive directories) to testsuite files and
 // calls visit for each of them. It reports the problems it finds, and returns an error if any of
-// them, or any visit, failed.
+// them, or any visit, failed: ErrFailed, after printing FAIL.
 //
 //nolint:gocognit // Complex target processing with multiple validation phases
 func Walk(fs afero.Fs, targets []string, options Options, visit Visitor) error {
@@ -117,8 +127,7 @@ func Walk(fs afero.Fs, targets []string, options Options, visit Visitor) error {
 	}
 
 	if hasErrors {
-		utils.OutputPrintf("FAIL\n")
-		return fmt.Errorf("processing completed with errors")
+		return finalFail()
 	}
 
 	return nil
