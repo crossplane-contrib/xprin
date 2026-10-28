@@ -57,6 +57,7 @@ linters:
     # useful in theory to catch fields that are accidentally omitted. Seems like
     # it would have many more false positives than useful catches, though.
     - exhaustruct
+    - exhaustruct_v5
 
     # Warns about TODO comments. The rationale being they should be issues
     # instead. We're okay with using TODO to track minor cleanups for next time
@@ -121,6 +122,12 @@ linters:
       min-len: 3
       # minimal occurrences count to trigger, 3 by default
       min-occurrences: 5
+      # Since golangci-lint v2.12 goconst also counts strings inside composite
+      # literals, which flags every table-driven test fixture. Keep the previous
+      # behavior (Call is the default) and still check the rest, tests included.
+      exclude-types:
+        - Call
+        - CompositeLit
     gocritic:
       # Enable multiple checks by tags, run `GL_DEBUG=gocritic golangci-lint` run to see all tags and checks.
       # Empty list by default. See https://github.com/go-critic/go-critic#usage -> section "Tags".

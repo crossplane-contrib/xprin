@@ -133,8 +133,7 @@ func (e *hookExecutor) executeHook(hook api.Hook, hookType string, inputs api.In
 	if err != nil {
 		exitCode := 1
 
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
+		if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
 			exitCode = exitError.ExitCode()
 		}
 
