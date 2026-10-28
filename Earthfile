@@ -179,7 +179,7 @@ golangci-lint-setup:
   ARG GOLANGCI_LINT_VERSION=v2.15.0
   ARG NATIVEPLATFORM
   FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.23.0
-  RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b . ${GOLANGCI_LINT_VERSION}
+  RUN curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b . ${GOLANGCI_LINT_VERSION}
   SAVE ARTIFACT golangci-lint
 
 # crossplane-cli-setup is used by other targets to setup the crossplane CLI.
