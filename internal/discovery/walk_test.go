@@ -169,4 +169,36 @@ func TestWalk(t *testing.T) {
 		assert.Contains(t, out.Stdout, "FAIL")
 		assert.Len(t, visited, 2)
 	})
+
+	t.Run("DeferFail leaves the FAIL line to the caller", func(t *testing.T) {
+		var (
+			err     error
+			visited []string
+		)
+
+		out := unittestsUtils.CaptureOutput(func() {
+			err = Walk(newFS(t), []string{"/tests/a_xprin.yaml"}, Options{DeferFail: true}, recorder(&visited, errors.New("boom")))
+		})
+
+		require.ErrorIs(t, err, ErrFailed)
+		assert.NotContains(t, out.Stdout, "FAIL")
+
+		out = unittestsUtils.CaptureOutput(func() {
+			err = FinalFail()
+		})
+
+		require.ErrorIs(t, err, ErrFailed)
+		assert.Contains(t, out.Stdout, "FAIL")
+	})
+
+	t.Run("DeferFail does not change a walk that succeeds", func(t *testing.T) {
+		var visited []string
+
+		out := unittestsUtils.CaptureOutput(func() {
+			require.NoError(t, Walk(newFS(t), []string{"/tests/a_xprin.yaml"}, Options{DeferFail: true}, recorder(&visited, nil)))
+		})
+
+		assert.NotContains(t, out.Stdout, "FAIL")
+		assert.Len(t, visited, 1)
+	})
 }
