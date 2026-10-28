@@ -22,10 +22,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/crossplane-contrib/xprin/internal/discovery"
+	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/spf13/afero"
 )
 
@@ -88,7 +88,8 @@ func (c *Cmd) Run(k *kong.Context) error {
 	errOut := bufio.NewWriter(k.Stderr)
 
 	walkErr := discovery.Walk(c.fs, c.Targets, discovery.Options{Quiet: c.Quiet}, func(testSuiteFile string) error {
-		start := time.Now()
+		// Created before the file is loaded, so that its duration is the time of everything
+		testSuiteResult := engine.NewTestSuiteResult(testSuiteFile, c.Verbose)
 
 		testSuite, err := discovery.Load(c.fs, testSuiteFile, discovery.Options{Quiet: c.Quiet})
 		if err != nil || testSuite == nil {
@@ -99,7 +100,7 @@ func (c *Cmd) Run(k *kong.Context) error {
 
 		// The errors of the writes in report are kept by the writer, and come out when it is flushed
 		out := bufio.NewWriter(k.Stdout)
-		report(out, testSuiteFile, res, c.Verbose, time.Since(start))
+		report(out, testSuiteResult, res, c.Verbose)
 
 		if err := out.Flush(); err != nil {
 			return fmt.Errorf("failed to write the report of %s: %w", testSuiteFile, err)

@@ -20,93 +20,140 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
-// failedFile is how the engine ends the output of a file that failed: the FAIL of the suite, and the line of the file,
-// which starts with a FAIL too.
-const failedFile = "FAIL\nFAIL\ttmp/a_xprin.yaml\t0.002s\n" //nolint:dupword // The engine writes FAIL twice
+// reportOf returns what report writes for a file.
+func reportOf(t *testing.T, verbose bool, res testSuiteCheckResult) string {
+	t.Helper()
 
+	var out bytes.Buffer
+
+	buffer := bufio.NewWriter(&out)
+	report(buffer, engine.NewTestSuiteResult("tmp/a_xprin.yaml", verbose), res, verbose)
+
+	require.NoError(t, buffer.Flush())
+
+	return out.String()
+}
+
+// The format of the results is the engine's: here is only that report writes the test cases, and then the file.
 func TestReport(t *testing.T) {
-	// base uses nothing, one uses base and lists it, two misses base, three misses base and one, four has a problem,
-	// five misses base and has a problem too
 	base := testCaseCheckResult{name: "base"}
 	one := testCaseCheckResult{name: "one", usesTests: true}
 	two := testCaseCheckResult{name: "two", usesTests: true, missing: []string{"base"}}
-	three := testCaseCheckResult{name: "three", usesTests: true, missing: []string{"base", "one"}}
-	four := testCaseCheckResult{name: "four", problems: []string{"uses its own outputs (.Tests.four)"}}
-	five := testCaseCheckResult{name: "five", usesTests: true, missing: []string{"base"}, problems: []string{"uses .Tests.nope, but no test case has that ID"}}
 
-	// a person took care of it: the tool can't check it
-	skippedForAReason := testCaseCheckResult{name: "six", skipReason: "uses .Tests in a way that can't be traced: its needs can't be checked"}
+	t.Run("a file that fails: the test cases that fail, and then the FAIL of the file", func(t *testing.T) {
+		assert.Regexp(t, `^--- FAIL: two \(.*\)\n    Missing Needs:\n        \[x\] base\nFAIL\nFAIL\ttmp/a_xprin.yaml\t\d+\.\d{3}s\n$`,
+			reportOf(t, false, testSuiteCheckResult{base, one, two}))
+	})
 
-	all := testSuiteCheckResult{base, one, two, three, four, five}
+	t.Run("a file that passes: only its line", func(t *testing.T) {
+		assert.Regexp(t, `^ok\ttmp/a_xprin.yaml\t\d+\.\d{3}s\n$`, reportOf(t, false, testSuiteCheckResult{base, one}))
+	})
 
-	const elapsed = 1500 * time.Microsecond
+	t.Run("the duration of the file is the time since its result was created", func(t *testing.T) {
+		var out bytes.Buffer
 
+		buffer := bufio.NewWriter(&out)
+		suite := engine.NewTestSuiteResult("tmp/a_xprin.yaml", false)
+
+		// What happens before report, like loading the file, counts
+		time.Sleep(20 * time.Millisecond)
+		report(buffer, suite, testSuiteCheckResult{base}, false)
+		require.NoError(t, buffer.Flush())
+
+		match := regexp.MustCompile(`\t(\d+\.\d{3})s\n$`).FindStringSubmatch(out.String())
+		require.NotNil(t, match, out.String())
+
+		seconds, err := strconv.ParseFloat(match[1], 64)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, seconds, 0.02)
+	})
+
+	t.Run("verbose: all the test cases, in order", func(t *testing.T) {
+		assert.Regexp(t, `^=== RUN   base\n--- SKIP: base .*\n=== RUN   one\n--- PASS: one .*\nPASS\nok\ttmp/a_xprin.yaml\t`,
+			reportOf(t, true, testSuiteCheckResult{base, one}))
+	})
+}
+
+func TestNewTestCaseResult(t *testing.T) {
 	tests := map[string]struct {
-		res     testSuiteCheckResult
-		verbose bool
-		want    string
+		check       testCaseCheckResult
+		wantStatus  engine.Status
+		wantError   string // empty: no error
+		wantMissing []string
 	}{
-		"only what fails": {
-			res:  all,
-			want: "--- FAIL: two (0.00s)\n    Missing Needs:\n        [x] base\n--- FAIL: three (0.00s)\n    Missing Needs:\n        [x] base\n        [x] one\n--- FAIL: four (0.00s)\n    [!] uses its own outputs (.Tests.four)\n--- FAIL: five (0.00s)\n    Missing Needs:\n        [x] base\n    [!] uses .Tests.nope, but no test case has that ID\n" + failedFile,
+		"uses nothing: skipped": {
+			check:      testCaseCheckResult{name: "base"},
+			wantStatus: engine.StatusSkip(),
 		},
-		"verbose: all of them, with their results": {
-			res:     all,
-			verbose: true,
-			want:    "=== RUN   base\n--- SKIP: base (0.00s)\n=== RUN   one\n--- PASS: one (0.00s)\n=== RUN   two\n--- FAIL: two (0.00s)\n    Missing Needs:\n        [x] base\n=== RUN   three\n--- FAIL: three (0.00s)\n    Missing Needs:\n        [x] base\n        [x] one\n=== RUN   four\n--- FAIL: four (0.00s)\n    [!] uses its own outputs (.Tests.four)\n=== RUN   five\n--- FAIL: five (0.00s)\n    Missing Needs:\n        [x] base\n    [!] uses .Tests.nope, but no test case has that ID\n" + failedFile,
+		"uses tests and lists them: passes": {
+			check:      testCaseCheckResult{name: "one", usesTests: true},
+			wantStatus: engine.StatusPass(),
 		},
-		"nothing to say": {
-			res:  testSuiteCheckResult{base, one},
-			want: "ok\ttmp/a_xprin.yaml\t0.002s\n",
+		"misses needs: fails, with the needs in a section and no error": {
+			check:       testCaseCheckResult{name: "two", usesTests: true, missing: []string{"base", "one"}},
+			wantStatus:  engine.StatusFail(),
+			wantMissing: []string{"base", "one"},
 		},
-		"nothing to say, verbose: a pass for the test case that uses needs, a skip for the one that uses none": {
-			res:     testSuiteCheckResult{base, one},
-			verbose: true,
-			want: `=== RUN   base
---- SKIP: base (0.00s)
-=== RUN   one
---- PASS: one (0.00s)
-PASS
-ok	tmp/a_xprin.yaml	0.002s
-`,
+		"has problems: fails, with the problems as the error": {
+			check:      testCaseCheckResult{name: "four", problems: []string{"uses its own outputs", "something else"}},
+			wantStatus: engine.StatusFail(),
+			wantError:  "uses its own outputs\nsomething else",
 		},
-		"a skip with a reason is shown without verbose, and does not fail the file": {
-			res: testSuiteCheckResult{base, skippedForAReason},
-			want: `--- SKIP: six (0.00s)
-    [!] uses .Tests in a way that can't be traced: its needs can't be checked
-ok	tmp/a_xprin.yaml	0.002s
-`,
+		"misses needs and has problems: fails, with both": {
+			check:       testCaseCheckResult{name: "five", usesTests: true, missing: []string{"base"}, problems: []string{"no test case has that ID"}},
+			wantStatus:  engine.StatusFail(),
+			wantError:   "no test case has that ID",
+			wantMissing: []string{"base"},
 		},
-		"a skip with a reason, verbose": {
-			res:     testSuiteCheckResult{base, skippedForAReason},
-			verbose: true,
-			want: `=== RUN   base
---- SKIP: base (0.00s)
-=== RUN   six
---- SKIP: six (0.00s)
-    [!] uses .Tests in a way that can't be traced: its needs can't be checked
-PASS
-ok	tmp/a_xprin.yaml	0.002s
-`,
+		"a skip reason: skipped, with the reason as the error": {
+			check:      testCaseCheckResult{name: "six", skipReason: "its needs can't be checked"},
+			wantStatus: engine.StatusSkip(),
+			wantError:  "its needs can't be checked",
+		},
+		"problems win over a skip reason": {
+			check:      testCaseCheckResult{name: "seven", problems: []string{"a problem"}, skipReason: "a reason"},
+			wantStatus: engine.StatusFail(),
+			wantError:  "a problem",
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			var out bytes.Buffer
+			result := newTestCaseResult(tt.check, false)
 
-			buffer := bufio.NewWriter(&out)
-			report(buffer, "tmp/a_xprin.yaml", tt.res, tt.verbose, elapsed)
+			assert.Equal(t, tt.check.name, result.Name)
+			assert.Equal(t, tt.wantStatus, result.Status)
 
-			require.NoError(t, buffer.Flush())
-			assert.Equal(t, tt.want, out.String())
+			if tt.wantError == "" {
+				require.NoError(t, result.Error)
+			} else {
+				require.EqualError(t, result.Error, tt.wantError)
+			}
+
+			var missing []string
+
+			for _, section := range result.Sections {
+				assert.Equal(t, "Missing Needs", section.Header)
+
+				for _, line := range section.Lines {
+					assert.Equal(t, engine.StatusFail(), line.Status)
+
+					missing = append(missing, line.Text)
+				}
+			}
+
+			assert.Equal(t, tt.wantMissing, missing)
+			assert.Zero(t, result.Duration, "the tool doesn't time the test cases")
 		})
 	}
 }
@@ -120,9 +167,9 @@ func TestReport_AWriteErrorComesOutWhenTheBufferIsFlushed(t *testing.T) {
 	// A small buffer, so that the writes reach the writer that fails before the end of the report
 	buffer := bufio.NewWriterSize(failingWriter{}, 16)
 
-	report(buffer, "tmp/a_xprin.yaml", testSuiteCheckResult{
+	report(buffer, engine.NewTestSuiteResult("tmp/a_xprin.yaml", true), testSuiteCheckResult{
 		{name: "a", missing: []string{"base", "one"}, problems: []string{"something to fix"}},
-	}, true, 0)
+	}, true)
 
 	require.ErrorContains(t, buffer.Flush(), "disk full")
 }
