@@ -154,6 +154,26 @@ func TestTestSuiteResult_Print(t *testing.T) {
 		// Should contain some form of the path
 		assert.True(t, strings.Contains(output, "test.yaml") || strings.Contains(output, "test"))
 	})
+
+	t.Run("prints the path relative to the working directory that was set", func(t *testing.T) {
+		suite := NewTestSuiteResult("/work/tests/a_xprin.yaml", false)
+		suite.SetWorkingDir("/work")
+
+		var buf bytes.Buffer
+		suite.Print(&buf)
+
+		assert.Contains(t, buf.String(), "ok\ttests/a_xprin.yaml\t")
+	})
+
+	t.Run("prints the path as it is when it is outside the working directory that was set", func(t *testing.T) {
+		suite := NewTestSuiteResult("/elsewhere/a_xprin.yaml", false)
+		suite.SetWorkingDir("/work")
+
+		var buf bytes.Buffer
+		suite.Print(&buf)
+
+		assert.Contains(t, buf.String(), "ok\t/elsewhere/a_xprin.yaml\t")
+	})
 }
 
 func TestTestSuiteResult_HasFailures(t *testing.T) {

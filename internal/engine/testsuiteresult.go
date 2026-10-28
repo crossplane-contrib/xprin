@@ -27,8 +27,6 @@ import (
 
 // TestSuiteResult represents the result of running a test suite file.
 type TestSuiteResult struct {
-	WorkingDir string // Set by the runner from Options.WorkingDir; used to relativise the file path for display.
-
 	// What the constructor sets, and what the methods keep, so that nothing else changes it: the file, when the work
 	// on it started, the formatting flag, the test case results in the order they were added, the overall status
 	// (StatusPass() or StatusFail()), and the duration that Complete sets.
@@ -38,6 +36,8 @@ type TestSuiteResult struct {
 	results   []TestCaseResult
 	status    Status
 	duration  time.Duration
+
+	workingDir string // Set by SetWorkingDir; used to relativise the file path for display.
 }
 
 // NewTestSuiteResult creates a new test suite result.
@@ -48,6 +48,11 @@ func NewTestSuiteResult(filePath string, verbose bool) *TestSuiteResult {
 		startTime: time.Now(),
 		verbose:   verbose,
 	}
+}
+
+// SetWorkingDir sets the directory that the file path is shown relative to.
+func (tsr *TestSuiteResult) SetWorkingDir(workingDir string) {
+	tsr.workingDir = workingDir
 }
 
 // AddResult adds a test case result to the test suite.
@@ -69,10 +74,10 @@ func (tsr *TestSuiteResult) Complete() *TestSuiteResult {
 // Print the file summary in Go test format.
 func (tsr *TestSuiteResult) Print(w io.Writer) {
 	// Convert absolute paths to relative paths when possible (matches Go's testing package behavior).
-	// Prefer the stored WorkingDir; fall back to os.Getwd() when not set (e.g. in tests).
+	// Prefer the stored working directory; fall back to os.Getwd() when not set (e.g. in tests).
 	displayPath := tsr.filePath
 
-	pwd := tsr.WorkingDir
+	pwd := tsr.workingDir
 	if pwd == "" {
 		pwd, _ = os.Getwd()
 	}

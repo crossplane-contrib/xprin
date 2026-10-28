@@ -145,7 +145,7 @@ func (r *Runner) RunTests() error {
 
 	// Create test suite result
 	testSuiteResult := engine.NewTestSuiteResult(r.testSuite.File, r.Verbose)
-	testSuiteResult.WorkingDir = r.WorkingDir
+	testSuiteResult.SetWorkingDir(r.WorkingDir)
 
 	r.totalTestCases = len(r.testSuite.Spec.Tests)
 
