@@ -36,31 +36,31 @@ const (
 	dockerCleanupOrphan     = "Orphan"
 )
 
-// ApplyReuse patches Function resources in functionsPath (a file or a directory of files) with
-// container-reuse annotations, keyed by each function's image reference via coord.
-//
-// Does nothing if coord is nil (container reuse not enabled — the default unless running
-// through processor.ProcessTargets) or if functionsPath does not exist (e.g. when copy is
-// mocked out in tests).
-func ApplyReuse(fs afero.Fs, coord *Coordinator, functionsPath string) error {
+// ApplyReuse patches the Function resources in functionsPath (a file or a directory of files) with container-reuse
+// annotations, keyed by the image reference of each function via coord.
+// It returns the names of the containers they use, once each, for Coordinator.Acquire.
+// It does nothing, and returns no names, if coord is nil (container reuse is off) or functionsPath does not exist.
+func ApplyReuse(fs afero.Fs, coord *Coordinator, functionsPath string) ([]string, error) {
 	if coord == nil {
-		return nil
+		return nil, nil
 	}
 
 	info, err := fs.Stat(functionsPath)
 	if os.IsNotExist(err) {
-		return nil
+		return nil, nil
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to stat functions path: %w", err)
+		return nil, fmt.Errorf("failed to stat functions path: %w", err)
 	}
 
 	if info.IsDir() {
 		entries, err := afero.ReadDir(fs, functionsPath)
 		if err != nil {
-			return fmt.Errorf("failed to read functions directory: %w", err)
+			return nil, fmt.Errorf("failed to read functions directory: %w", err)
 		}
+
+		var names []string
 
 		for _, e := range entries {
 			if e.IsDir() {
@@ -71,26 +71,38 @@ func ApplyReuse(fs afero.Fs, coord *Coordinator, functionsPath string) error {
 				continue
 			}
 
-			if err := applyReuseFile(fs, coord, filepath.Join(functionsPath, e.Name())); err != nil {
-				return err
+			fileNames, err := applyReuseFile(fs, coord, filepath.Join(functionsPath, e.Name()))
+			if err != nil {
+				return nil, err
 			}
+
+			names = append(names, fileNames...)
 		}
 
-		return nil
+		return sortedUnique(names), nil
 	}
 
-	return applyReuseFile(fs, coord, functionsPath)
+	names, err := applyReuseFile(fs, coord, functionsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return sortedUnique(names), nil
 }
 
-func applyReuseFile(fs afero.Fs, coord *Coordinator, path string) error {
+// applyReuseFile patches the Functions of one file, and returns the names of their containers.
+func applyReuseFile(fs afero.Fs, coord *Coordinator, path string) ([]string, error) {
 	data, err := afero.ReadFile(fs, path)
 	if err != nil {
-		return fmt.Errorf("failed to read functions file %s: %w", path, err)
+		return nil, fmt.Errorf("failed to read functions file %s: %w", path, err)
 	}
 
 	decoder := k8syaml.NewYAMLToJSONDecoder(bytes.NewReader(data))
 
-	var docs [][]byte
+	var (
+		docs  [][]byte
+		names []string
+	)
 
 	for {
 		obj := &unstructured.Unstructured{}
@@ -99,7 +111,7 @@ func applyReuseFile(fs afero.Fs, coord *Coordinator, path string) error {
 				break
 			}
 
-			return fmt.Errorf("failed to decode %s: %w", path, err)
+			return nil, fmt.Errorf("failed to decode %s: %w", path, err)
 		}
 
 		if obj.Object == nil {
@@ -107,14 +119,19 @@ func applyReuseFile(fs afero.Fs, coord *Coordinator, path string) error {
 		}
 
 		if obj.GetKind() == "Function" {
-			if err := patchFunctionAnnotations(coord, obj); err != nil {
-				return err
+			name, err := patchFunctionAnnotations(coord, obj)
+			if err != nil {
+				return nil, err
+			}
+
+			if name != "" {
+				names = append(names, name)
 			}
 		}
 
 		out, err := yaml.Marshal(obj.Object)
 		if err != nil {
-			return fmt.Errorf("failed to marshal function resource: %w", err)
+			return nil, fmt.Errorf("failed to marshal function resource: %w", err)
 		}
 
 		docs = append(docs, out)
@@ -131,23 +148,25 @@ func applyReuseFile(fs afero.Fs, coord *Coordinator, path string) error {
 	}
 
 	if err := afero.WriteFile(fs, path, buf.Bytes(), 0o600); err != nil {
-		return fmt.Errorf("failed to write patched functions file %s: %w", path, err)
+		return nil, fmt.Errorf("failed to write patched functions file %s: %w", path, err)
 	}
 
-	return nil
+	return names, nil
 }
 
 // patchFunctionAnnotations injects runtime-docker-name/runtime-docker-cleanup annotations into
-// a single Function resource, unless the user already set them.
-func patchFunctionAnnotations(coord *Coordinator, obj *unstructured.Unstructured) error {
+// a single Function resource, unless the user already set them. It returns the name of the
+// container of the Function (the one that was set, or the user's), or "" when the Function has
+// no image reference to key reuse on.
+func patchFunctionAnnotations(coord *Coordinator, obj *unstructured.Unstructured) (string, error) {
 	imageRef, _, err := unstructured.NestedString(obj.Object, "spec", "package")
 	if err != nil {
-		return fmt.Errorf("failed to read spec.package: %w", err)
+		return "", fmt.Errorf("failed to read spec.package: %w", err)
 	}
 
 	if imageRef == "" {
 		// No image reference to key reuse on; leave this Function's annotations untouched.
-		return nil
+		return "", nil
 	}
 
 	annotations := obj.GetAnnotations()
@@ -167,5 +186,5 @@ func patchFunctionAnnotations(coord *Coordinator, obj *unstructured.Unstructured
 
 	obj.SetAnnotations(annotations)
 
-	return nil
+	return annotations[annotationDockerName], nil
 }

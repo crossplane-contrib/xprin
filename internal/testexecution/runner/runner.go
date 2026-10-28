@@ -62,6 +62,9 @@ type testCaseEnv struct {
 	inputsDir  string
 	outputsDir string
 	index      int
+	// containerNames are the containers of the functions of the test case, when container reuse is
+	// enabled (see containers.Coordinator.Acquire).
+	containerNames []string
 }
 
 // NewRunner creates a new test runner.
