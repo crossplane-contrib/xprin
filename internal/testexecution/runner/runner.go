@@ -18,6 +18,7 @@ package runner
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -33,6 +34,9 @@ import (
 	cp "github.com/otiai10/copy"
 	"github.com/spf13/afero"
 )
+
+// ErrTestsFailed is what completeTestSuite wraps when some test cases failed.
+var ErrTestsFailed = errors.New("tests failed")
 
 // Runner handles test execution.
 type Runner struct {
@@ -323,7 +327,7 @@ func (r *Runner) completeTestSuite() error {
 
 	// Return error if any tests failed
 	if r.env.testSuiteResult.HasFailures() {
-		return fmt.Errorf("tests failed in testsuite %s", filepath.Base(r.testSuite.File))
+		return fmt.Errorf("%w in testsuite %s", ErrTestsFailed, filepath.Base(r.testSuite.File))
 	}
 
 	return nil
