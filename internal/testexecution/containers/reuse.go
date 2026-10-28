@@ -158,7 +158,7 @@ func patchFunctionAnnotations(coord *Coordinator, obj *unstructured.Unstructured
 	if _, exists := annotations[annotationDockerName]; !exists {
 		name := coord.ContainerName(imageRef)
 		annotations[annotationDockerName] = name
-		coord.names[name] = struct{}{}
+		coord.track(name)
 	}
 
 	if _, exists := annotations[annotationDockerCleanup]; !exists {

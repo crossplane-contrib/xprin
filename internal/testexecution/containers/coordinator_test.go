@@ -18,6 +18,8 @@ package containers
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
@@ -101,4 +103,32 @@ func TestCoordinator_RemoveAll_RemovesNetwork_WhenCreated(t *testing.T) {
 	c.RemoveAll()
 
 	assert.Equal(t, []string{name}, mockDocker.RemovedNetworks)
+}
+
+// Test cases that run at the same time share one coordinator: run with -race.
+func TestCoordinator_ConcurrentUse(t *testing.T) {
+	const testCases = 50
+
+	mockDocker := &unittestsUtils.MockDocker{}
+	c := NewCoordinator(mockDocker)
+
+	var wg sync.WaitGroup
+
+	for i := range testCases {
+		wg.Go(func() {
+			c.track(fmt.Sprintf("xprin-abc-%012d", i))
+
+			_, err := c.NetworkName()
+			assert.NoError(t, err)
+		})
+	}
+
+	wg.Wait()
+
+	assert.Len(t, mockDocker.CreatedNetworks, 1, "the network must be created once, whoever asks first")
+
+	c.RemoveAll()
+
+	assert.Len(t, mockDocker.RemovedContainers, testCases, "every container that was tracked is removed")
+	assert.Len(t, mockDocker.RemovedNetworks, 1)
 }
