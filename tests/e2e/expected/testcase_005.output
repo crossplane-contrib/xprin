@@ -145,6 +145,24 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
     Pre-test Hooks:
         [!] Uses the outputs of a test case it does not list
             error: failed to render hook template: failed to execute template: one or more test cases are used but are not listed in needs
+--- FAIL: Needs: no needs at all, uses the outputs of a test case that exists (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+--- FAIL: Needs: no needs at all, uses the outputs of a test case that does not exist (fails, map has no entry) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.nonexistent.Outputs.XR>: map has no entry for key "nonexistent"
+--- FAIL: Needs: no needs at all, uses the outputs of a test case that exists, in a hook (fails, it has to be listed in needs) (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case it does not list
+            error: failed to render hook template: failed to execute template: one or more test cases are used but are not listed in needs
+--- FAIL: Needs: no needs at all, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry) (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case that does not exist
+            error: failed to render hook template: failed to execute template: template: hook:1:14: executing "hook" at <.Tests.nonexistent.Outputs.XR>: map has no entry for key "nonexistent"
+--- FAIL: Needs: lists one, uses the outputs of another one that exists but is not listed (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+--- FAIL: Needs: lists one, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry) (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case that does not exist
+            error: failed to render hook template: failed to execute template: template: hook:1:14: executing "hook" at <.Tests.nonexistent.Outputs.XR>: map has no entry for key "nonexistent"
 --- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
     [!] needs failed test case "assertion_failure"
 FAIL

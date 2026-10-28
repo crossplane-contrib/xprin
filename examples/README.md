@@ -1130,10 +1130,6 @@ FAIL
 
 </details>
 
-### The old way (deprecated)
-
-[`legacy_success_xprin.yaml`](mytests/5_chained_tests/legacy_success_xprin.yaml) and [`legacy_failure_xprin.yaml`](mytests/5_chained_tests/legacy_failure_xprin.yaml) are the old way, without `needs`: the dependency is detected from `.Tests`. It works and xprin prints a warning, but a typo in the ID, or a test case listed below, fail. These files are removed in xprin 0.7.0.
-
 ---
 
 ## Assertions

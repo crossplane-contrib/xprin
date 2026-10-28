@@ -47,11 +47,11 @@ func (c *Cmd) Help() string {
 Check that the test cases of the testsuite files list in 'needs' the test cases whose outputs they use.
 
 A test case that uses the outputs of another one ('.Tests.<id>' in a template) has to list it in
-'needs'. xprin used to find them by reading the templates, which is deprecated and goes away in
-0.7.0. This command checks every test case of every file, also in the files that already use
-'needs', and shows the IDs that are missing in the 'needs' of the test cases. It exits with 1 if
-anything is missing or has to be fixed, so it can be used to check that the files are migrated. A
-'needs' that is not used through '.Tests' is fine: it is a legitimate way to order test cases.
+'needs'. xprin used to find them by reading the templates, and since 0.7.0 it does not. This
+command checks every test case of every file, also in the files that already use 'needs', and shows
+the IDs that are missing in the 'needs' of the test cases. It exits with 1 if anything is missing or
+has to be fixed, so it can be used to check that the files are migrated. A 'needs' that is not used
+through '.Tests' is fine: it is a legitimate way to order test cases.
 
 The output is the one of 'xprin test': a result for each test case, and a line for each file.
 A test case fails when it misses needs (the 'Missing Needs:' section, with a '[x]' for each) or

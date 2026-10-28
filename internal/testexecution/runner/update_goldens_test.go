@@ -383,11 +383,6 @@ func TestRunTests_UpdateGoldensRunsTheOnesThatWriteAndWhatTheyNeed(t *testing.T)
 			tests: []api.TestCase{{Name: "no id", Assertions: goldenCase("x").Assertions}, plainCase("a")},
 			ran:   []string{""},
 		},
-		{
-			name:  "a legacy file has no needs: only the ones with golden files run",
-			tests: append(legacySpec().Tests, goldenCase("d")),
-			ran:   []string{"d"},
-		},
 	}
 
 	for _, tt := range tests {
@@ -405,4 +400,28 @@ func TestRunTests_UpdateGoldensRunsTheOnesThatWriteAndWhatTheyNeed(t *testing.T)
 			}
 		})
 	}
+}
+
+func TestRunTests_Needs_UpdateGoldens(t *testing.T) {
+	golden := api.Assertions{Dyff: []api.AssertionGoldenFile{{Name: "g"}}}
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
+		{Name: "A", ID: "a", Assertions: golden},
+		{Name: "B", ID: "b", Needs: []string{"a"}},
+		{Name: "C", ID: "c", Needs: []string{"a"}, Assertions: golden},
+	}}
+
+	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", spec))
+
+	var out bytes.Buffer
+
+	r.output = &out
+	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+		return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false).Fail(errors.New("boom"))
+	}
+
+	_ = r.RunTests()
+
+	assert.NotContains(t, out.String(), "B", "no golden files to write: nothing to say about it, whatever happened to its needs")
+	assert.Contains(t, out.String(), "--- SKIP: C")
+	assert.Contains(t, out.String(), "    [!] needs failed test case \"a\"\n")
 }

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package legacy05
+package testsuiteneeds
 
 import (
 	"strings"
@@ -84,7 +84,7 @@ func TestFindImplicitNeedsInString(t *testing.T) {
 	}
 }
 
-// FindImplicitNeeds looks at the templates the way the runner renders them.
+// findImplicitNeeds looks at the templates the way the runner renders them.
 func TestFindImplicitNeeds_LooksAtTheTemplatesTheWayTheRunnerRenders(t *testing.T) {
 	template := placeholder.Replace("{{ .Tests.a.Outputs.XR }}")
 
@@ -136,7 +136,7 @@ func TestFindImplicitNeeds_LooksAtTheTemplatesTheWayTheRunnerRenders(t *testing.
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			ids, needsAll := FindImplicitNeeds(tc.testCase)
+			ids, needsAll := findImplicitNeeds(tc.testCase)
 
 			assert.ElementsMatch(t, tc.want, ids)
 			assert.False(t, needsAll)
@@ -147,7 +147,7 @@ func TestFindImplicitNeeds_LooksAtTheTemplatesTheWayTheRunnerRenders(t *testing.
 func TestFindImplicitNeeds_ATestCaseThatCanNotBeMarshalledNeedsWhatCanNotBeTold(t *testing.T) {
 	testCase := api.TestCase{Name: "b", Assertions: api.Assertions{Xprin: []api.AssertionXprin{{Name: "n", Type: "FieldValue", Value: make(chan int)}}}}
 
-	ids, needsAll := FindImplicitNeeds(testCase)
+	ids, needsAll := findImplicitNeeds(testCase)
 
 	// The runner fails that testcase when it runs, and nothing can be told about what it uses.
 	assert.Empty(t, ids)
@@ -161,7 +161,7 @@ func TestFindImplicitNeeds_BothKindsOfUse(t *testing.T) {
 		Hooks:  api.Hooks{PreTest: []api.Hook{{Run: placeholder.Replace("echo {{ range .Tests }}x{{ end }}")}}},
 	}
 
-	ids, needsAll := FindImplicitNeeds(testCase)
+	ids, needsAll := findImplicitNeeds(testCase)
 
 	assert.Equal(t, []string{"a"}, ids)
 	assert.True(t, needsAll)

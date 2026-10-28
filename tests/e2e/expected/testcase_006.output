@@ -37,6 +37,18 @@
 --- SKIP: Needs: uses the outputs of a test case without listing it, with index (fails, it has to be listed in needs) (X.XXXs)
 === RUN   Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs)
 --- SKIP: Needs: uses the outputs of a test case that is not listed, in a hook (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: no needs at all, uses the outputs of a test case that exists (fails, it has to be listed in needs)
+--- SKIP: Needs: no needs at all, uses the outputs of a test case that exists (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: no needs at all, uses the outputs of a test case that does not exist (fails, map has no entry)
+--- SKIP: Needs: no needs at all, uses the outputs of a test case that does not exist (fails, map has no entry) (X.XXXs)
+=== RUN   Needs: no needs at all, uses the outputs of a test case that exists, in a hook (fails, it has to be listed in needs)
+--- SKIP: Needs: no needs at all, uses the outputs of a test case that exists, in a hook (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: no needs at all, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry)
+--- SKIP: Needs: no needs at all, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry) (X.XXXs)
+=== RUN   Needs: lists one, uses the outputs of another one that exists but is not listed (fails, it has to be listed in needs)
+--- SKIP: Needs: lists one, uses the outputs of another one that exists but is not listed (fails, it has to be listed in needs) (X.XXXs)
+=== RUN   Needs: lists one, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry)
+--- SKIP: Needs: lists one, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry) (X.XXXs)
 === RUN   Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens)
 --- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
     [!] needs failed test case "assertion_failure"
@@ -56,17 +68,6 @@ ok	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
 --- SKIP: A typo in the name of the output (X.XXXs)
 PASS
 ok	examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml	X.XXXs
-WARNING: examples/mytests/5_chained_tests/legacy_failure_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs, and run `xprin-helpers check-testsuite-needs examples/mytests/5_chained_tests/legacy_failure_xprin.yaml` to see what to add.
-=== RUN   Legacy: a typo in the ID
---- SKIP: Legacy: a typo in the ID (X.XXXs)
-=== RUN   Legacy: uses a test case that is listed below it
---- SKIP: Legacy: uses a test case that is listed below it (X.XXXs)
-=== RUN   Legacy: a typo in the ID, in a hook
---- SKIP: Legacy: a typo in the ID, in a hook (X.XXXs)
-=== RUN   Legacy: last
---- SKIP: Legacy: last (X.XXXs)
-PASS
-ok	examples/mytests/5_chained_tests/legacy_failure_xprin.yaml	X.XXXs
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors
 === RUN   Render failure (claim used as XR)
@@ -220,6 +221,30 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
     Pre-test Hooks:
         [!] Uses the outputs of a test case it does not list
             error: failed to render hook template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: no needs at all, uses the outputs of a test case that exists (fails, it has to be listed in needs)
+--- FAIL: Needs: no needs at all, uses the outputs of a test case that exists (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: no needs at all, uses the outputs of a test case that does not exist (fails, map has no entry)
+--- FAIL: Needs: no needs at all, uses the outputs of a test case that does not exist (fails, map has no entry) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.nonexistent.Outputs.XR>: map has no entry for key "nonexistent"
+=== RUN   Needs: no needs at all, uses the outputs of a test case that exists, in a hook (fails, it has to be listed in needs)
+--- FAIL: Needs: no needs at all, uses the outputs of a test case that exists, in a hook (fails, it has to be listed in needs) (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case it does not list
+            error: failed to render hook template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: no needs at all, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry)
+--- FAIL: Needs: no needs at all, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry) (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case that does not exist
+            error: failed to render hook template: failed to execute template: template: hook:1:14: executing "hook" at <.Tests.nonexistent.Outputs.XR>: map has no entry for key "nonexistent"
+=== RUN   Needs: lists one, uses the outputs of another one that exists but is not listed (fails, it has to be listed in needs)
+--- FAIL: Needs: lists one, uses the outputs of another one that exists but is not listed (fails, it has to be listed in needs) (X.XXXs)
+    [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
+=== RUN   Needs: lists one, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry)
+--- FAIL: Needs: lists one, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry) (X.XXXs)
+    Pre-test Hooks:
+        [!] Uses the outputs of a test case that does not exist
+            error: failed to render hook template: failed to execute template: template: hook:1:14: executing "hook" at <.Tests.nonexistent.Outputs.XR>: map has no entry for key "nonexistent"
 === RUN   Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens)
 --- SKIP: Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens) (X.XXXs)
     [!] needs failed test case "assertion_failure"
@@ -245,21 +270,5 @@ FAIL	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
     [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.first.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
 FAIL
 FAIL	examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml	X.XXXs
-WARNING: examples/mytests/5_chained_tests/legacy_failure_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs, and run `xprin-helpers check-testsuite-needs examples/mytests/5_chained_tests/legacy_failure_xprin.yaml` to see what to add.
-=== RUN   Legacy: a typo in the ID
---- FAIL: Legacy: a typo in the ID (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:9:14: executing "testcase" at <.Tests.legacy_frist.Outputs.XR>: map has no entry for key "legacy_frist"
-=== RUN   Legacy: uses a test case that is listed below it
---- FAIL: Legacy: uses a test case that is listed below it (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:9:14: executing "testcase" at <.Tests.legacy_last.Outputs.XR>: map has no entry for key "legacy_last"
-=== RUN   Legacy: a typo in the ID, in a hook
---- FAIL: Legacy: a typo in the ID, in a hook (X.XXXs)
-    Pre-test Hooks:
-        [!] Uses the outputs of a test case that does not exist
-            error: failed to render hook template: failed to execute template: template: hook:1:14: executing "hook" at <.Tests.legacy_frist.Outputs.XR>: map has no entry for key "legacy_frist"
-=== RUN   Legacy: last
---- PASS: Legacy: last (X.XXXs)
-FAIL
-FAIL	examples/mytests/5_chained_tests/legacy_failure_xprin.yaml	X.XXXs
 FAIL
 YYYY/MM/DD HH:MM:SS processing completed with errors

@@ -38,7 +38,7 @@ Converts Crossplane Claims to XRs so they can be used with `crossplane render`. 
 
 ### check-testsuite-needs
 
-Finds the test cases of testsuite files that use the outputs of other test cases (`.Tests`) without listing them in `needs`, and shows what is missing. `needs` is required from xprin 0.7.0, so this is the way to migrate your files, and to check that they stay migrated.
+Finds the test cases of testsuite files that use the outputs of other test cases (`.Tests`) without listing them in `needs`, and shows what is missing. `needs` is required since xprin 0.7.0, so this is the way to migrate files from xprin 0.5 and earlier, and to check that they stay migrated.
 
 **Key features:**
 - Checks every test case of every file, also the files that already use `needs`

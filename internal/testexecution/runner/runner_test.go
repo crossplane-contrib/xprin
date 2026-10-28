@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -4223,5 +4224,87 @@ func TestSaveOutputs(t *testing.T) {
 
 		assert.Empty(t, *copied)
 		assert.Equal(t, "/tmp/outputs/xr.yaml", result.Outputs.XR)
+	})
+}
+
+// runWithFakeResults runs the testcases of the spec with RunTests, where the ones in failing fail and the
+// others pass, and returns what was printed and which testcases actually ran.
+func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, failing ...string) (output string, ran []string) {
+	t.Helper()
+
+	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
+
+	var out bytes.Buffer
+
+	r.output = &out
+	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+		ran = append(ran, testCase.ID)
+
+		result := engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
+		if slices.Contains(failing, testCase.ID) {
+			return result.Fail(errors.New("boom"))
+		}
+
+		return result
+	}
+
+	_ = r.RunTests() // it fails when a testcase does: what matters is what ran, and what was printed
+
+	return out.String(), ran
+}
+
+func TestRunTests_Needs(t *testing.T) {
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
+		{Name: "A", ID: "a"},
+		{Name: "B", ID: "b", Needs: []string{"a"}},
+		{Name: "C", ID: "c", Needs: []string{"b"}},
+		{Name: "D", ID: "d", Needs: []string{"a", "b"}},
+		{Name: "E", ID: "e"},
+	}}
+
+	t.Run("nothing fails: everything runs", func(t *testing.T) {
+		out, ran := runWithFakeResults(t, spec)
+
+		assert.Equal(t, []string{"a", "b", "c", "d", "e"}, ran)
+		assert.NotContains(t, out, "SKIP")
+		assert.NotContains(t, out, "FAIL")
+	})
+
+	t.Run("the dependents of a failed testcase are skipped, with the reason on follow-up lines, one per need", func(t *testing.T) {
+		out, ran := runWithFakeResults(t, spec, "a")
+
+		assert.Equal(t, []string{"a", "e"}, ran)
+		assert.Contains(t, out, "--- FAIL: A")
+		assert.Contains(t, out, "--- SKIP: B")
+		assert.Contains(t, out, "    [!] needs failed test case \"a\"\n")
+		assert.Contains(t, out, "--- SKIP: C")
+		assert.Contains(t, out, "    [!] needs skipped test case \"b\"\n")
+		assert.Contains(t, out, "--- SKIP: D")
+		assert.Contains(t, out, "    [!] needs failed test case \"a\"\n    [!] needs skipped test case \"b\"\n")
+		assert.NotContains(t, out, "--- SKIP: E")
+	})
+}
+
+func TestRunTests_Order(t *testing.T) {
+	// "a" is listed first, but needs "c" and "b", which are listed after it
+	tests := []api.TestCase{
+		{Name: "A", ID: "a", Needs: []string{"c", "b"}},
+		{Name: "B", ID: "b"},
+		{Name: "C", ID: "c"},
+		{Name: "D", ID: "d"},
+	}
+
+	t.Run("the test cases run after the ones they need, the rest in the order of the file", func(t *testing.T) {
+		_, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests})
+
+		assert.Equal(t, []string{"b", "c", "a", "d"}, ran)
+	})
+
+	t.Run("a test case that needs one listed after it is skipped when that one fails", func(t *testing.T) {
+		out, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests}, "b")
+
+		assert.Equal(t, []string{"b", "c", "d"}, ran)
+		assert.Contains(t, out, "--- SKIP: A")
+		assert.Contains(t, out, `[!] needs failed test case "b"`)
 	})
 }

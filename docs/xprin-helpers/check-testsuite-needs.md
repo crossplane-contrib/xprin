@@ -4,7 +4,7 @@ Checks that the test cases of testsuite files list in `needs` the test cases who
 
 ## Why This Tool?
 
-A test case that uses the outputs of another one (`{{ .Tests.<id>.Outputs... }}`) has to list it in [`needs`](../how-it-works.md#dependencies-between-test-cases-needs). Until xprin 0.5 there was no `needs`: xprin found those dependencies by reading the templates. That is deprecated, and it goes away in 0.7.0. This tool checks the test cases of your testsuite files, and shows what is missing, so that you can add it.
+A test case that uses the outputs of another one (`{{ .Tests.<id>.Outputs... }}`) has to list it in [`needs`](../how-it-works.md#dependencies-between-test-cases-needs). Until xprin 0.5 there was no `needs`: xprin found those dependencies by reading the templates. xprin 0.6 still did, with a warning, and since 0.7.0 it does not. This tool checks the test cases of your testsuite files, and shows what is missing, so that you can add it.
 
 ## Installation
 
