@@ -428,8 +428,7 @@ func (tcr *TestCaseResult) formatHooksOutputWithShow(hooksResults []HookResult, 
 		}
 
 		if hook.Error != nil {
-			var exitErr *exec.ExitError
-			if errors.As(hook.Error, &exitErr) {
+			if exitErr, ok := errors.AsType[*exec.ExitError](hook.Error); ok {
 				out = append(out, fmt.Sprintf("%s%s %s [exit code: %d]", spaces+spaces, StatusFail().Symbol, title, exitErr.ExitCode()))
 			} else {
 				// Template/rendering and other non-execution failures: use [!] (operational/other).
