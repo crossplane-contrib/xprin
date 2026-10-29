@@ -165,7 +165,7 @@ func TestWalk(t *testing.T) {
 			err = Walk(newFS(t), []string{"/tests/a_xprin.yaml", "/tests/sub/b_xprin.yaml"}, Options{}, recorder(&visited, errors.New("boom")))
 		})
 
-		require.ErrorContains(t, err, "processing completed with errors")
+		require.ErrorIs(t, err, ErrFailed)
 		assert.Contains(t, out.Stdout, "FAIL")
 		assert.Len(t, visited, 2)
 	})
