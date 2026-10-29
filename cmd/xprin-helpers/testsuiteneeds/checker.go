@@ -23,7 +23,6 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/graph"
-	"github.com/crossplane-contrib/xprin/internal/testsuite/legacy05"
 )
 
 // untraceable says that a use of `.Tests` can't be traced to the test cases it uses, the start of both of its messages.
@@ -65,7 +64,7 @@ func findMissing(spec *api.TestSuiteSpec) testSuiteCheckResult {
 		merged := tc
 		merged.MergeCommon(spec.Common)
 
-		detected, needsAll := legacy05.FindImplicitNeeds(merged)
+		detected, needsAll := findImplicitNeeds(merged)
 
 		check := &res[i]
 		check.name = tc.Name

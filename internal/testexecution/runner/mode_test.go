@@ -117,11 +117,6 @@ func TestUpdateGoldensModeSkips(t *testing.T) {
 			tests: []api.TestCase{{Name: "no id"}, {Name: "no id, golden files", Assertions: goldenCase("g").Assertions}},
 			want:  []bool{true, false},
 		},
-		{
-			name:  "a legacy file has no needs: only the ones with golden files run",
-			tests: append(legacySpec().Tests, goldenCase("d")),
-			want:  []bool{true, true, true, false},
-		},
 	}
 
 	for _, tt := range tests {

@@ -486,22 +486,28 @@ A test case can only use (`.Tests.<id>`) the outputs of the test cases it lists 
 - Referenced test must complete before reference is valid
 - If the referenced test fails, the test cases that need it are skipped, so they never see missing outputs
 
-### Migrating from Automatic Detection (Deprecated)
+### Migrating from xprin 0.5 and Earlier
 
-Until xprin 0.5 there was no `needs`: a test case that used `.Tests.<id>` depended on that test case automatically, because xprin read the templates to find out. **This is deprecated**, and it is removed in 0.7.0: a test case that uses the outputs of another one has to list it in `needs`. Not listing it gets in the way of running test cases at the same time predictably.
+Until xprin 0.5 there was no `needs`: a test case that used `.Tests.<id>` depended on that test case automatically, because xprin read the templates to find out. Not listing the dependencies gets in the way of running test cases at the same time predictably, so since 0.7.0 a test case that uses the outputs of another one has to list it in `needs`.
 
 | xprin | Dependencies between test cases |
 |---|---|
 | up to 0.5 | Detected automatically, by reading the templates for `.Tests`. `needs` is not supported. |
 | 0.6 | Both are supported, per testsuite file (see below). Detecting them automatically is **deprecated**: xprin prints a warning for each testsuite file that relies on it. |
-| 0.7.0 and later | Only `needs` is supported. |
+| 0.7.0 and later | Only `needs` is supported. A test case that uses the outputs of another one without listing it fails with `one or more test cases are used but are not listed in needs`. |
 
-**In 0.6 each testsuite file is in one of two formats**, decided when it is loaded:
+**In 0.6 each testsuite file was in one of two formats**, decided when it was loaded:
 
-- **Legacy**: no test case lists `needs`, and some use `.Tests`. They run as they always did, one after another, in file order, each seeing all the earlier ones, and xprin prints a warning for the file. The warning appears for any use of `.Tests`, also one that can't work (for example a typo in the ID: the test case then fails when it runs).
-- **Current**: every other file, which means one where at least one test case lists `needs` (migrated), or one that doesn't use `.Tests` at all. There is no warning, a test case only sees the test cases it lists, and the ones whose needs failed are skipped, as described above.
+- **Legacy**: no test case lists `needs`, and some use `.Tests`. They ran as they always did, one after another, in file order, each seeing all the earlier ones, and xprin printed a warning for the file. The warning appeared for any use of `.Tests`, also one that can't work (for example a typo in the ID: the test case then failed when it ran).
+- **Current**: every other file, which means one where at least one test case lists `needs` (migrated), or one that doesn't use `.Tests` at all. There was no warning, a test case only saw the test cases it listed, and the ones whose needs failed were skipped, as described above.
 
-**Migrating.** In each test case that uses `.Tests.<id>`, list those IDs in `needs`. Once one test case in a file lists `needs`, every test case in it has to list what it uses. `xprin-helpers check-testsuite-needs <targets>` finds what is missing in every test case of the files and shows it, so that you can add it (see [check-testsuite-needs](xprin-helpers/check-testsuite-needs.md)).
+**Migrating.** It can be done at any time, also after moving to a later version: the files that rely on the detection fail with the error above until they are migrated. The suggested way is to do it with 0.6, where both formats are supported (the files that rely on the detection still run, with a warning for each one), so nothing fails while you migrate:
+
+1. Move to 0.6.
+2. Run `xprin-helpers check-testsuite-needs <targets>`. It finds what is missing in every test case of the files and shows it (see [check-testsuite-needs](xprin-helpers/check-testsuite-needs.md)). It is available since 0.6, so it also works with any later version.
+3. Adjust your files from its output: in each test case that uses `.Tests.<id>`, list those IDs in `needs`. Once one test case in a file lists `needs`, every test case in it has to list what it uses.
+4. Make sure that `xprin test` works fine: there are no warnings, and the tool has nothing left to show.
+5. Move to 0.7.
 
 ## Hooks Execution
 
@@ -622,7 +628,7 @@ examples/mytests/5_chained_tests/example5_xprin.yaml
 
 The graph is made of the [`needs`](#dependencies-between-test-cases-needs) of the test cases, and nothing else: xprin doesn't read the templates for it.
 
-- A testsuite file that doesn't use `needs` has no dependencies to show, so all its test cases are at the top level. If it uses `.Tests` anyway, it relies on the deprecated automatic detection, whose dependencies are not shown: list them in `needs` to see them (see [Migrating](#migrating-from-automatic-detection-deprecated)).
+- A testsuite file that doesn't use `needs` has no dependencies to show, so all its test cases are at the top level. If it uses `.Tests` anyway, it fails (see [Migrating](#migrating-from-xprin-05-and-earlier)).
 - Dependencies that are not declared in `needs` are not shown, for example a hook that relies on files or state left behind by another test case.
 
 ## Artifacts

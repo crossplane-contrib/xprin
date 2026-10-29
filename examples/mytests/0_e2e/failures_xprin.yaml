@@ -319,6 +319,48 @@ tests:
     - name: "Uses the outputs of a test case it does not list"
       run: echo "{{ .Tests.broken.Outputs.XR }}"
 
+# What a test case can use with `.Tests`: only the ones it lists in `needs`, in a field and in a hook, and
+# whether the ID is a test case of the file (the error says it has to be listed) or not (the original error)
+- name: "Needs: no needs at all, uses the outputs of a test case that exists (fails, it has to be listed in needs)"
+  inputs:
+    xr: '{{ .Tests.success.Outputs.XR }}'
+
+- name: "Needs: no needs at all, uses the outputs of a test case that does not exist (fails, map has no entry)"
+  inputs:
+    xr: '{{ .Tests.nonexistent.Outputs.XR }}'
+
+- name: "Needs: no needs at all, uses the outputs of a test case that exists, in a hook (fails, it has to be listed in needs)"
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    pre-test:
+    - name: "Uses the outputs of a test case it does not list"
+      run: echo "{{ .Tests.success.Outputs.XR }}"
+
+- name: "Needs: no needs at all, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry)"
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    pre-test:
+    - name: "Uses the outputs of a test case that does not exist"
+      run: echo "{{ .Tests.nonexistent.Outputs.XR }}"
+
+- name: "Needs: lists one, uses the outputs of another one that exists but is not listed (fails, it has to be listed in needs)"
+  needs:
+  - success
+  inputs:
+    xr: '{{ .Tests.broken.Outputs.XR }}'
+
+- name: "Needs: lists one, uses the outputs of a test case that does not exist, in a hook (fails, map has no entry)"
+  needs:
+  - success
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    pre-test:
+    - name: "Uses the outputs of a test case that does not exist"
+      run: echo "{{ .Tests.nonexistent.Outputs.XR }}"
+
 # Also with update-goldens: the golden files of a test case are not written when a test case it needs failed
 - name: "Needs: golden files of a test case that needs the one with the assertion failures (skipped, also by update-goldens)"
   needs:

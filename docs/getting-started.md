@@ -424,7 +424,7 @@ To see the dependencies of your testsuite files as a tree, without running anyth
 
 For detailed information about how test chaining works, see [How It Works](how-it-works.md#test-chaining).
 
-> A test case can only use the outputs of the test cases it lists in `needs`. xprin used to find them automatically, which became **deprecated** in 0.6.0 and will stop working in 0.7.0: see [Migrating from Automatic Detection](how-it-works.md#migrating-from-automatic-detection-deprecated).
+> A test case can only use the outputs of the test cases it lists in `needs`. Until xprin 0.6 it found them automatically: see [Migrating from xprin 0.5 and Earlier](how-it-works.md#migrating-from-xprin-05-and-earlier).
 
 ---
 

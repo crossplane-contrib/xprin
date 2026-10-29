@@ -28,7 +28,6 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
-	"github.com/crossplane-contrib/xprin/internal/testsuite/legacy05"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/gertd/go-pluralize"
 	cp "github.com/otiai10/copy"
@@ -41,7 +40,6 @@ type Runner struct {
 
 	fs                       afero.Fs
 	testSuite                *testsuite.TestSuite // the test suite that is run: its file, its spec and its dependency graph
-	legacy05                 bool                 // the file is in the format of xprin up to 0.5 (see legacy05.IsTestSuite)
 	output                   io.Writer
 	testSuiteSavedOutputsDir string
 	totalTestCases           int
@@ -73,7 +71,6 @@ func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestS
 		output:    os.Stdout, // Default output to stdout
 		Options:   options,
 		testSuite: testSuite,
-		legacy05:  legacy05.IsTestSuite(testSuite.Spec),
 		// Initialize mockable function fields with default implementations
 		runTestCaseFunc:                   nil, // will set default below
 		expandPathRelativeToTestSuiteFile: testsuite.ExpandPath,
@@ -109,10 +106,6 @@ func (r *Runner) RunTests() error {
 
 	if r.testSuite.Spec == nil {
 		return fmt.Errorf("testsuite specification is required")
-	}
-
-	if r.legacy05 {
-		utils.WarningPrintf("%s\n", legacy05.Warning(r.testSuite.File))
 	}
 
 	// Create the directory of the internal artifacts, the outputs that test cases share (always created, cleaned up when testsuite finishes)
@@ -157,7 +150,7 @@ func (r *Runner) RunTests() error {
 	}
 
 	// Loop through all test cases, in the order of their dependencies, and run them directly
-	for positionInOrder, positionInTestSuite := range r.runOrder() {
+	for positionInOrder, positionInTestSuite := range r.testSuite.Graph.GetOrder() {
 		testCase := r.testSuite.Spec.Tests[positionInTestSuite]
 
 		// Run the test and let the engine handle everything
@@ -201,7 +194,9 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		return result.Skip()
 	}
 
-	needsResults, skipReasons := r.getNeedsResults(testCase, testSuiteResult)
+	// Skip the test case if one of the test cases it needs failed or was skipped. Otherwise, the results of
+	// the test cases it lists in `needs` are the only ones it can use with `.Tests`.
+	needsResults, skipReasons := engine.GetNeedsResults(testCase.Needs, testSuiteResult.GetCompletedTests())
 	if len(skipReasons) > 0 {
 		return result.Skip(skipReasons...)
 	}

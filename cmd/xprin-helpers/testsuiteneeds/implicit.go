@@ -14,10 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package legacy05 is what xprin knows about the testsuite files in the format of up to 0.5, where a
-// testcase that uses the outputs of others (`.Tests`) doesn't list them in `needs`: the dependencies are
-// implicit, found by reading the templates. It is what the converter of those files uses.
-package legacy05
+package testsuiteneeds
 
 import (
 	"regexp"
@@ -39,14 +36,14 @@ var (
 	testsUse = regexp.MustCompile(`\.Tests\b`)
 )
 
-// FindImplicitNeeds finds what a testcase needs without listing it, reading its templates as the runner renders
+// findImplicitNeeds finds what a testcase needs without listing it, reading its templates as the runner renders
 // them (the testcase without its hooks as one template, and each hook command on its own). It returns:
 //   - ids: the testcases whose outputs it uses through `.Tests`
 //   - needsAll: true when it needs all of them, because it uses `.Tests` in a way that can't be traced to an ID
 //     (`range .Tests`, `index .Tests $id`), or because it can't be marshalled (the runner fails it anyway)
 //
 // Pass the testcase with the common configuration merged in.
-func FindImplicitNeeds(testCase api.TestCase) (ids []string, needsAll bool) {
+func findImplicitNeeds(testCase api.TestCase) (ids []string, needsAll bool) {
 	body, err := templates.MarshalWithoutHooks(testCase)
 	if err != nil {
 		// Can't be rendered, so the runner fails the testcase: what it needs is unknown.
@@ -67,7 +64,7 @@ func FindImplicitNeeds(testCase api.TestCase) (ids []string, needsAll bool) {
 	return ids, needsAll
 }
 
-// findImplicitNeedsInString is FindImplicitNeeds for one template, as the loader stores it (with placeholders):
+// findImplicitNeedsInString is findImplicitNeeds for one template, as the loader stores it (with placeholders):
 //   - it reads the actions only, not the text around them
 //   - it takes out the uses of `.Tests` that name an ID: a `.Tests` left is not understood, so needsAll is true
 //   - a mention that is not a use (a comment or a string of an action) counts too, so that a use is never missed

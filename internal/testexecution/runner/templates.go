@@ -118,13 +118,8 @@ func (r *Runner) renderTemplate(content string, templateContext *templateContext
 var missingKey = regexp.MustCompile(`<[^>]*\.Tests[^>]*>: map has no entry for key "([^"]*)"|at <"([^"]*)">: nil pointer evaluating \*engine\.TestCaseResult\.`)
 
 // explainMissingNeeds replaces the error of a template that uses `.Tests` for a test case of the file that
-// is not in `needs` (the usual reason for it not being there) with one that says so, in a testsuite file
-// that is not legacy. Any other error is returned as it is.
+// is not in `needs` (the usual reason for it not being there) with one that says so. Any other error is returned as it is.
 func (r *Runner) explainMissingNeeds(err error) error {
-	if r.legacy05 {
-		return err
-	}
-
 	match := missingKey.FindStringSubmatch(err.Error())
 	if match == nil {
 		return err
