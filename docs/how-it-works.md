@@ -657,7 +657,7 @@ By default, `xprin test` reuses one Docker container per unique composition func
 **Only function containers are reused.** With Crossplane CLI v2.3+, `crossplane render` also starts a Crossplane controller container on every call. That one can't be reused: `crossplane render` has no option to name, keep or reuse it, so it is started and removed by render itself for every test case, with or without `--no-container-reuse`.
 
 **How it works:**
-1. For each test case, xprin reads the `Function` resources in its functions file(s), and adds two annotations to the copy in the temp directory: `render.crossplane.io/runtime-docker-name`, which names the container after its image, and `render.crossplane.io/runtime-docker-cleanup: Orphan`, which keeps it running after the render. If you set either one yourself, xprin leaves yours alone.
+1. For each test case, xprin reads the `Function` resources in its functions file(s), and adds two annotations to the copy in the temp directory: `render.crossplane.io/runtime-docker-name`, which names the container after its image, and `render.crossplane.io/runtime-docker-cleanup: Orphan`, which keeps it running after the render. If either one is set in the `Function`, xprin leaves it alone, and so it does with a `render.crossplane.io/runtime-docker-network`, the network of the container. This is deprecated, see [Migrating from User-Set Container Annotations](#migrating-from-user-set-container-annotations).
 2. The first test case in the run that uses an image pays for it: the image is pulled if it isn't on the machine yet (with or without reuse), and the container is started, so this test case is slower. Every later one that uses the same image reuses the running container, in the same or another testsuite file: there is nothing to start, and the function is already warm.
 3. With Crossplane CLI v2.3+, xprin also passes one shared Docker network to every render call, so that a reused container stays reachable.
 4. All the containers (and the network) are removed once, when `xprin test` finishes, whether it succeeded or failed.
@@ -666,9 +666,31 @@ By default, `xprin test` reuses one Docker container per unique composition func
 
 **Why this is safe:** Crossplane composition functions are stateless by contract. In a real cluster, the same function container already serves many unrelated reconciles over its lifetime without restarting. Reusing a container across test cases relies on the same guarantee.
 
-**Disabling it:** pass `--no-container-reuse` (to `xprin test` or `xprin update-goldens`) to fall back to a fresh container per render call, matching the pre-reuse behavior. You might want this if you suspect a function under test isn't actually stateless, or to rule out container reuse while debugging an unrelated issue.
+**Disabling it:** pass `--no-container-reuse` (to `xprin test` or `xprin update-goldens`) to fall back to a fresh container per render call, matching the pre-reuse behavior. You might want this if you suspect a function under test isn't actually stateless, or to rule out container reuse while debugging an unrelated issue. It is also how user-set `runtime-docker-name`, `runtime-docker-cleanup` and `runtime-docker-network` annotations are kept from 0.7.0 on, see [Migrating from User-Set Container Annotations](#migrating-from-user-set-container-annotations).
 
 **A known edge case:** if `xprin test` is killed abruptly (e.g. `SIGKILL`, out-of-memory), the cleanup step doesn't run and a container (and the shared network) can be left behind. Their names start with `xprin-`, and they are safe to remove manually (`docker rm -f`, `docker network rm`).
+
+### Migrating from User-Set Container Annotations
+
+Up to xprin 0.6, a `Function` that sets `render.crossplane.io/runtime-docker-name`, `render.crossplane.io/runtime-docker-cleanup` or `render.crossplane.io/runtime-docker-network` keeps its value: xprin adds its own only where there is none.
+Container reuse only works when xprin controls the containers it reuses, so from 0.7.0 it ignores them, and manages the name, the cleanup and the network of the containers itself.
+A container with a user-set name can be left running when the run ends, can be shared by test cases that use the name for different images, and may not be reused at all if the name is empty.
+
+| xprin | Annotations that a `Function` sets |
+|---|---|
+| 0.5 | xprin leaves them alone. |
+| 0.6 | xprin still leaves them alone. This is **deprecated**: with container reuse on, when it starts a testsuite file, it prints one warning that lists each `Function` that sets any of them, with its functions file and the annotations. |
+| 0.7.0 and later | With container reuse on, xprin ignores them and manages the containers itself, without a warning. With `--no-container-reuse`, xprin never touches the annotations, so they still work. |
+
+**Migrating.** It can be done at any time, also after moving to a later version: nothing fails, but the containers are not the ones that were configured.
+The suggested way is to do it with 0.6, where the warnings show which `Function`s to change:
+
+1. Find the annotations: `grep -rn 'render.crossplane.io/runtime-docker' <your functions files>`.
+2. If they pick the container of a function, remove them: xprin names the container after its image, and keeps it running until the end of the run.
+3. If you need a container that you manage yourself (for example a function that runs locally while you debug it), keep the annotations and run `xprin test --no-container-reuse`, which also gives every render call a fresh container.
+4. Move to 0.7.
+
+The problems behind this, and how to reproduce them: [#209](https://github.com/crossplane-contrib/xprin/issues/209).
 
 ## Crossplane CLI Versions
 
