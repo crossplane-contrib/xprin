@@ -108,6 +108,9 @@ func (r *Runner) RunTests() error {
 		return fmt.Errorf("testsuite specification is required")
 	}
 
+	// The notice about the annotations of the containers that the user sets: it goes away with the support of them
+	r.warnUserSetContainerAnnotations()
+
 	// Create the directory of the internal artifacts, the outputs that test cases share (always created, cleaned up when testsuite finishes)
 	var err error
 
