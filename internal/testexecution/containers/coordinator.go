@@ -22,15 +22,18 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"sync"
 )
 
-// Coordinator tracks Docker container names used for composition function reuse across one
-// xprin test invocation.
+// Coordinator tracks Docker container names used for composition function reuse across one xprin test invocation.
+// It is safe for concurrent use: test cases that run at the same time share it.
 type Coordinator struct {
-	runID       string
+	runID  string
+	docker Docker
+
+	mu          sync.Mutex // guards names and networkName
 	names       map[string]struct{}
 	networkName string
-	docker      Docker
 }
 
 // NewCoordinator creates an empty coordinator scoped to one xprin test invocation. The
@@ -48,6 +51,14 @@ func NewCoordinator(docker Docker) *Coordinator {
 	}
 }
 
+// track records name as a container that RemoveAll must remove.
+func (c *Coordinator) track(name string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.names[name] = struct{}{}
+}
+
 // ContainerName returns the container name for the given function image reference. The same
 // image reference always maps to the same name within this coordinator; different image
 // references — even for functions with the same metadata.name — always map to different names.
@@ -63,6 +74,10 @@ func (c *Coordinator) ContainerName(imageRef string) string {
 // Passing this shared network to every render call via --crossplane-docker-network keeps a reused
 // container reachable for as long as the container itself is reused.
 func (c *Coordinator) NetworkName() (string, error) {
+	// Held while the network is created, so that two test cases don't create it both
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.networkName != "" {
 		return c.networkName, nil
 	}
@@ -82,6 +97,9 @@ func (c *Coordinator) NetworkName() (string, error) {
 // NetworkName, if one was created. Meant to be called once, via defer, when the whole xprin test
 // invocation is about to exit.
 func (c *Coordinator) RemoveAll() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	for name := range c.names {
 		c.docker.RemoveContainer(name)
 	}

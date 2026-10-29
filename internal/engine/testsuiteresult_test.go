@@ -18,7 +18,9 @@ package engine
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -303,4 +305,36 @@ func TestTestSuiteResult_GetCompletedTests(t *testing.T) {
 		assert.Equal(t, StatusPass(), completed["pass-id"].Status)
 		assert.Equal(t, StatusFail(), completed["fail-id"].Status)
 	})
+}
+
+// The methods can be used by several goroutines at the same time: run with -race.
+func TestTestSuiteResult_ConcurrentUse(t *testing.T) {
+	const testCases = 50
+
+	tsr := NewTestSuiteResult("/path/to/test.yaml", false)
+
+	var wg sync.WaitGroup
+
+	for i := range testCases {
+		wg.Go(func() {
+			result := NewTestCaseResult(fmt.Sprintf("test %d", i), fmt.Sprintf("id%d", i), false, false, false, false, false)
+			if i == 7 {
+				result.Fail(assert.AnError)
+			}
+
+			// What a test case does: read the results of the ones before it, then add its own
+			_ = tsr.GetCompletedTests()
+			_ = tsr.HasFailures()
+
+			tsr.AddResult(result)
+			tsr.Print(&bytes.Buffer{})
+		})
+	}
+
+	wg.Wait()
+	tsr.Complete()
+
+	assert.Len(t, tsr.results, testCases)
+	assert.Len(t, tsr.GetCompletedTests(), testCases)
+	assert.True(t, tsr.HasFailures(), "one test case failed")
 }
