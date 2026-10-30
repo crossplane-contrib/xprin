@@ -509,6 +509,8 @@ Until xprin 0.5 there was no `needs`: a test case that used `.Tests.<id>` depend
 4. Make sure that `xprin test` works fine: there are no warnings, and the tool has nothing left to show.
 5. Move to 0.7.
 
+The reasons for `needs`, and for removing the automatic detection: [#170](https://github.com/crossplane-contrib/xprin/issues/170) and its sub-issues.
+
 ## Hooks Execution
 
 Hooks provide a way to execute arbitrary shell commands at specific points in the test execution.
