@@ -22,6 +22,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"slices"
 	"sync"
 )
 
@@ -31,9 +32,18 @@ type Coordinator struct {
 	runID  string
 	docker Docker
 
-	mu          sync.Mutex // guards names and networkName
+	mu          sync.Mutex // guards names, networkName and states
 	names       map[string]struct{}
 	networkName string
+	states      map[string]*containerState
+}
+
+// containerState is the state of one named container, for Acquire.
+type containerState struct {
+	// mu is held by the test case that is the first to use the container, until its render ends.
+	mu sync.Mutex
+	// created is true once a render that used the container succeeded. Only written with mu held.
+	created bool
 }
 
 // NewCoordinator creates an empty coordinator scoped to one xprin test invocation. The
@@ -47,6 +57,7 @@ func NewCoordinator(docker Docker) *Coordinator {
 	return &Coordinator{
 		runID:  hex.EncodeToString(b),
 		names:  make(map[string]struct{}),
+		states: make(map[string]*containerState),
 		docker: docker,
 	}
 }
@@ -57,6 +68,70 @@ func (c *Coordinator) track(name string) {
 	defer c.mu.Unlock()
 
 	c.names[name] = struct{}{}
+}
+
+// Acquire is called before a command that uses the containers, for example `crossplane render`.
+// The names are the ones that ApplyReuse returned for them.
+// The first command that uses a container creates it, and the others that use it wait until that command is done.
+// The function it returns is called when the command is done, with whether it succeeded.
+// Only a success marks the containers as existing, so after a failure the next command tries again.
+//
+// The containers are locked in the order of their names, so that commands that use several of them can't deadlock.
+// It is safe to call it on a nil Coordinator: there is nothing to wait for.
+func (c *Coordinator) Acquire(names []string) (release func(created bool)) {
+	if c == nil {
+		return func(bool) {}
+	}
+
+	var held []*containerState
+
+	for _, name := range sortedUnique(names) {
+		state := c.stateOf(name)
+
+		state.mu.Lock()
+
+		if state.created {
+			state.mu.Unlock()
+
+			continue
+		}
+
+		held = append(held, state)
+	}
+
+	var once sync.Once
+
+	return func(created bool) {
+		once.Do(func() {
+			for _, state := range held {
+				if created {
+					state.created = true
+				}
+
+				state.mu.Unlock()
+			}
+		})
+	}
+}
+
+// stateOf returns the state of the container with the name.
+func (c *Coordinator) stateOf(name string) *containerState {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.states[name] == nil {
+		c.states[name] = &containerState{}
+	}
+
+	return c.states[name]
+}
+
+// sortedUnique returns the names in order, each once, and leaves names as it is.
+func sortedUnique(names []string) []string {
+	sorted := slices.Clone(names)
+	slices.Sort(sorted)
+
+	return slices.Compact(sorted)
 }
 
 // ContainerName returns the container name for the given function image reference. The same

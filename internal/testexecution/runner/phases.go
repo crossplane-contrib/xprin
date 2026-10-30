@@ -247,8 +247,9 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 		return result.Fail(err)
 	}
 
-	// ApplyReuse does nothing when container reuse is disabled (r.Containers is nil)
-	if err := containers.ApplyReuse(r.fs, r.Containers, testCase.Inputs.Functions); err != nil {
+	// ApplyReuse does nothing, and returns no names, when container reuse is disabled (r.Containers is nil)
+	env.containerNames, err = containers.ApplyReuse(r.fs, r.Containers, testCase.Inputs.Functions)
+	if err != nil {
 		return result.Fail(fmt.Errorf("failed to apply container reuse: %w", err))
 	}
 
@@ -429,7 +430,14 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 		utils.DebugPrintf("Running render command: %s %s\n", r.Dependencies["crossplane"], strings.Join(renderArgs, " "))
 	}
 
+	// The first render that uses a function container creates it: the others that use it wait for that
+	// one (see Coordinator.Acquire)
+	releaseContainers := r.Containers.Acquire(env.containerNames)
+
 	result.RawRenderOutput, err = r.runCommand(r.Dependencies["crossplane"], renderArgs...)
+
+	releaseContainers(err == nil)
+
 	if err != nil {
 		return result.FailRender()
 	}

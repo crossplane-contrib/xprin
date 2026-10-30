@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
@@ -131,4 +132,129 @@ func TestCoordinator_ConcurrentUse(t *testing.T) {
 
 	assert.Len(t, mockDocker.RemovedContainers, testCases, "every container that was tracked is removed")
 	assert.Len(t, mockDocker.RemovedNetworks, 1)
+}
+
+// wait is how long a test waits for something that has to happen, and blocked is how long it waits before it
+// decides that something that must not happen did not.
+const (
+	wait    = 5 * time.Second
+	blocked = 50 * time.Millisecond
+)
+
+// acquireInBackground calls Acquire in a goroutine, and returns a channel that gets its release function once it
+// returned.
+func acquireInBackground(c *Coordinator, names ...string) <-chan func(bool) {
+	got := make(chan func(bool), 1)
+
+	go func() { got <- c.Acquire(names) }()
+
+	return got
+}
+
+func assertWaits(t *testing.T, got <-chan func(bool)) {
+	t.Helper()
+
+	select {
+	case <-got:
+		t.Fatal("Acquire returned, but it had to wait")
+	case <-time.After(blocked):
+	}
+}
+
+func assertReturns(t *testing.T, got <-chan func(bool)) func(bool) {
+	t.Helper()
+
+	select {
+	case release := <-got:
+		return release
+	case <-time.After(wait):
+		t.Fatal("Acquire did not return")
+	}
+
+	return nil
+}
+
+func TestCoordinator_Acquire_NilCoordinator(t *testing.T) {
+	var c *Coordinator
+
+	assert.NotPanics(t, func() { c.Acquire([]string{"a"})(true) })
+}
+
+func TestCoordinator_Acquire_TheFirstUseOfAContainerMakesTheOthersWait(t *testing.T) {
+	c := NewCoordinator(&unittestsUtils.MockDocker{})
+
+	first := c.Acquire([]string{"a"})
+	second := acquireInBackground(c, "a")
+
+	assertWaits(t, second)
+
+	first(true) // the render created the container
+
+	assertReturns(t, second)(true)
+
+	// It exists now: nobody waits any more, even while another render that uses it runs
+	assertReturns(t, acquireInBackground(c, "a"))
+	assertReturns(t, acquireInBackground(c, "a"))
+}
+
+func TestCoordinator_Acquire_AfterAFailedRenderTheNextOneTriesAgain(t *testing.T) {
+	c := NewCoordinator(&unittestsUtils.MockDocker{})
+
+	c.Acquire([]string{"a"})(false) // the render failed: the container may not exist
+
+	second := c.Acquire([]string{"a"})
+	third := acquireInBackground(c, "a")
+
+	assertWaits(t, third) // the second one is the first use now
+
+	second(true)
+
+	assertReturns(t, third)(true)
+}
+
+func TestCoordinator_Acquire_DifferentContainersDoNotWaitForEachOther(t *testing.T) {
+	c := NewCoordinator(&unittestsUtils.MockDocker{})
+
+	c.Acquire([]string{"a"}) // never released: "a" is busy for the whole test
+
+	assertReturns(t, acquireInBackground(c, "b"))
+}
+
+func TestCoordinator_Acquire_SeveralContainersInAnyOrderCanNotDeadlock(t *testing.T) {
+	c := NewCoordinator(&unittestsUtils.MockDocker{})
+
+	var wg sync.WaitGroup
+
+	// Each round uses new containers, so that both test cases are the first use of both: if one took them
+	// in the order it was given, and the other in the opposite order, each would hold one and wait for the other
+	for round := range 500 {
+		first, second := fmt.Sprintf("a%d", round), fmt.Sprintf("b%d", round)
+
+		wg.Go(func() { c.Acquire([]string{first, second})(true) })
+		wg.Go(func() { c.Acquire([]string{second, first})(true) })
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(wait):
+		t.Fatal("the test cases deadlocked")
+	}
+}
+
+func TestCoordinator_Acquire_ReleasingTwiceIsFine(t *testing.T) {
+	c := NewCoordinator(&unittestsUtils.MockDocker{})
+
+	release := c.Acquire([]string{"a"})
+
+	assert.NotPanics(t, func() {
+		release(true)
+		release(false)
+	})
 }
