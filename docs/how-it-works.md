@@ -503,6 +503,8 @@ Until xprin 0.5 there was no `needs`: a test case that used `.Tests.<id>` depend
 
 **Migrating.** In each test case that uses `.Tests.<id>`, list those IDs in `needs`. Once one test case in a file lists `needs`, every test case in it has to list what it uses. `xprin-helpers check-testsuite-needs <targets>` finds what is missing in every test case of the files and shows it, so that you can add it (see [check-testsuite-needs](xprin-helpers/check-testsuite-needs.md)).
 
+The reasons for `needs`, and for removing the automatic detection: [#170](https://github.com/crossplane-contrib/xprin/issues/170) and its sub-issues.
+
 ## Hooks Execution
 
 Hooks provide a way to execute arbitrary shell commands at specific points in the test execution.
