@@ -172,73 +172,43 @@ spec:
 	}, namesOf(coord))
 }
 
-func TestAnnotateFunctions_ExistingDockerName_NotOverridden(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	coord := NewCoordinator(&unittestsUtils.MockDocker{})
+func TestAnnotateFunctions_UserSetAnnotations_AreReplaced(t *testing.T) {
+	tests := map[string]string{
+		"a name":                 `render.crossplane.io/runtime-docker-name: my-custom-container`,
+		"an empty name":          `render.crossplane.io/runtime-docker-name: ""`,
+		"a cleanup":              `render.crossplane.io/runtime-docker-cleanup: Stop`,
+		"a cleanup that removes": `render.crossplane.io/runtime-docker-cleanup: Remove`,
+		"a network":              `render.crossplane.io/runtime-docker-network: my-network`,
+	}
 
-	path := functionsFilePath
-	writeFunctionsFile(t, fs, path, `apiVersion: pkg.crossplane.io/v1
+	for name, annotation := range tests {
+		t.Run(name, func(t *testing.T) {
+			fs := afero.NewMemMapFs()
+			coord := NewCoordinator(&unittestsUtils.MockDocker{})
+
+			writeFunctionsFile(t, fs, functionsFilePath, `apiVersion: pkg.crossplane.io/v1
 kind: Function
 metadata:
   name: function-patch-and-transform
   annotations:
-    render.crossplane.io/runtime-docker-name: my-custom-container
+    `+annotation+`
+    render.crossplane.io/runtime-docker-pull-policy: Always
 spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := coord.AnnotateFunctions(fs, path)
-	require.NoError(t, err)
-	assert.Empty(t, coord.names, "a user-supplied name must not be tracked by xprin")
+			require.NoError(t, coord.AnnotateFunctions(fs, functionsFilePath))
 
-	ann := readAnnotations(t, fs, path)
-	assert.Equal(t, "my-custom-container", ann[annotationDockerName])
-	assert.Equal(t, dockerCleanupOrphan, ann[annotationDockerCleanup])
-}
+			wantName := coord.ContainerName(imagePatchAndTransformV8)
+			assert.Equal(t, []string{wantName}, namesOf(coord), "the container is always one that xprin removes at the end")
 
-func TestAnnotateFunctions_ExistingDockerCleanup_NotOverridden(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	coord := NewCoordinator(&unittestsUtils.MockDocker{})
-
-	path := functionsFilePath
-	writeFunctionsFile(t, fs, path, `apiVersion: pkg.crossplane.io/v1
-kind: Function
-metadata:
-  name: function-patch-and-transform
-  annotations:
-    render.crossplane.io/runtime-docker-cleanup: Stop
-spec:
-  package: `+imagePatchAndTransformV8+`
-`)
-
-	err := coord.AnnotateFunctions(fs, path)
-	require.NoError(t, err)
-	assert.Len(t, coord.names, 1, "the name is still ours to manage even though cleanup was overridden")
-
-	ann := readAnnotations(t, fs, path)
-	assert.Equal(t, "Stop", ann[annotationDockerCleanup], "user-defined cleanup should not be overridden")
-}
-
-func TestAnnotateFunctions_ExistingDockerNetwork_NotOverridden(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	coord := NewCoordinator(&unittestsUtils.MockDocker{})
-
-	path := functionsFilePath
-	writeFunctionsFile(t, fs, path, `apiVersion: pkg.crossplane.io/v1
-kind: Function
-metadata:
-  name: function-patch-and-transform
-  annotations:
-    render.crossplane.io/runtime-docker-network: my-network
-spec:
-  package: `+imagePatchAndTransformV8+`
-`)
-
-	require.NoError(t, coord.AnnotateFunctions(fs, path))
-
-	ann := readAnnotations(t, fs, path)
-	assert.Equal(t, "my-network", ann[annotationDockerNetwork], "a user-defined network is kept")
-	assert.Equal(t, coord.ContainerName(imagePatchAndTransformV8), ann[annotationDockerName])
+			ann := readAnnotations(t, fs, functionsFilePath)
+			assert.Equal(t, wantName, ann[annotationDockerName])
+			assert.Equal(t, dockerCleanupOrphan, ann[annotationDockerCleanup])
+			assert.NotContains(t, ann, annotationDockerNetwork, "the network is the shared one, that render is told to use")
+			assert.Equal(t, "Always", ann["render.crossplane.io/runtime-docker-pull-policy"], "the other annotations are the user's")
+		})
+	}
 }
 
 func TestAnnotateFunctions_MissingImageRef_Untouched(t *testing.T) {

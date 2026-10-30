@@ -246,11 +246,6 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 		return result.Fail(err)
 	}
 
-	// AnnotateFunctions does nothing when container reuse is disabled (r.Containers is nil)
-	if err := r.Containers.AnnotateFunctions(r.fs, testCase.Inputs.Functions); err != nil {
-		return result.Fail(fmt.Errorf("failed to apply container reuse: %w", err))
-	}
-
 	crdsDir := filepath.Join(env.inputsDir, "crds")
 
 	uniqueNames := uniqueBaseNamesForPaths(testCase.Inputs.CRDs)
@@ -421,6 +416,12 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 	// Add function credentials if specified (single string)
 	if testCase.Inputs.FunctionCredentials != "" {
 		renderArgs = append(renderArgs, "--function-credentials", testCase.Inputs.FunctionCredentials)
+	}
+
+	// The annotations of the containers are set after the pre-test hooks, so that they can't change them.
+	// AnnotateFunctions does nothing when container reuse is disabled (r.Containers is nil)
+	if err := r.Containers.AnnotateFunctions(r.fs, testCase.Inputs.Functions); err != nil {
+		return result.Fail(fmt.Errorf("failed to apply container reuse: %w", err))
 	}
 
 	// Run crossplane render command
