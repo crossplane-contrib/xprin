@@ -246,8 +246,8 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 		return result.Fail(err)
 	}
 
-	// ApplyReuse does nothing when container reuse is disabled (r.Containers is nil)
-	if err := r.Containers.ApplyReuse(r.fs, testCase.Inputs.Functions); err != nil {
+	// AnnotateFunctions does nothing when container reuse is disabled (r.Containers is nil)
+	if err := r.Containers.AnnotateFunctions(r.fs, testCase.Inputs.Functions); err != nil {
 		return result.Fail(fmt.Errorf("failed to apply container reuse: %w", err))
 	}
 
