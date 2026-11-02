@@ -85,7 +85,7 @@ jobs:
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Lint
-        run: earthly --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +lint
+        run: earthly --strict --remote-cache ghcr.io/crossplane-contrib/xprin/earthly-cache:${{ github.job }} +lint --GOLANGCI_LINT_FIX=false
 
   unit-tests:
     runs-on: ubuntu-26.04

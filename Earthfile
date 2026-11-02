@@ -26,7 +26,8 @@ test:
 
 # lint runs linters.
 lint:
-  BUILD +go-lint
+  ARG GOLANGCI_LINT_FIX=true
+  BUILD +go-lint --GOLANGCI_LINT_FIX=${GOLANGCI_LINT_FIX}
 
 # build builds xprin for your native OS and architecture.
 build:
@@ -163,6 +164,7 @@ go-test:
 # go-lint lints Go code.
 go-lint:
   ARG GOLANGCI_LINT_VERSION=v2.15.0
+  ARG GOLANGCI_LINT_FIX=true
   FROM +go-modules
   # This cache is private because golangci-lint doesn't support concurrent runs.
   CACHE --id go-lint --sharing private /root/.cache/golangci-lint
@@ -170,7 +172,7 @@ go-lint:
   COPY (+golangci-lint-setup/golangci-lint --GOLANGCI_LINT_VERSION=${GOLANGCI_LINT_VERSION}) $(go env GOPATH)/bin/golangci-lint
   COPY .golangci.yml .
   COPY --dir cmd/ internal/ .
-  RUN golangci-lint run --fix
+  RUN golangci-lint run $(test "$GOLANGCI_LINT_FIX" = true && echo --fix)
   SAVE ARTIFACT cmd AS LOCAL cmd
   SAVE ARTIFACT internal AS LOCAL internal
 
