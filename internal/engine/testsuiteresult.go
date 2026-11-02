@@ -81,6 +81,7 @@ func (tsr *TestSuiteResult) Complete() *TestSuiteResult {
 	defer tsr.mu.Unlock()
 
 	tsr.duration = time.Since(tsr.startTime)
+
 	return tsr
 }
 
