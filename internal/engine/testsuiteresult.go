@@ -68,6 +68,7 @@ func (tsr *TestSuiteResult) AddResult(result *TestCaseResult) {
 // Complete finalizes the test suite result with total duration and returns the result for chaining.
 func (tsr *TestSuiteResult) Complete() *TestSuiteResult {
 	tsr.duration = time.Since(tsr.startTime)
+
 	return tsr
 }
 

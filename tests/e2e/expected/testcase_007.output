@@ -301,10 +301,10 @@ FAIL	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
     [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
 === RUN   A typo in the ID at the template variable
 --- FAIL: A typo in the ID at the template variable (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.frist.Outputs.XR>: map has no entry for key "frist"
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:4:14: executing "testcase" at <.Tests.frist.Outputs.XR>: map has no entry for key "frist"
 === RUN   A typo in the name of the output
 --- FAIL: A typo in the name of the output (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.first.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:4:14: executing "testcase" at <.Tests.first.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
 FAIL
 FAIL	examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml	X.XXXs
 FAIL
