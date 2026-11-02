@@ -239,19 +239,19 @@ FAIL	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
     [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
 === RUN   A typo in the ID at the template variable
 --- FAIL: A typo in the ID at the template variable (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.frist.Outputs.XR>: map has no entry for key "frist"
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:4:14: executing "testcase" at <.Tests.frist.Outputs.XR>: map has no entry for key "frist"
 === RUN   A typo in the name of the output
 --- FAIL: A typo in the name of the output (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.first.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:4:14: executing "testcase" at <.Tests.first.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
 FAIL
 FAIL	examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml	X.XXXs
 WARNING: examples/mytests/5_chained_tests/legacy_failure_xprin.yaml: testcases that use the outputs of other testcases (.Tests) will have to list them in `needs` from xprin 0.7.0. See https://github.com/crossplane-contrib/xprin/blob/release-0.6/docs/how-it-works.md#dependencies-between-test-cases-needs, and run `xprin-helpers check-testsuite-needs examples/mytests/5_chained_tests/legacy_failure_xprin.yaml` to see what to add.
 === RUN   Legacy: a typo in the ID
 --- FAIL: Legacy: a typo in the ID (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:9:14: executing "testcase" at <.Tests.legacy_frist.Outputs.XR>: map has no entry for key "legacy_frist"
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:7:14: executing "testcase" at <.Tests.legacy_frist.Outputs.XR>: map has no entry for key "legacy_frist"
 === RUN   Legacy: uses a test case that is listed below it
 --- FAIL: Legacy: uses a test case that is listed below it (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:9:14: executing "testcase" at <.Tests.legacy_last.Outputs.XR>: map has no entry for key "legacy_last"
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:7:14: executing "testcase" at <.Tests.legacy_last.Outputs.XR>: map has no entry for key "legacy_last"
 === RUN   Legacy: a typo in the ID, in a hook
 --- FAIL: Legacy: a typo in the ID, in a hook (X.XXXs)
     Pre-test Hooks:
