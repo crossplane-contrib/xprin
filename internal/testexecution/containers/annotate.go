@@ -33,6 +33,7 @@ import (
 const (
 	annotationDockerName    = "render.crossplane.io/runtime-docker-name"
 	annotationDockerCleanup = "render.crossplane.io/runtime-docker-cleanup"
+	annotationDockerNetwork = "render.crossplane.io/runtime-docker-network"
 	dockerCleanupOrphan     = "Orphan"
 )
 
