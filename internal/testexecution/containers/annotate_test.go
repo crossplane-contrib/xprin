@@ -75,23 +75,23 @@ func namesOf(coord *Coordinator) []string {
 	return names
 }
 
-func TestApplyReuse_NilCoordinator_NoOp(t *testing.T) {
+func TestAnnotateFunctions_NilCoordinator_NoOp(t *testing.T) {
 	fs := afero.NewMemMapFs()
 
-	err := (*Coordinator)(nil).ApplyReuse(fs, functionsFilePath)
+	err := (*Coordinator)(nil).AnnotateFunctions(fs, functionsFilePath)
 	require.NoError(t, err)
 }
 
-func TestApplyReuse_PathNotExist(t *testing.T) {
+func TestAnnotateFunctions_PathNotExist(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
-	err := coord.ApplyReuse(fs, "/nonexistent/functions.yaml")
+	err := coord.AnnotateFunctions(fs, "/nonexistent/functions.yaml")
 	require.NoError(t, err)
 	assert.Empty(t, coord.names)
 }
 
-func TestApplyReuse_SingleFunction(t *testing.T) {
+func TestAnnotateFunctions_SingleFunction(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
@@ -104,7 +104,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := coord.ApplyReuse(fs, path)
+	err := coord.AnnotateFunctions(fs, path)
 	require.NoError(t, err)
 
 	wantName := coord.ContainerName(imagePatchAndTransformV8)
@@ -115,7 +115,7 @@ spec:
 	assert.Equal(t, dockerCleanupOrphan, ann[annotationDockerCleanup])
 }
 
-func TestApplyReuse_SameImageKeyedIdentically(t *testing.T) {
+func TestAnnotateFunctions_SameImageKeyedIdentically(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
@@ -135,7 +135,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := coord.ApplyReuse(fs, path)
+	err := coord.AnnotateFunctions(fs, path)
 	require.NoError(t, err)
 
 	// The same image is tracked idempotently, even though two Function resources reference it.
@@ -143,7 +143,7 @@ spec:
 	assert.Equal(t, []string{wantName}, namesOf(coord))
 }
 
-func TestApplyReuse_DifferentImagesDifferentNames(t *testing.T) {
+func TestAnnotateFunctions_DifferentImagesDifferentNames(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
@@ -163,7 +163,7 @@ spec:
   package: `+imageAutoReady+`
 `)
 
-	err := coord.ApplyReuse(fs, path)
+	err := coord.AnnotateFunctions(fs, path)
 	require.NoError(t, err)
 
 	assert.ElementsMatch(t, []string{
@@ -172,7 +172,7 @@ spec:
 	}, namesOf(coord))
 }
 
-func TestApplyReuse_ExistingDockerName_NotOverridden(t *testing.T) {
+func TestAnnotateFunctions_ExistingDockerName_NotOverridden(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
@@ -187,7 +187,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := coord.ApplyReuse(fs, path)
+	err := coord.AnnotateFunctions(fs, path)
 	require.NoError(t, err)
 	assert.Empty(t, coord.names, "a user-supplied name must not be tracked by xprin")
 
@@ -196,7 +196,7 @@ spec:
 	assert.Equal(t, dockerCleanupOrphan, ann[annotationDockerCleanup])
 }
 
-func TestApplyReuse_ExistingDockerCleanup_NotOverridden(t *testing.T) {
+func TestAnnotateFunctions_ExistingDockerCleanup_NotOverridden(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
@@ -211,7 +211,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := coord.ApplyReuse(fs, path)
+	err := coord.AnnotateFunctions(fs, path)
 	require.NoError(t, err)
 	assert.Len(t, coord.names, 1, "the name is still ours to manage even though cleanup was overridden")
 
@@ -219,7 +219,7 @@ spec:
 	assert.Equal(t, "Stop", ann[annotationDockerCleanup], "user-defined cleanup should not be overridden")
 }
 
-func TestApplyReuse_MissingImageRef_Untouched(t *testing.T) {
+func TestAnnotateFunctions_MissingImageRef_Untouched(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
@@ -231,7 +231,7 @@ metadata:
 spec: {}
 `)
 
-	err := coord.ApplyReuse(fs, path)
+	err := coord.AnnotateFunctions(fs, path)
 	require.NoError(t, err)
 	assert.Empty(t, coord.names)
 
@@ -239,7 +239,7 @@ spec: {}
 	assert.Nil(t, ann, "no annotations should be added when there is no image reference to key on")
 }
 
-func TestApplyReuse_NonFunctionKind_Untouched(t *testing.T) {
+func TestAnnotateFunctions_NonFunctionKind_Untouched(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
@@ -252,7 +252,7 @@ data:
   key: value
 `)
 
-	err := coord.ApplyReuse(fs, path)
+	err := coord.AnnotateFunctions(fs, path)
 	require.NoError(t, err)
 	assert.Empty(t, coord.names)
 
@@ -260,7 +260,7 @@ data:
 	assert.Nil(t, ann)
 }
 
-func TestApplyReuse_Directory_SameImageAcrossFiles(t *testing.T) {
+func TestAnnotateFunctions_Directory_SameImageAcrossFiles(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
@@ -281,7 +281,7 @@ spec:
 `)
 	writeFunctionsFile(t, fs, filepath.Join(dir, "readme.txt"), `not a yaml file`)
 
-	err := coord.ApplyReuse(fs, dir)
+	err := coord.AnnotateFunctions(fs, dir)
 	require.NoError(t, err)
 
 	// The same image appears in both files; claiming is idempotent, so it's still tracked once.
@@ -289,7 +289,7 @@ spec:
 	assert.Equal(t, []string{wantName}, namesOf(coord))
 }
 
-func TestApplyReuse_SecondTestCaseReusesTrackedContainer(t *testing.T) {
+func TestAnnotateFunctions_SecondTestCaseReusesTrackedContainer(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
@@ -303,7 +303,7 @@ spec:
 `)
 
 	// First test case.
-	err := coord.ApplyReuse(fs, path)
+	err := coord.AnnotateFunctions(fs, path)
 	require.NoError(t, err)
 
 	wantName := coord.ContainerName(imagePatchAndTransformV8)
@@ -319,7 +319,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err = coord.ApplyReuse(fs, path)
+	err = coord.AnnotateFunctions(fs, path)
 	require.NoError(t, err)
 	assert.Equal(t, []string{wantName}, namesOf(coord), "still just the one name — reuse, not a second container")
 

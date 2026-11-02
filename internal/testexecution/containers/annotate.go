@@ -36,13 +36,13 @@ const (
 	dockerCleanupOrphan     = "Orphan"
 )
 
-// ApplyReuse patches Function resources in functionsPath (a file or a directory of files) with
+// AnnotateFunctions patches Function resources in functionsPath (a file or a directory of files) with
 // container-reuse annotations, keyed by each function's image reference.
 //
 // Does nothing if the coordinator is nil (container reuse not enabled — the default unless running
 // through processor.ProcessTargets) or if functionsPath does not exist (e.g. when copy is
 // mocked out in tests).
-func (c *Coordinator) ApplyReuse(fs afero.Fs, functionsPath string) error {
+func (c *Coordinator) AnnotateFunctions(fs afero.Fs, functionsPath string) error {
 	if c == nil {
 		return nil
 	}
@@ -71,7 +71,7 @@ func (c *Coordinator) ApplyReuse(fs afero.Fs, functionsPath string) error {
 				continue
 			}
 
-			if err := c.applyReuseFile(fs, filepath.Join(functionsPath, e.Name())); err != nil {
+			if err := c.processFunctionsFile(fs, filepath.Join(functionsPath, e.Name())); err != nil {
 				return err
 			}
 		}
@@ -79,10 +79,11 @@ func (c *Coordinator) ApplyReuse(fs afero.Fs, functionsPath string) error {
 		return nil
 	}
 
-	return c.applyReuseFile(fs, functionsPath)
+	return c.processFunctionsFile(fs, functionsPath)
 }
 
-func (c *Coordinator) applyReuseFile(fs afero.Fs, path string) error {
+// processFunctionsFile annotates the Functions of one file, and writes the file back.
+func (c *Coordinator) processFunctionsFile(fs afero.Fs, path string) error {
 	data, err := afero.ReadFile(fs, path)
 	if err != nil {
 		return fmt.Errorf("failed to read functions file %s: %w", path, err)
@@ -107,7 +108,7 @@ func (c *Coordinator) applyReuseFile(fs afero.Fs, path string) error {
 		}
 
 		if obj.GetKind() == "Function" {
-			if err := c.patchFunctionAnnotations(obj); err != nil {
+			if err := c.setFunctionContainerAnnotations(obj); err != nil {
 				return err
 			}
 		}
@@ -137,9 +138,9 @@ func (c *Coordinator) applyReuseFile(fs afero.Fs, path string) error {
 	return nil
 }
 
-// patchFunctionAnnotations injects runtime-docker-name/runtime-docker-cleanup annotations into
+// setFunctionContainerAnnotations injects runtime-docker-name/runtime-docker-cleanup annotations into
 // a single Function resource, unless the user already set them.
-func (c *Coordinator) patchFunctionAnnotations(obj *unstructured.Unstructured) error {
+func (c *Coordinator) setFunctionContainerAnnotations(obj *unstructured.Unstructured) error {
 	imageRef, _, err := unstructured.NestedString(obj.Object, "spec", "package")
 	if err != nil {
 		return fmt.Errorf("failed to read spec.package: %w", err)
