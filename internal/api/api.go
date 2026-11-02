@@ -25,8 +25,8 @@ import (
 
 // TestSuiteSpec represents the structure of a testsuite YAML file used by xprin.
 type TestSuiteSpec struct {
-	Common Common     `json:"common,omitempty"` // Common config for all tests
-	Tests  []TestCase `json:"tests"`            // List of test cases
+	Common Common     `json:"common,omitzero"` // Common config for all tests
+	Tests  []TestCase `json:"tests"`           // List of test cases
 }
 
 // Patches represents XR patching configuration.
@@ -75,21 +75,21 @@ type Assertions struct {
 
 // Common represents the common configuration for a testsuite file.
 type Common struct {
-	Inputs     Inputs     `json:"inputs,omitempty"     jsonschema_extras:"x-xprin-required-merged=true"` // Common inputs (composition, Claim/XR, etc.) for all testcases
-	Patches    Patches    `json:"patches,omitempty"`                                                     // Common XR patching configuration for all testcases
-	Hooks      Hooks      `json:"hooks,omitempty"`                                                       // Common hooks for all testcases
-	Assertions Assertions `json:"assertions,omitempty"`                                                  // Common assertions to validate rendered resources for all testcases
+	Inputs     Inputs     `json:"inputs,omitzero"     jsonschema_extras:"x-xprin-required-merged=true"` // Common inputs (composition, Claim/XR, etc.) for all testcases
+	Patches    Patches    `json:"patches,omitzero"`                                                     // Common XR patching configuration for all testcases
+	Hooks      Hooks      `json:"hooks,omitzero"`                                                       // Common hooks for all testcases
+	Assertions Assertions `json:"assertions,omitzero"`                                                  // Common assertions to validate rendered resources for all testcases
 }
 
 // TestCase represents a single test case.
 type TestCase struct {
-	Name       string     `json:"name"`                                                                  // Descriptive name for the testcase
-	ID         string     `json:"id,omitempty"`                                                          // Unique identifier for the testcase
-	Needs      []string   `json:"needs,omitempty"      jsonschema:"minItems=1"`                          // IDs of the testcases that this one depends on
-	Inputs     Inputs     `json:"inputs,omitempty"     jsonschema_extras:"x-xprin-required-merged=true"` // Inputs of a testcase
-	Patches    Patches    `json:"patches,omitempty"`                                                     // XR patching configuration
-	Hooks      Hooks      `json:"hooks,omitempty"`                                                       // Execution hooks
-	Assertions Assertions `json:"assertions,omitempty"`                                                  // Assertions to validate rendered resources
+	Name       string     `json:"name"`                                                                 // Descriptive name for the testcase
+	ID         string     `json:"id,omitempty"`                                                         // Unique identifier for the testcase
+	Needs      []string   `json:"needs,omitempty"     jsonschema:"minItems=1"`                          // IDs of the testcases that this one depends on
+	Inputs     Inputs     `json:"inputs,omitzero"     jsonschema_extras:"x-xprin-required-merged=true"` // Inputs of a testcase
+	Patches    Patches    `json:"patches,omitzero"`                                                     // XR patching configuration
+	Hooks      Hooks      `json:"hooks,omitzero"`                                                       // Execution hooks
+	Assertions Assertions `json:"assertions,omitzero"`                                                  // Assertions to validate rendered resources
 }
 
 // Inputs represents the inputs for a test case or common configuration.
