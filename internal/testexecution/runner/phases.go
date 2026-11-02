@@ -23,7 +23,6 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/yaml"
@@ -247,8 +246,8 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 		return result.Fail(err)
 	}
 
-	// ApplyReuse does nothing when container reuse is disabled (r.Containers is nil)
-	if err := containers.ApplyReuse(r.fs, r.Containers, testCase.Inputs.Functions); err != nil {
+	// AnnotateFunctions does nothing when container reuse is disabled (r.Containers is nil)
+	if err := r.Containers.AnnotateFunctions(r.fs, testCase.Inputs.Functions); err != nil {
 		return result.Fail(fmt.Errorf("failed to apply container reuse: %w", err))
 	}
 
