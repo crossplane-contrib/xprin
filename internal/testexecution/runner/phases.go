@@ -418,11 +418,15 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 		renderArgs = append(renderArgs, "--function-credentials", testCase.Inputs.FunctionCredentials)
 	}
 
-	// The annotations of the containers are set after the pre-test hooks, so that they can't change them.
-	// AnnotateFunctions does nothing when container reuse is disabled (r.Containers is nil)
-	if err := r.Containers.AnnotateFunctions(r.fs, testCase.Inputs.Functions); err != nil {
+	// The annotations of the containers are set after the pre-test hooks, so that they can't change them. The first
+	// render that uses a function container creates it: the others that use it wait for that one.
+	// AnnotateAndAcquireFunctions does nothing when container reuse is disabled (r.Containers is nil)
+	releaseContainers, err := r.Containers.AnnotateAndAcquireFunctions(r.fs, testCase.Inputs.Functions)
+	if err != nil {
 		return result.Fail(fmt.Errorf("failed to apply container reuse: %w", err))
 	}
+	// A panic of the command must not leave the others that use the containers waiting forever
+	defer releaseContainers(false)
 
 	// Run crossplane render command
 	if r.Debug {
@@ -430,6 +434,9 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 	}
 
 	result.RawRenderOutput, err = r.runCommand(r.Dependencies["crossplane"], renderArgs...)
+
+	releaseContainers(err == nil)
+
 	if err != nil {
 		return result.FailRender()
 	}

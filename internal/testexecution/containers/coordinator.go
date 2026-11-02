@@ -23,6 +23,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"sync"
+
+	"github.com/spf13/afero"
 )
 
 // Coordinator tracks Docker container names used for composition function reuse across one xprin test invocation.
@@ -31,8 +33,8 @@ type Coordinator struct {
 	runID  string
 	docker Docker
 
-	mu          sync.Mutex // guards names and networkName
-	names       map[string]struct{}
+	mu          sync.Mutex // guards containers and networkName
+	containers  []*container
 	networkName string
 }
 
@@ -46,17 +48,42 @@ func NewCoordinator(docker Docker) *Coordinator {
 
 	return &Coordinator{
 		runID:  hex.EncodeToString(b),
-		names:  make(map[string]struct{}),
 		docker: docker,
 	}
 }
 
-// track records name as a container that RemoveAll must remove.
-func (c *Coordinator) track(name string) {
+// AnnotateAndAcquireFunctions is called before a command that uses the containers of the Functions in functionsPath (a file or a
+// directory of files), for example `crossplane render`.
+// It sets the annotations of their containers (see annotateFunctions), and waits for the containers that another command is
+// creating: the first command that uses a container creates it, and the others that use it wait until that command is done.
+// The function it returns is called when the command is done, with whether it succeeded.
+// Only a success marks the containers as existing, so after a failure the next command tries again.
+// It is safe to call it on a nil Coordinator (container reuse is off): there is nothing to set or to wait for.
+func (c *Coordinator) AnnotateAndAcquireFunctions(fs afero.Fs, functionsPath string) (release func(created bool), err error) {
+	names, err := c.annotateFunctions(fs, functionsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.acquire(names), nil
+}
+
+// containerOf returns the container with the name, which is added if there is none yet.
+// The containers it knows are the ones that RemoveAll removes.
+func (c *Coordinator) containerOf(name string) *container {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.names[name] = struct{}{}
+	for _, ctr := range c.containers {
+		if ctr.name == name {
+			return ctr
+		}
+	}
+
+	ctr := &container{name: name}
+	c.containers = append(c.containers, ctr)
+
+	return ctr
 }
 
 // ContainerName returns the container name for the given function image reference. The same
@@ -100,8 +127,8 @@ func (c *Coordinator) RemoveAll() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for name := range c.names {
-		c.docker.RemoveContainer(name)
+	for _, ctr := range c.containers {
+		c.docker.RemoveContainer(ctr.name)
 	}
 
 	if c.networkName != "" {

@@ -65,11 +65,11 @@ func readAnnotations(t *testing.T, fs afero.Fs, path string) map[string]string {
 	return result
 }
 
-// namesOf returns coord.names as a slice, for comparison against an expected []string in tests.
+// namesOf returns the names of coord.containers as a slice, for comparison against an expected []string in tests.
 func namesOf(coord *Coordinator) []string {
-	names := make([]string, 0, len(coord.names))
-	for name := range coord.names {
-		names = append(names, name)
+	names := make([]string, 0, len(coord.containers))
+	for _, ctr := range coord.containers {
+		names = append(names, ctr.name)
 	}
 
 	return names
@@ -78,7 +78,7 @@ func namesOf(coord *Coordinator) []string {
 func TestAnnotateFunctions_NilCoordinator_NoOp(t *testing.T) {
 	fs := afero.NewMemMapFs()
 
-	err := (*Coordinator)(nil).AnnotateFunctions(fs, functionsFilePath)
+	_, err := (*Coordinator)(nil).annotateFunctions(fs, functionsFilePath)
 	require.NoError(t, err)
 }
 
@@ -86,9 +86,9 @@ func TestAnnotateFunctions_PathNotExist(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
-	err := coord.AnnotateFunctions(fs, "/nonexistent/functions.yaml")
+	_, err := coord.annotateFunctions(fs, "/nonexistent/functions.yaml")
 	require.NoError(t, err)
-	assert.Empty(t, coord.names)
+	assert.Empty(t, coord.containers)
 }
 
 func TestAnnotateFunctions_SingleFunction(t *testing.T) {
@@ -104,7 +104,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := coord.AnnotateFunctions(fs, path)
+	_, err := coord.annotateFunctions(fs, path)
 	require.NoError(t, err)
 
 	wantName := coord.ContainerName(imagePatchAndTransformV8)
@@ -135,7 +135,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := coord.AnnotateFunctions(fs, path)
+	_, err := coord.annotateFunctions(fs, path)
 	require.NoError(t, err)
 
 	// The same image is tracked idempotently, even though two Function resources reference it.
@@ -163,7 +163,7 @@ spec:
   package: `+imageAutoReady+`
 `)
 
-	err := coord.AnnotateFunctions(fs, path)
+	_, err := coord.annotateFunctions(fs, path)
 	require.NoError(t, err)
 
 	assert.ElementsMatch(t, []string{
@@ -197,9 +197,11 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-			require.NoError(t, coord.AnnotateFunctions(fs, functionsFilePath))
+			returned, err := coord.annotateFunctions(fs, functionsFilePath)
+			require.NoError(t, err)
 
 			wantName := coord.ContainerName(imagePatchAndTransformV8)
+			assert.Equal(t, []string{wantName}, returned, "the container that Acquire waits for is the one that xprin names")
 			assert.Equal(t, []string{wantName}, namesOf(coord), "the container is always one that xprin removes at the end")
 
 			ann := readAnnotations(t, fs, functionsFilePath)
@@ -223,9 +225,9 @@ metadata:
 spec: {}
 `)
 
-	err := coord.AnnotateFunctions(fs, path)
+	_, err := coord.annotateFunctions(fs, path)
 	require.NoError(t, err)
-	assert.Empty(t, coord.names)
+	assert.Empty(t, coord.containers)
 
 	ann := readAnnotations(t, fs, path)
 	assert.Nil(t, ann, "no annotations should be added when there is no image reference to key on")
@@ -244,9 +246,9 @@ data:
   key: value
 `)
 
-	err := coord.AnnotateFunctions(fs, path)
+	_, err := coord.annotateFunctions(fs, path)
 	require.NoError(t, err)
-	assert.Empty(t, coord.names)
+	assert.Empty(t, coord.containers)
 
 	ann := readAnnotations(t, fs, path)
 	assert.Nil(t, ann)
@@ -273,7 +275,7 @@ spec:
 `)
 	writeFunctionsFile(t, fs, filepath.Join(dir, "readme.txt"), `not a yaml file`)
 
-	err := coord.AnnotateFunctions(fs, dir)
+	_, err := coord.annotateFunctions(fs, dir)
 	require.NoError(t, err)
 
 	// The same image appears in both files; claiming is idempotent, so it's still tracked once.
@@ -295,7 +297,7 @@ spec:
 `)
 
 	// First test case.
-	err := coord.AnnotateFunctions(fs, path)
+	_, err := coord.annotateFunctions(fs, path)
 	require.NoError(t, err)
 
 	wantName := coord.ContainerName(imagePatchAndTransformV8)
@@ -311,10 +313,64 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err = coord.AnnotateFunctions(fs, path)
+	_, err = coord.annotateFunctions(fs, path)
 	require.NoError(t, err)
 	assert.Equal(t, []string{wantName}, namesOf(coord), "still just the one name — reuse, not a second container")
 
 	ann := readAnnotations(t, fs, path)
 	assert.Equal(t, wantName, ann[annotationDockerName], "the second test case must reuse the exact same container name")
+}
+
+func TestAnnotateFunctions_ReturnsTheNamesOfTheContainersOfTheFunctions(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	coord := NewCoordinator(&unittestsUtils.MockDocker{})
+
+	dir := "/suite/functions"
+	writeFunctionsFile(t, fs, filepath.Join(dir, "a.yaml"), `apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+spec:
+  package: `+imagePatchAndTransformV8+`
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-auto-ready
+spec:
+  package: `+imageAutoReady+`
+`)
+	writeFunctionsFile(t, fs, filepath.Join(dir, "b.yaml"), `apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-patch-and-transform-again
+spec:
+  package: `+imagePatchAndTransformV8+`
+`)
+
+	names, err := coord.annotateFunctions(fs, dir)
+	require.NoError(t, err)
+
+	want := []string{coord.ContainerName(imagePatchAndTransformV8), coord.ContainerName(imageAutoReady), coord.ContainerName(imagePatchAndTransformV8)}
+
+	assert.Equal(t, want, names, "in the order of the files and of the Functions, a name for each Function that uses it")
+}
+
+func TestAnnotateFunctions_NoContainersToReturn(t *testing.T) {
+	fs := afero.NewMemMapFs()
+
+	names, err := (*Coordinator)(nil).annotateFunctions(fs, functionsFilePath)
+	require.NoError(t, err)
+	assert.Empty(t, names, "nil coordinator: reuse is not enabled")
+
+	writeFunctionsFile(t, fs, functionsFilePath, `apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: no-image
+spec: {}
+`)
+
+	names, err = NewCoordinator(&unittestsUtils.MockDocker{}).annotateFunctions(fs, functionsFilePath)
+	require.NoError(t, err)
+	assert.Empty(t, names, "a Function without an image reference has no container to key")
 }
