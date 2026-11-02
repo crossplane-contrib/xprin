@@ -78,7 +78,7 @@ func namesOf(coord *Coordinator) []string {
 func TestApplyReuse_NilCoordinator_NoOp(t *testing.T) {
 	fs := afero.NewMemMapFs()
 
-	err := ApplyReuse(fs, nil, functionsFilePath)
+	err := (*Coordinator)(nil).ApplyReuse(fs, functionsFilePath)
 	require.NoError(t, err)
 }
 
@@ -86,7 +86,7 @@ func TestApplyReuse_PathNotExist(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	coord := NewCoordinator(&unittestsUtils.MockDocker{})
 
-	err := ApplyReuse(fs, coord, "/nonexistent/functions.yaml")
+	err := coord.ApplyReuse(fs, "/nonexistent/functions.yaml")
 	require.NoError(t, err)
 	assert.Empty(t, coord.names)
 }
@@ -104,7 +104,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := ApplyReuse(fs, coord, path)
+	err := coord.ApplyReuse(fs, path)
 	require.NoError(t, err)
 
 	wantName := coord.ContainerName(imagePatchAndTransformV8)
@@ -135,7 +135,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := ApplyReuse(fs, coord, path)
+	err := coord.ApplyReuse(fs, path)
 	require.NoError(t, err)
 
 	// The same image is tracked idempotently, even though two Function resources reference it.
@@ -163,7 +163,7 @@ spec:
   package: `+imageAutoReady+`
 `)
 
-	err := ApplyReuse(fs, coord, path)
+	err := coord.ApplyReuse(fs, path)
 	require.NoError(t, err)
 
 	assert.ElementsMatch(t, []string{
@@ -187,7 +187,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := ApplyReuse(fs, coord, path)
+	err := coord.ApplyReuse(fs, path)
 	require.NoError(t, err)
 	assert.Empty(t, coord.names, "a user-supplied name must not be tracked by xprin")
 
@@ -211,7 +211,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err := ApplyReuse(fs, coord, path)
+	err := coord.ApplyReuse(fs, path)
 	require.NoError(t, err)
 	assert.Len(t, coord.names, 1, "the name is still ours to manage even though cleanup was overridden")
 
@@ -231,7 +231,7 @@ metadata:
 spec: {}
 `)
 
-	err := ApplyReuse(fs, coord, path)
+	err := coord.ApplyReuse(fs, path)
 	require.NoError(t, err)
 	assert.Empty(t, coord.names)
 
@@ -252,7 +252,7 @@ data:
   key: value
 `)
 
-	err := ApplyReuse(fs, coord, path)
+	err := coord.ApplyReuse(fs, path)
 	require.NoError(t, err)
 	assert.Empty(t, coord.names)
 
@@ -281,7 +281,7 @@ spec:
 `)
 	writeFunctionsFile(t, fs, filepath.Join(dir, "readme.txt"), `not a yaml file`)
 
-	err := ApplyReuse(fs, coord, dir)
+	err := coord.ApplyReuse(fs, dir)
 	require.NoError(t, err)
 
 	// The same image appears in both files; claiming is idempotent, so it's still tracked once.
@@ -303,7 +303,7 @@ spec:
 `)
 
 	// First test case.
-	err := ApplyReuse(fs, coord, path)
+	err := coord.ApplyReuse(fs, path)
 	require.NoError(t, err)
 
 	wantName := coord.ContainerName(imagePatchAndTransformV8)
@@ -319,7 +319,7 @@ spec:
   package: `+imagePatchAndTransformV8+`
 `)
 
-	err = ApplyReuse(fs, coord, path)
+	err = coord.ApplyReuse(fs, path)
 	require.NoError(t, err)
 	assert.Equal(t, []string{wantName}, namesOf(coord), "still just the one name — reuse, not a second container")
 
