@@ -148,7 +148,7 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
 --- FAIL: Needs: no needs at all, uses the outputs of a test case that exists (fails, it has to be listed in needs) (X.XXXs)
     [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
 --- FAIL: Needs: no needs at all, uses the outputs of a test case that does not exist (fails, map has no entry) (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.nonexistent.Outputs.XR>: map has no entry for key "nonexistent"
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:4:14: executing "testcase" at <.Tests.nonexistent.Outputs.XR>: map has no entry for key "nonexistent"
 --- FAIL: Needs: no needs at all, uses the outputs of a test case that exists, in a hook (fails, it has to be listed in needs) (X.XXXs)
     Pre-test Hooks:
         [!] Uses the outputs of a test case it does not list
@@ -176,9 +176,9 @@ FAIL	examples/mytests/0_e2e/generated_missing_required_inputs_xprin.yaml	X.XXXs
 --- FAIL: Uses the outputs of a test case without listing it (fails: it has to be listed in needs) (X.XXXs)
     [!] failed to process template variables: failed to render template: failed to execute template: one or more test cases are used but are not listed in needs
 --- FAIL: A typo in the ID at the template variable (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.frist.Outputs.XR>: map has no entry for key "frist"
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:4:14: executing "testcase" at <.Tests.frist.Outputs.XR>: map has no entry for key "frist"
 --- FAIL: A typo in the name of the output (X.XXXs)
-    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:6:14: executing "testcase" at <.Tests.first.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
+    [!] failed to process template variables: failed to render template: failed to execute template: template: testcase:4:14: executing "testcase" at <.Tests.first.Outputs.XRR>: can't evaluate field XRR in type engine.Outputs
 FAIL
 FAIL	examples/mytests/5_chained_tests/example6_needs-mistakes_xprin.yaml	X.XXXs
 FAIL
