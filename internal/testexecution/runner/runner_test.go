@@ -109,6 +109,49 @@ func makeOptions(cfg *config.Config, render, validate []string, overrides ...fun
 	return opt
 }
 
+// timings are what differs between two runs of the same test cases.
+var timings = regexp.MustCompile(`\d+\.\d+s`)
+
+// runWithFakeResults runs the test cases of the spec with fake results: the ones in failing fail, and the others pass.
+// It runs them with RunTests or, with bySteps, with its steps one after the other.
+// It returns what was printed and the IDs of the ones that ran.
+func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, bySteps bool, failing ...string) (output string, ran []string) {
+	t.Helper()
+
+	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
+
+	var out bytes.Buffer
+
+	r.output = &out
+	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+		ran = append(ran, testCase.ID)
+
+		result := engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
+		if slices.Contains(failing, testCase.ID) {
+			return result.Fail(errors.New("boom"))
+		}
+
+		return result
+	}
+
+	if !bySteps {
+		_ = r.RunTests() // it fails when a test case does: what matters is what ran, and what was printed
+
+		return out.String(), ran
+	}
+
+	require.NoError(t, r.setupTestSuite())
+
+	for _, i := range r.testSuite.Graph.GetOrder() {
+		r.runAndStoreTestCase(i)
+		r.printTestCaseResult(i)
+	}
+
+	_ = r.completeTestSuite()
+
+	return out.String(), ran
+}
+
 func TestNewRunner(t *testing.T) {
 	// Integration-style: take Render/Validate from config
 	cfg := &config.Config{
@@ -1298,49 +1341,6 @@ func TestRunTestsFileResults(t *testing.T) {
 			assert.Contains(t, output, testSuiteFile, "Output should contain the test file path")
 		})
 	}
-}
-
-// timings are what differs between two runs of the same test cases.
-var timings = regexp.MustCompile(`\d+\.\d+s`)
-
-// runWithFakeResults runs the test cases of the spec with fake results: the ones in failing fail, and the others pass.
-// It runs them with RunTests or, with bySteps, with its steps one after the other.
-// It returns what was printed and the IDs of the ones that ran.
-func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, bySteps bool, failing ...string) (output string, ran []string) {
-	t.Helper()
-
-	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
-
-	var out bytes.Buffer
-
-	r.output = &out
-	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
-		ran = append(ran, testCase.ID)
-
-		result := engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
-		if slices.Contains(failing, testCase.ID) {
-			return result.Fail(errors.New("boom"))
-		}
-
-		return result
-	}
-
-	if !bySteps {
-		_ = r.RunTests() // it fails when a test case does: what matters is what ran, and what was printed
-
-		return out.String(), ran
-	}
-
-	require.NoError(t, r.setupTestSuite())
-
-	for _, i := range r.testSuite.Graph.GetOrder() {
-		r.runAndStoreTestCase(i)
-		r.printTestCaseResult(i)
-	}
-
-	_ = r.completeTestSuite()
-
-	return out.String(), ran
 }
 
 func TestRunTests_Needs(t *testing.T) {

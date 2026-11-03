@@ -40,6 +40,45 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// newRenderRunner returns a runner for the CLI of xprin test on v2, that modify can change (if it is not nil), and the
+// environment of a test case on an in-memory filesystem. The arguments of the render command are set in renderArgs.
+func newRenderRunner(t *testing.T, modify func(r *Runner)) (r *Runner, env *testCaseEnv, renderArgs *[]string) {
+	t.Helper()
+
+	r = newMockRunner(&testexecutionOptions.Options{
+		Dependencies: map[string]string{"crossplane": config.CrossplaneCmd},
+		Render:       []string{config.RenderSubcommand, config.RenderFlags},
+		XPCLI:        xpcli.InitXPCLI(xpcli.TierV2),
+	})
+	r.fs = afero.NewMemMapFs()
+	renderArgs = new([]string)
+	r.runCommand = func(_ string, args ...string) ([]byte, error) {
+		*renderArgs = args
+
+		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n"), nil
+	}
+
+	if modify != nil {
+		modify(r)
+	}
+
+	env = &testCaseEnv{inputsDir: "/inputs", outputsDir: "/outputs"}
+	require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
+
+	return r, env, renderArgs
+}
+
+// renderWith runs renderTestCase on the test case, with a runner from newRenderRunner, and returns what renderTestCase
+// returned and the arguments of the render command.
+func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (failed *engine.TestCaseResult, renderArgs []string) {
+	t.Helper()
+
+	r, env, args := newRenderRunner(t, modify)
+	failed = r.renderTestCase(env, testCase, engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false))
+
+	return failed, *args
+}
+
 func TestSaveOutputs(t *testing.T) {
 	newRunner := func() (*Runner, *[]string) {
 		r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/suite_xprin.yaml", &api.TestSuiteSpec{}))
@@ -283,45 +322,6 @@ func TestExpandInputPaths_ExpandsRelativePathsAndKeepsTheAbsoluteOnes(t *testing
 	assert.Equal(t, "/extra", testCase.Inputs.ExtraResources)
 	assert.Equal(t, "/credentials.yaml", testCase.Inputs.FunctionCredentials)
 	assert.Equal(t, "/xrd.yaml", testCase.Patches.XRD)
-}
-
-// newRenderRunner returns a runner for the CLI of xprin test on v2, that modify can change (if it is not nil), and the
-// environment of a test case on an in-memory filesystem. The arguments of the render command are set in renderArgs.
-func newRenderRunner(t *testing.T, modify func(r *Runner)) (r *Runner, env *testCaseEnv, renderArgs *[]string) {
-	t.Helper()
-
-	r = newMockRunner(&testexecutionOptions.Options{
-		Dependencies: map[string]string{"crossplane": config.CrossplaneCmd},
-		Render:       []string{config.RenderSubcommand, config.RenderFlags},
-		XPCLI:        xpcli.InitXPCLI(xpcli.TierV2),
-	})
-	r.fs = afero.NewMemMapFs()
-	renderArgs = new([]string)
-	r.runCommand = func(_ string, args ...string) ([]byte, error) {
-		*renderArgs = args
-
-		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n"), nil
-	}
-
-	if modify != nil {
-		modify(r)
-	}
-
-	env = &testCaseEnv{inputsDir: "/inputs", outputsDir: "/outputs"}
-	require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
-
-	return r, env, renderArgs
-}
-
-// renderWith runs renderTestCase on the test case, with a runner from newRenderRunner, and returns what renderTestCase
-// returned and the arguments of the render command.
-func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (failed *engine.TestCaseResult, renderArgs []string) {
-	t.Helper()
-
-	r, env, args := newRenderRunner(t, modify)
-	failed = r.renderTestCase(env, testCase, engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false))
-
-	return failed, *args
 }
 
 func TestRenderTestCase_BuildsTheRenderCommand(t *testing.T) {

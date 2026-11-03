@@ -30,6 +30,27 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// xrdWithClaim is a minimal XRD YAML where the XR kind doesn't follow the "X" + Claim kind
+// convention.
+const xrdWithClaim = `
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: widgets.example.org
+spec:
+  group: example.org
+  names:
+    kind: Widget
+    plural: widgets
+  claimNames:
+    kind: WidgetClaim
+    plural: widgetclaims
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+`
+
 // TestPatchXR tests the patchXR function directly.
 func TestPatchXR(t *testing.T) {
 	fs := afero.NewMemMapFs()
@@ -148,27 +169,6 @@ spec:
 		})
 	}
 }
-
-// xrdWithClaim is a minimal XRD YAML where the XR kind doesn't follow the "X" + Claim kind
-// convention.
-const xrdWithClaim = `
-apiVersion: apiextensions.crossplane.io/v1
-kind: CompositeResourceDefinition
-metadata:
-  name: widgets.example.org
-spec:
-  group: example.org
-  names:
-    kind: Widget
-    plural: widgets
-  claimNames:
-    kind: WidgetClaim
-    plural: widgetclaims
-  versions:
-    - name: v1alpha1
-      served: true
-      referenceable: true
-`
 
 // TestConvertClaimToXR tests the convertClaimToXR function directly, in particular its XRD-based
 // kind resolution.
