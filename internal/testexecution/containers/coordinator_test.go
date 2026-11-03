@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
@@ -45,15 +46,15 @@ func TestCoordinator_ContainerName(t *testing.T) {
 
 func TestCoordinator_Names_EmptyWhenUnused(t *testing.T) {
 	c := NewCoordinator(&unittestsUtils.MockDocker{})
-	assert.Empty(t, c.names)
+	assert.Empty(t, c.containers)
 }
 
 func TestCoordinator_RemoveAll(t *testing.T) {
 	mockDocker := &unittestsUtils.MockDocker{}
 
 	c := NewCoordinator(mockDocker)
-	c.names["xprin-abc-aaaaaaaaaaaa"] = struct{}{}
-	c.names["xprin-abc-bbbbbbbbbbbb"] = struct{}{}
+	c.containerOf("xprin-abc-aaaaaaaaaaaa")
+	c.containerOf("xprin-abc-bbbbbbbbbbbb")
 
 	c.RemoveAll()
 
@@ -116,7 +117,7 @@ func TestCoordinator_ConcurrentUse(t *testing.T) {
 
 	for i := range testCases {
 		wg.Go(func() {
-			c.track(fmt.Sprintf("xprin-abc-%012d", i))
+			c.containerOf(fmt.Sprintf("xprin-abc-%012d", i))
 
 			_, err := c.NetworkName()
 			assert.NoError(t, err)
@@ -131,4 +132,59 @@ func TestCoordinator_ConcurrentUse(t *testing.T) {
 
 	assert.Len(t, mockDocker.RemovedContainers, testCases, "every container that was tracked is removed")
 	assert.Len(t, mockDocker.RemovedNetworks, 1)
+}
+
+func TestCoordinator_AnnotateAndAcquireFunctions_SetsTheAnnotationsAndWaitsForTheContainers(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	c := NewCoordinator(&unittestsUtils.MockDocker{})
+
+	writeFunctionsFile(t, fs, functionsFilePath, `apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-auto-ready
+spec:
+  package: `+imageAutoReady+`
+`)
+
+	first, err := c.AnnotateAndAcquireFunctions(fs, functionsFilePath)
+	require.NoError(t, err)
+
+	assert.Equal(t, c.ContainerName(imageAutoReady), readAnnotations(t, fs, functionsFilePath)[annotationDockerName])
+
+	// Another test case with the same function waits for the first render
+	second := make(chan func(bool), 1)
+
+	go func() {
+		release, err := c.AnnotateAndAcquireFunctions(fs, functionsFilePath)
+		assert.NoError(t, err)
+
+		second <- release
+	}()
+
+	assertWaits(t, second)
+
+	first(true)
+
+	assertReturns(t, second)(true)
+}
+
+func TestCoordinator_AnnotateAndAcquireFunctions_NilCoordinatorDoesNothing(t *testing.T) {
+	fs := afero.NewMemMapFs()
+
+	writeFunctionsFile(t, fs, functionsFilePath, "apiVersion: pkg.crossplane.io/v1\nkind: Function\nmetadata:\n  name: fn\nspec:\n  package: x/y:v1\n")
+
+	release, err := (*Coordinator)(nil).AnnotateAndAcquireFunctions(fs, functionsFilePath)
+	require.NoError(t, err)
+	assert.NotPanics(t, func() { release(true) })
+
+	assert.NotContains(t, readAnnotations(t, fs, functionsFilePath), annotationDockerName, "container reuse is off")
+}
+
+func TestCoordinator_AnnotateAndAcquireFunctions_ErrorOfTheFunctionsFile(t *testing.T) {
+	fs := afero.NewMemMapFs()
+
+	writeFunctionsFile(t, fs, functionsFilePath, "{{ not yaml")
+
+	_, err := NewCoordinator(&unittestsUtils.MockDocker{}).AnnotateAndAcquireFunctions(fs, functionsFilePath)
+	require.Error(t, err)
 }

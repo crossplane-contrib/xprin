@@ -666,7 +666,15 @@ spec:
 				runTestsFunc: func() error {
 					// Simulate a Runner applying container reuse for this suite's functions.
 					require.NotNil(t, opts.Containers, "ProcessTargets must initialize Containers before running any suite")
-					return opts.Containers.AnnotateFunctions(fs, functionsPath)
+
+					release, err := opts.Containers.AnnotateAndAcquireFunctions(fs, functionsPath)
+					if err != nil {
+						return err
+					}
+
+					release(true)
+
+					return nil
 				},
 			}
 		}

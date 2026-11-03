@@ -27,6 +27,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/config"
@@ -4348,4 +4349,43 @@ spec:
 	assert.Equal(t, coord.ContainerName("xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.5.0"), annotations["render.crossplane.io/runtime-docker-name"])
 	assert.Equal(t, "Orphan", annotations["render.crossplane.io/runtime-docker-cleanup"])
 	assert.NotContains(t, annotations, "render.crossplane.io/runtime-docker-network")
+}
+
+func TestRenderTestCase_APanicOfTheRenderDoesNotLeaveTheContainersLocked(t *testing.T) {
+	const functionsPath = "/inputs/functions.yaml"
+
+	fs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(fs, functionsPath, []byte(`apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-auto-ready
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.5.0
+`), 0o600))
+
+	coord := containers.NewCoordinator(&unittestsUtils.MockDocker{})
+	r := newMockRunner(&testexecutionOptions.Options{Containers: coord}, func(r *Runner) { r.fs = fs })
+	r.runCommand = func(string, ...string) ([]byte, error) { panic("boom") }
+
+	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: functionsPath}}
+
+	assert.PanicsWithValue(t, "boom", func() {
+		r.renderTestCase(&testCaseEnv{}, testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+	})
+
+	// The test cases after it that use the container don't wait for a render that is not running any more
+	acquired := make(chan struct{})
+
+	go func() {
+		release, err := coord.AnnotateAndAcquireFunctions(fs, functionsPath)
+		assert.NoError(t, err)
+		release(true)
+		close(acquired)
+	}()
+
+	select {
+	case <-acquired:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the container is still locked after the render panicked")
+	}
 }
