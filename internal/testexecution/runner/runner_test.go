@@ -1117,370 +1117,76 @@ func TestRunTestCase(t *testing.T) {
 	}
 }
 
-func TestRunTestCase_MergeCommon(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	commonCRDPath := "/common_crd.yaml"
-	require.NoError(t, afero.WriteFile(fs, commonCRDPath, []byte("dummy common crd content"), 0o644))
-
-	cfg := &config.Config{
-		Dependencies: map[string]string{
-			"crossplane": config.CrossplaneCmd,
+// The common inputs of the testsuite file are merged into the test case before it runs: the inputs it does not set
+// come from them, and the ones it sets are kept. How each input is merged is tested in api.
+func TestRunTestCase_MergesTheCommonInputs(t *testing.T) {
+	common := api.Common{
+		Inputs: api.Inputs{
+			Composition:         "common_comp.yaml",
+			Functions:           "common_functions.yaml",
+			ContextFiles:        map[string]string{"ctx": "common_context.yaml"},
+			ObservedResources:   "common_observed.yaml",
+			ExtraResources:      "common_extra.yaml",
+			FunctionCredentials: "common_credentials.yaml",
 		},
-	}
-	options := &testexecutionOptions.Options{
-		Dependencies: cfg.Dependencies,
-		Render:       []string{config.RenderSubcommand, config.RenderFlags},
-		Validate:     []string{config.ValidateSubcommand},
-		ShowRender:   true,
-		ShowValidate: true,
-		Verbose:      false,
-		Debug:        false,
+		Patches: api.Patches{XRD: "common_xrd.yaml"},
 	}
 
-	validRenderYAML := []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n")
+	// What render gets after the functions, from the common inputs
+	wantCommon := []string{
+		"common_xrd.yaml",
+		"--context-files", "common_context.yaml",
+		"--observed-resources", "common_observed.yaml",
+		"--extra-resources", "common_extra.yaml",
+		"--function-credentials", "common_credentials.yaml",
+	}
 
-	cases := []struct {
-		name      string
-		common    api.Common
-		testCase  api.TestCase
-		setup     func(*Runner)
-		wantError string
+	for name, tt := range map[string]struct {
+		testCase api.TestCase
+		want     []string // the XR, the composition and the functions that render gets
 	}{
-		{
-			name: "empty test case Composition uses common Composition",
-			common: api.Common{
-				Inputs: api.Inputs{
-					Composition: "common_composition.yaml",
-				},
-			},
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:          "xr.yaml",
-					Composition: "", // empty, should use common
-					Functions:   "functions.yaml",
-				},
-			},
-			setup: func(r *Runner) {
-				// Mock runCommand to return successful results
-				r.runCommand = func(name string, args ...string) ([]byte, error) {
-					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
-						return validRenderYAML, nil
-					}
-
-					if name == config.CrossplaneCmd && len(args) > 1 && args[0] == config.ValidateSubcommand {
-						return []byte("validate ok"), nil
-					}
-
-					return []byte{}, nil
-				}
-				// Mock verifyPathExists to track calls
-				r.verifyPathExists = func(path string) error {
-					// This should be called with the common composition
-					_ = path
-					return nil
-				}
-			},
-			wantError: "",
+		"the inputs that the test case does not set come from the common inputs": {
+			testCase: api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml"}},
+			want:     []string{"xr.yaml", "common_comp.yaml", "common_functions.yaml"},
 		},
-		{
-			name: "empty test case Functions uses common Functions",
-			common: api.Common{
-				Inputs: api.Inputs{
-					Functions: "common_functions.yaml",
-				},
-			},
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:          "xr.yaml",
-					Composition: "comp.yaml",
-					Functions:   "", // empty, should use common
-				},
-			},
-			setup: func(r *Runner) {
-				// Mock runCommand to return successful results
-				r.runCommand = func(name string, args ...string) ([]byte, error) {
-					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
-						return validRenderYAML, nil
-					}
-
-					if name == config.CrossplaneCmd && len(args) > 1 && args[0] == config.ValidateSubcommand {
-						return []byte("validate ok"), nil
-					}
-
-					return []byte{}, nil
-				}
-				// Mock verifyPathExists to track calls
-				r.verifyPathExists = func(path string) error {
-					// This should be called with the common functions
-					_ = path
-					return nil
-				}
-			},
-			wantError: "",
+		"the inputs that the test case sets are kept": {
+			testCase: api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "own_comp.yaml"}},
+			want:     []string{"xr.yaml", "own_comp.yaml", "common_functions.yaml"},
 		},
-		{
-			name: "empty test case CRDs uses common CRDs",
-			common: api.Common{
-				Inputs: api.Inputs{
-					CRDs: []string{commonCRDPath},
-				},
-			},
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:          "xr.yaml",
-					Composition: "comp.yaml",
-					Functions:   "functions.yaml",
-					CRDs:        []string{}, // empty, should use common
-				},
-			},
-			setup: func(r *Runner) {
-				// Mock runCommand to return successful results
-				r.runCommand = func(name string, args ...string) ([]byte, error) {
-					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
-						return validRenderYAML, nil
-					}
-
-					if name == config.CrossplaneCmd && len(args) > 1 && args[0] == config.ValidateSubcommand {
-						return []byte("validate ok"), nil
-					}
-
-					return []byte{}, nil
-				}
-				// Mock verifyPathExists to track calls
-				r.verifyPathExists = func(path string) error {
-					// This should be called with the common CRD
-					_ = path
-					return nil
-				}
-			},
-			wantError: "",
-		},
-		{
-			name: "empty test case ContextFiles uses common ContextFiles",
-			common: api.Common{
-				Inputs: api.Inputs{
-					ContextFiles: map[string]string{"common_ctx": "common_context.yaml"},
-				},
-			},
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:           "xr.yaml",
-					Composition:  "comp.yaml",
-					Functions:    "functions.yaml",
-					ContextFiles: map[string]string{}, // empty, should use common
-				},
-			},
-			setup: func(r *Runner) {
-				// Mock runCommand to return successful results
-				r.runCommand = func(name string, args ...string) ([]byte, error) {
-					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
-						return validRenderYAML, nil
-					}
-
-					if name == config.CrossplaneCmd && len(args) > 1 && args[0] == config.ValidateSubcommand {
-						return []byte("validate ok"), nil
-					}
-
-					return []byte{}, nil
-				}
-				// Mock verifyPathExists to track calls
-				r.verifyPathExists = func(path string) error {
-					// This should be called with the common context file
-					_ = path
-					return nil
-				}
-			},
-			wantError: "",
-		},
-		{
-			name: "empty test case ObservedResources uses common ObservedResources",
-			common: api.Common{
-				Inputs: api.Inputs{
-					ObservedResources: "common_observed.yaml",
-				},
-			},
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:                "xr.yaml",
-					Composition:       "comp.yaml",
-					Functions:         "functions.yaml",
-					ObservedResources: "", // empty, should use common
-				},
-			},
-			setup: func(r *Runner) {
-				// Mock runCommand to return successful results
-				r.runCommand = func(name string, args ...string) ([]byte, error) {
-					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
-						return validRenderYAML, nil
-					}
-
-					if name == config.CrossplaneCmd && len(args) > 1 && args[0] == config.ValidateSubcommand {
-						return []byte("validate ok"), nil
-					}
-
-					return []byte{}, nil
-				}
-				// Mock verifyPathExists to track calls
-				r.verifyPathExists = func(path string) error {
-					// This should be called with the common observed resources
-					_ = path
-					return nil
-				}
-			},
-			wantError: "",
-		},
-		{
-			name: "empty test case ExtraResources uses common ExtraResources",
-			common: api.Common{
-				Inputs: api.Inputs{
-					ExtraResources: "common_extra.yaml",
-				},
-			},
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:             "xr.yaml",
-					Composition:    "comp.yaml",
-					Functions:      "functions.yaml",
-					ExtraResources: "", // empty, should use common
-				},
-			},
-			setup: func(r *Runner) {
-				// Mock runCommand to return successful results
-				r.runCommand = func(name string, args ...string) ([]byte, error) {
-					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
-						return validRenderYAML, nil
-					}
-
-					if name == config.CrossplaneCmd && len(args) > 1 && args[0] == config.ValidateSubcommand {
-						return []byte("validate ok"), nil
-					}
-
-					return []byte{}, nil
-				}
-				// Mock verifyPathExists to track calls
-				r.verifyPathExists = func(path string) error {
-					// This should be called with the common extra resources
-					_ = path
-					return nil
-				}
-			},
-			wantError: "",
-		},
-		{
-			name: "empty test case FunctionCredentials uses common FunctionCredentials",
-			common: api.Common{
-				Inputs: api.Inputs{
-					FunctionCredentials: "common_func_creds.yaml",
-				},
-			},
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:                  "xr.yaml",
-					Composition:         "comp.yaml",
-					Functions:           "functions.yaml",
-					FunctionCredentials: "", // empty, should use common
-				},
-			},
-			setup: func(r *Runner) {
-				// Mock runCommand to return successful results
-				r.runCommand = func(name string, args ...string) ([]byte, error) {
-					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
-						return validRenderYAML, nil
-					}
-
-					if name == config.CrossplaneCmd && len(args) > 1 && args[0] == config.ValidateSubcommand {
-						return []byte("validate ok"), nil
-					}
-
-					return []byte{}, nil
-				}
-				// Mock verifyPathExists to track calls
-				r.verifyPathExists = func(path string) error {
-					// This should be called with the common function credentials
-					_ = path
-					return nil
-				}
-			},
-			wantError: "",
-		},
-		{
-			name: "empty test case XRD uses common XRD",
-			common: api.Common{
-				Patches: api.Patches{
-					XRD: "common_xrd.yaml",
-				},
-			},
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:          "xr.yaml",
-					Composition: "comp.yaml",
-					Functions:   "functions.yaml",
-				},
-				Patches: api.Patches{
-					XRD: "", // empty, should use common
-				},
-			},
-			setup: func(r *Runner) {
-				// Mock runCommand to return successful results
-				r.runCommand = func(name string, args ...string) ([]byte, error) {
-					if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
-						return validRenderYAML, nil
-					}
-
-					if name == config.CrossplaneCmd && len(args) > 1 && args[0] == config.ValidateSubcommand {
-						return []byte("validate ok"), nil
-					}
-
-					return []byte{}, nil
-				}
-				// Mock verifyPathExists to track calls
-				r.verifyPathExists = func(path string) error {
-					// This should be called with the common XRD
-					_ = path
-					return nil
-				}
-				// Mock patchXRFunc to return a fake patched XR file path
-				r.patchXRFunc = func(_ *Runner, _, outputPath string, _ api.Patches) (string, error) {
-					return filepath.Join(outputPath, "patched-xr.yaml"), nil
-				}
-			},
-			wantError: "",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Create a new mock runner for each test case
-			testRunner := newMockRunner(options)
-			testRunner.fs = fs // Use in-memory filesystem
-			testRunner.testSuite = testsuite.New(testRunner.testSuite.File, &api.TestSuiteSpec{
-				Common: tc.common,
+	} {
+		t.Run(name, func(t *testing.T) {
+			runner := newMockRunner(&testexecutionOptions.Options{
+				Dependencies: map[string]string{"crossplane": config.CrossplaneCmd},
+				Render:       []string{config.RenderSubcommand, config.RenderFlags},
+				XPCLI:        xpcli.InitXPCLI(xpcli.TierV2),
 			})
+			runner.fs = afero.NewMemMapFs()
+			runner.testSuite = testsuite.New(testSuiteFile, &api.TestSuiteSpec{Common: common})
 
-			// Apply the test-specific mocks
-			if tc.setup != nil {
-				tc.setup(testRunner)
+			var renderArgs []string
+
+			runner.runCommand = func(_ string, args ...string) ([]byte, error) {
+				if len(args) > 0 && args[0] == config.RenderSubcommand {
+					renderArgs = args
+
+					return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n"), nil
+				}
+
+				return []byte{}, nil
 			}
 
-			testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-			result := testRunner.runTestCase(tc.testCase, 1, testSuiteResult)
+			result := runner.runTestCase(tt.testCase, 1, engine.NewTestSuiteResult("test-suite.yaml", false))
 
-			if tc.wantError != "" {
-				assert.Equal(t, engine.StatusFail(), result.Status)
-				require.Error(t, result.Error)
-				assert.Contains(t, result.Error.Error(), tc.wantError)
-			} else {
-				assert.Equal(t, engine.StatusPass(), result.Status)
-				assert.NoError(t, result.Error)
+			require.Equal(t, engine.StatusPass(), result.Status)
+			require.GreaterOrEqual(t, len(renderArgs), 3)
+
+			baseNames := make([]string, 0, len(renderArgs))
+			for _, arg := range renderArgs {
+				baseNames = append(baseNames, filepath.Base(arg))
 			}
+
+			// After the render command and its flags, and with only the file names of the copies in the temporary directory
+			assert.Equal(t, append(tt.want, wantCommon...), baseNames[2:])
 		})
 	}
 }
@@ -1524,59 +1230,6 @@ func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
 	assert.Equal(t, engine.StatusPass(), result.Status)
 	require.NoError(t, result.Error)
 	assert.False(t, result.StartTime.IsZero(), "TestCaseResult should have StartTime set")
-}
-
-func TestRunTestCase_SkipsValidateWhenNoCRDs(t *testing.T) {
-	validRenderYAML := []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n")
-
-	cfg := &config.Config{
-		Dependencies: map[string]string{
-			"crossplane": config.CrossplaneCmd,
-		},
-	}
-	options := &testexecutionOptions.Options{
-		Dependencies: cfg.Dependencies,
-		Render:       []string{config.RenderSubcommand, config.RenderFlags},
-		Validate:     []string{config.ValidateSubcommand},
-		ShowRender:   true,
-		ShowValidate: true,
-		Verbose:      false,
-		Debug:        false,
-	}
-
-	runner := newMockRunner(options)
-	runner.testSuite = testsuite.New(runner.testSuite.File, &api.TestSuiteSpec{
-		Common: api.Common{
-			Inputs: api.Inputs{
-				Functions: "functions.yaml",
-				CRDs:      []string{}, // No CRDs
-			},
-		},
-	})
-
-	// Mock runCommand to return successful results
-	runner.runCommand = func(name string, args ...string) ([]byte, error) {
-		if name == config.CrossplaneCmd && len(args) > 0 && args[0] == config.RenderSubcommand {
-			return validRenderYAML, nil
-		}
-		// Validate should not be called when no CRDs are present
-		return []byte{}, nil
-	}
-
-	testCase := api.TestCase{
-		Name: "test-skip-validate",
-		Inputs: api.Inputs{
-			XR:          "xr.yaml",
-			Composition: "comp.yaml",
-			Functions:   "functions.yaml",
-			CRDs:        []string{}, // No CRDs in test case either
-		},
-	}
-
-	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-	result := runner.runTestCase(testCase, 1, testSuiteResult)
-	assert.Equal(t, engine.StatusPass(), result.Status)
-	assert.NoError(t, result.Error)
 }
 
 func TestRunTestsFileResults(t *testing.T) {
