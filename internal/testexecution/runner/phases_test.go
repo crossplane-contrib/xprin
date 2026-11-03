@@ -163,3 +163,119 @@ spec:
 		t.Fatal("the container is still locked after the render panicked")
 	}
 }
+
+// Every input of a test case is expanded, and then verified. When one can't be, the test case fails and the error says
+// which input, and whether it could not be expanded or does not exist.
+func TestExpandInputPaths_ReportsTheInputThatFails(t *testing.T) {
+	const bad = "bad.yaml"
+
+	inputs := []struct {
+		name      string
+		set       func(testCase *api.TestCase)
+		expandErr string
+		verifyErr string
+	}{
+		{"XR", func(tc *api.TestCase) { tc.Inputs.XR = bad }, "failed to expand XR path", "XR file not found"},
+		{"Claim", func(tc *api.TestCase) { tc.Inputs.XR, tc.Inputs.Claim = "", bad }, "failed to expand Claim path", "Claim file not found"},
+		{"composition", func(tc *api.TestCase) { tc.Inputs.Composition = bad }, "failed to expand composition path", "composition file not found"},
+		{"functions", func(tc *api.TestCase) { tc.Inputs.Functions = bad }, "failed to expand functions path", "functions file or dir not found"},
+		{"CRD", func(tc *api.TestCase) { tc.Inputs.CRDs = []string{bad} }, "failed to expand CRD path " + bad, "crd file not found"},
+		{"context file", func(tc *api.TestCase) { tc.Inputs.ContextFiles = map[string]string{"foo": bad} }, "failed to expand context file path for key 'foo'", "context file not found for key 'foo'"},
+		{"observed resources", func(tc *api.TestCase) { tc.Inputs.ObservedResources = bad }, "failed to expand observed resources path", "observed resources file or dir not found"},
+		{"extra resources", func(tc *api.TestCase) { tc.Inputs.ExtraResources = bad }, "failed to expand extra resources path", "extra resources file or dir not found"},
+		{"function credentials", func(tc *api.TestCase) { tc.Inputs.FunctionCredentials = bad }, "failed to expand function credentials path", "function credentials file or dir not found"},
+		{"XRD patch", func(tc *api.TestCase) { tc.Patches.XRD = bad }, "failed to expand XRD path", "XRD file or dir not found"},
+	}
+
+	for _, in := range inputs {
+		for _, fails := range []string{"expand", "verify"} {
+			t.Run(in.name+" fails to "+fails, func(t *testing.T) {
+				r := newMockRunner(&testexecutionOptions.Options{})
+				r.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) {
+					if fails == "expand" && path == bad {
+						return "", errors.New("expand fail")
+					}
+
+					return path, nil
+				}
+				r.verifyPathExists = func(path string) error {
+					if fails == "verify" && path == bad {
+						return errors.New("not found")
+					}
+
+					return nil
+				}
+
+				testCase := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "composition.yaml", Functions: "functions.yaml"}}
+				in.set(&testCase)
+
+				want := in.expandErr + ": expand fail"
+				if fails == "verify" {
+					want = in.verifyErr + ": not found"
+				}
+
+				result := r.expandInputPaths(&testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+
+				require.NotNil(t, result, "the test case should fail")
+				assert.Equal(t, engine.StatusFail(), result.Status)
+				require.Error(t, result.Error)
+				assert.Contains(t, result.Error.Error(), want)
+			})
+		}
+	}
+}
+
+func TestExpandInputPaths_ReportsEveryInputThatFails(t *testing.T) {
+	r := newMockRunner(&testexecutionOptions.Options{})
+	r.verifyPathExists = func(path string) error {
+		if path == "missing_composition.yaml" || path == "missing_crd.yaml" {
+			return errors.New("not found")
+		}
+
+		return nil
+	}
+
+	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{
+		XR:          "xr.yaml",
+		Composition: "missing_composition.yaml",
+		Functions:   "functions.yaml",
+		CRDs:        []string{"crd.yaml", "missing_crd.yaml"},
+	}}
+
+	result := r.expandInputPaths(&testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+
+	require.NotNil(t, result)
+	require.Error(t, result.Error)
+	assert.Contains(t, result.Error.Error(), "composition file not found: not found")
+	assert.Contains(t, result.Error.Error(), "crd file not found: not found")
+}
+
+func TestExpandInputPaths_ExpandsRelativePathsAndKeepsTheAbsoluteOnes(t *testing.T) {
+	r := newMockRunner(&testexecutionOptions.Options{}, func(r *Runner) {
+		r.expandPathRelativeToTestSuiteFile = testsuite.ExpandPath
+	})
+
+	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{
+		XR:                  "xr.yaml",
+		Composition:         "/abs/composition.yaml",
+		Functions:           "functions",
+		CRDs:                []string{"crds/a.yaml", "/abs/b.yaml"},
+		ContextFiles:        map[string]string{"foo": "context.json"},
+		ObservedResources:   "observed",
+		ExtraResources:      "extra",
+		FunctionCredentials: "credentials.yaml",
+	}, Patches: api.Patches{XRD: "xrd.yaml"}}
+
+	result := r.expandInputPaths(&testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+
+	assert.Nil(t, result, "nothing should fail")
+	assert.Equal(t, "/xr.yaml", testCase.Inputs.XR)
+	assert.Equal(t, "/abs/composition.yaml", testCase.Inputs.Composition)
+	assert.Equal(t, "/functions", testCase.Inputs.Functions)
+	assert.Equal(t, []string{"/crds/a.yaml", "/abs/b.yaml"}, testCase.Inputs.CRDs)
+	assert.Equal(t, map[string]string{"foo": "/context.json"}, testCase.Inputs.ContextFiles)
+	assert.Equal(t, "/observed", testCase.Inputs.ObservedResources)
+	assert.Equal(t, "/extra", testCase.Inputs.ExtraResources)
+	assert.Equal(t, "/credentials.yaml", testCase.Inputs.FunctionCredentials)
+	assert.Equal(t, "/xrd.yaml", testCase.Patches.XRD)
+}
