@@ -265,6 +265,19 @@ metadata:
 	}
 }
 
+func TestConvertClaimToXR_FailsWhenTheClaimCannotBeRead(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	require.NoError(t, fs.MkdirAll("/output", 0o755))
+
+	runner := NewRunner(&testexecutionOptions.Options{}, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
+	runner.fs = fs
+
+	_, err := runner.convertClaimToXR("/missing-claim.yaml", "", "", "/output")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read claim file")
+}
+
 // TestFirstFullRenderGolden tests the pure function that picks the golden file to reuse an XR
 // name from, out of a test case's assertions.
 func TestFirstFullRenderGolden(t *testing.T) {

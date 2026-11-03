@@ -18,15 +18,20 @@ package runner
 
 import (
 	"errors"
+	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
+	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	cp "github.com/otiai10/copy"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
@@ -278,4 +283,317 @@ func TestExpandInputPaths_ExpandsRelativePathsAndKeepsTheAbsoluteOnes(t *testing
 	assert.Equal(t, "/extra", testCase.Inputs.ExtraResources)
 	assert.Equal(t, "/credentials.yaml", testCase.Inputs.FunctionCredentials)
 	assert.Equal(t, "/xrd.yaml", testCase.Patches.XRD)
+}
+
+// renderWith runs renderTestCase on the test case, with a runner for the CLI of xprin test on v2 that modify can change
+// (if it is not nil), and returns what renderTestCase returned and the arguments of the render command.
+func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (failed *engine.TestCaseResult, renderArgs []string) {
+	t.Helper()
+
+	r := newMockRunner(&testexecutionOptions.Options{
+		Dependencies: map[string]string{"crossplane": config.CrossplaneCmd},
+		Render:       []string{config.RenderSubcommand, config.RenderFlags},
+		XPCLI:        xpcli.InitXPCLI(xpcli.TierV2),
+	})
+	r.fs = afero.NewMemMapFs()
+	r.runCommand = func(_ string, args ...string) ([]byte, error) {
+		renderArgs = args
+
+		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n"), nil
+	}
+
+	if modify != nil {
+		modify(r)
+	}
+
+	env := &testCaseEnv{inputsDir: "/inputs", outputsDir: "/outputs"}
+	require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
+
+	failed = r.renderTestCase(env, testCase, engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false))
+
+	return failed, renderArgs
+}
+
+func TestRenderTestCase_BuildsTheRenderCommand(t *testing.T) {
+	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
+	base := []string{config.RenderSubcommand, config.RenderFlags}
+
+	allInputs := xr
+	allInputs.Inputs.ContextFiles = map[string]string{"ctx": "context_file.yaml"}
+	allInputs.Inputs.ContextValues = map[string]string{"ctx": `{"key":"value"}`}
+	allInputs.Inputs.ObservedResources = "observed.yaml"
+	allInputs.Inputs.ExtraResources = "extra.yaml"
+	allInputs.Inputs.FunctionCredentials = "func_creds.yaml"
+
+	withXRD := xr
+	withXRD.Patches.XRD = "my-xrd.yaml"
+
+	for name, tt := range map[string]struct {
+		testCase api.TestCase
+		modify   func(r *Runner)
+		want     []string
+	}{
+		"the XR, the composition and the functions": {
+			testCase: xr,
+			want:     append(slices.Clone(base), "xr.yaml", "comp.yaml", "functions.yaml"),
+		},
+		"every optional input": {
+			testCase: allInputs,
+			want: append(slices.Clone(base), "xr.yaml", "comp.yaml", "functions.yaml",
+				"--context-files", "ctx=context_file.yaml",
+				"--context-values", `ctx={"key":"value"}`,
+				"--observed-resources", "observed.yaml",
+				"--extra-resources", "extra.yaml",
+				"--function-credentials", "func_creds.yaml"),
+		},
+		"the crossplane version, on a CLI that supports it": {
+			testCase: xr,
+			modify:   func(r *Runner) { r.CrossplaneVersion = "v1.2.3" },
+			want:     append(slices.Clone(base), "--crossplane-version=v1.2.3", "xr.yaml", "comp.yaml", "functions.yaml"),
+		},
+		"no crossplane version, on a CLI that does not support it": {
+			testCase: xr,
+			modify: func(r *Runner) {
+				r.CrossplaneVersion = "v1.2.3"
+				r.XPCLI = xpcli.InitXPCLI(xpcli.TierV2Legacy)
+			},
+			want: append(slices.Clone(base), "xr.yaml", "comp.yaml", "functions.yaml"),
+		},
+		"the XRD, on a CLI that applies it": {
+			testCase: withXRD,
+			want:     append(slices.Clone(base), "xr.yaml", "comp.yaml", "functions.yaml", "--xrd=my-xrd.yaml"),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			failed, args := renderWith(t, tt.testCase, tt.modify)
+
+			assert.Nil(t, failed, "the render should go on")
+			assert.Equal(t, tt.want, args)
+		})
+	}
+}
+
+// With container reuse the render is told to use the shared network of the run, also without a crossplane version,
+// because the dockerized render engine would otherwise create a network for each call.
+func TestRenderTestCase_PinsTheDockerNetwork(t *testing.T) {
+	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
+	hasNetwork := func(args []string) bool {
+		return slices.ContainsFunc(args, func(arg string) bool { return strings.HasPrefix(arg, "--crossplane-docker-network=") })
+	}
+
+	for name, tt := range map[string]struct {
+		modify func(r *Runner)
+		want   bool
+	}{
+		"container reuse, with a crossplane version": {
+			modify: func(r *Runner) {
+				r.CrossplaneVersion = "v1.2.3"
+				r.Containers = containers.NewCoordinator(&unittestsUtils.MockDocker{})
+			},
+			want: true,
+		},
+		"container reuse, without a crossplane version": {
+			modify: func(r *Runner) { r.Containers = containers.NewCoordinator(&unittestsUtils.MockDocker{}) },
+			want:   true,
+		},
+		"no container reuse": {
+			modify: func(r *Runner) { r.CrossplaneVersion = "v1.2.3" },
+			want:   false,
+		},
+		"container reuse, on a CLI that does not support it": {
+			modify: func(r *Runner) {
+				r.Containers = containers.NewCoordinator(&unittestsUtils.MockDocker{})
+				r.XPCLI = xpcli.InitXPCLI(xpcli.TierV2Legacy)
+			},
+			want: false,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			failed, args := renderWith(t, xr, tt.modify)
+
+			assert.Nil(t, failed)
+			assert.Equal(t, tt.want, hasNetwork(args))
+		})
+	}
+}
+
+func TestRenderTestCase_PatchesTheXR(t *testing.T) {
+	const patchedXR = "/inputs/patched-xr.yaml"
+
+	for name, tt := range map[string]struct {
+		patches     api.Patches
+		xpcli       xpcli.Tier
+		wantPatched *api.Patches // what patchXR is called with, nil if it is not called
+		wantXR      string       // the XR that render gets
+		wantXRD     bool         // whether render gets --xrd
+	}{
+		"a connection secret": {
+			patches:     api.Patches{ConnectionSecret: new(true)},
+			xpcli:       xpcli.TierV2,
+			wantPatched: &api.Patches{ConnectionSecret: new(true)},
+			wantXR:      patchedXR,
+		},
+		"an XRD, on v1, where render has no --xrd": {
+			patches:     api.Patches{XRD: "my-xrd.yaml"},
+			xpcli:       xpcli.TierV1,
+			wantPatched: &api.Patches{XRD: "my-xrd.yaml"},
+			wantXR:      patchedXR,
+		},
+		"only an XRD, on v2, where render applies it": {
+			patches: api.Patches{XRD: "my-xrd.yaml"},
+			xpcli:   xpcli.TierV2,
+			wantXR:  "xr.yaml",
+			wantXRD: true,
+		},
+		"an XRD and a connection secret, on v2: patchXR does not get the XRD": {
+			patches:     api.Patches{XRD: "my-xrd.yaml", ConnectionSecret: new(true), ConnectionSecretName: "my-secret", ConnectionSecretNamespace: "my-namespace"},
+			xpcli:       xpcli.TierV2,
+			wantPatched: &api.Patches{ConnectionSecret: new(true), ConnectionSecretName: "my-secret", ConnectionSecretNamespace: "my-namespace"},
+			wantXR:      patchedXR,
+			wantXRD:     true,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var gotPatches *api.Patches
+
+			testCase := api.TestCase{Name: "test", Patches: tt.patches, Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
+
+			failed, args := renderWith(t, testCase, func(r *Runner) {
+				r.XPCLI = xpcli.InitXPCLI(tt.xpcli)
+				r.patchXRFunc = func(_ *Runner, _, outputPath string, patches api.Patches) (string, error) {
+					gotPatches = &patches
+
+					return filepath.Join(outputPath, "patched-xr.yaml"), nil
+				}
+			})
+
+			assert.Nil(t, failed)
+			assert.Equal(t, tt.wantPatched, gotPatches)
+			assert.Equal(t, tt.wantXR, args[2], "the XR that render gets")
+			assert.Equal(t, tt.wantXRD, slices.Contains(args, "--xrd=my-xrd.yaml"))
+		})
+	}
+}
+
+func TestRenderTestCase_ConvertsTheClaim(t *testing.T) {
+	claim := api.TestCase{Name: "test", Inputs: api.Inputs{Claim: "claim.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
+
+	failed, args := renderWith(t, claim, func(r *Runner) {
+		r.convertClaimToXRFunc = func(_ *Runner, claimPath, _, _, outputPath string) (string, error) {
+			assert.Equal(t, "claim.yaml", claimPath)
+
+			return filepath.Join(outputPath, "converted-xr.yaml"), nil
+		}
+	})
+
+	assert.Nil(t, failed)
+	assert.Equal(t, "/inputs/converted-xr.yaml", args[2], "render gets the converted XR")
+}
+
+func TestRenderTestCase_Fails(t *testing.T) {
+	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
+	claim := api.TestCase{Name: "test", Inputs: api.Inputs{Claim: "claim.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
+
+	invalidPatches := xr
+	invalidPatches.Patches = api.Patches{ConnectionSecretName: "my-secret", ConnectionSecretNamespace: "my-namespace"}
+
+	withPatches := xr
+	withPatches.Patches = api.Patches{ConnectionSecret: new(true)}
+
+	for name, tt := range map[string]struct {
+		testCase  api.TestCase
+		modify    func(r *Runner)
+		wantError string
+	}{
+		"the claim can't be converted": {
+			testCase: claim,
+			modify: func(r *Runner) {
+				r.convertClaimToXRFunc = func(*Runner, string, string, string, string) (string, error) { return "", errors.New("boom") }
+			},
+			wantError: "failed to convert Claim: boom",
+		},
+		"the XR can't be patched": {
+			testCase: withPatches,
+			modify: func(r *Runner) {
+				r.patchXRFunc = func(*Runner, string, string, api.Patches) (string, error) { return "", errors.New("boom") }
+			},
+			wantError: "failed to patch XR: boom",
+		},
+		"the connection secret name has no connection secret": {
+			testCase:  invalidPatches,
+			wantError: "connection-secret must be set to true when using connection-secret-name or connection-secret-namespace",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			failed, args := renderWith(t, tt.testCase, tt.modify)
+
+			require.NotNil(t, failed)
+			assert.Equal(t, engine.StatusFail(), failed.Status)
+			require.Error(t, failed.Error)
+			assert.Contains(t, failed.Error.Error(), tt.wantError)
+			assert.Nil(t, args, "render should not run")
+		})
+	}
+}
+
+func TestRenderTestCase_FailsWithTheOutputWhenTheRenderFails(t *testing.T) {
+	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
+
+	failed, _ := renderWith(t, xr, func(r *Runner) {
+		r.runCommand = func(string, ...string) ([]byte, error) { return []byte("render fail"), errors.New("exit status 1") }
+	})
+
+	require.NotNil(t, failed)
+	assert.Equal(t, engine.StatusFail(), failed.Status)
+	require.NoError(t, failed.Error, "a failed render is shown in its section")
+	assert.Contains(t, failed.FormattedRenderOutput, "render fail")
+}
+
+func TestValidateTestCase_PassesTheCrossplaneVersionAsTheImage(t *testing.T) {
+	for name, tt := range map[string]struct {
+		version string
+		crds    []string
+		want    []string // nil when validate does not run
+	}{
+		"with a crossplane version": {
+			version: "v1.2.3",
+			crds:    []string{"crd.yaml"},
+			want:    []string{config.ValidateSubcommand, "--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:v1.2.3", "/inputs/crds", "/outputs/rendered.yaml"},
+		},
+		"without a crossplane version": {
+			crds: []string{"crd.yaml"},
+			want: []string{config.ValidateSubcommand, "/inputs/crds", "/outputs/rendered.yaml"},
+		},
+		"without CRDs there is nothing to validate against": {
+			version: "v1.2.3",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := newMockRunner(&testexecutionOptions.Options{
+				Dependencies:      map[string]string{"crossplane": config.CrossplaneCmd},
+				Validate:          []string{config.ValidateSubcommand},
+				CrossplaneVersion: tt.version,
+			})
+			r.fs = afero.NewMemMapFs()
+
+			var gotArgs []string
+
+			r.runCommand = func(_ string, args ...string) ([]byte, error) {
+				gotArgs = args
+
+				return []byte("validate ok"), nil
+			}
+
+			env := &testCaseEnv{inputsDir: "/inputs", outputsDir: "/outputs"}
+			require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
+
+			result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
+			result.Outputs.Render = "/outputs/rendered.yaml"
+
+			failed := r.validateTestCase(env, api.TestCase{Name: "test", Inputs: api.Inputs{CRDs: tt.crds}}, result)
+
+			assert.Nil(t, failed)
+			assert.Equal(t, tt.want, gotArgs)
+		})
+	}
 }
