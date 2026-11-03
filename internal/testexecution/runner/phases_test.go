@@ -285,19 +285,20 @@ func TestExpandInputPaths_ExpandsRelativePathsAndKeepsTheAbsoluteOnes(t *testing
 	assert.Equal(t, "/xrd.yaml", testCase.Patches.XRD)
 }
 
-// renderWith runs renderTestCase on the test case, with a runner for the CLI of xprin test on v2 that modify can change
-// (if it is not nil), and returns what renderTestCase returned and the arguments of the render command.
-func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (failed *engine.TestCaseResult, renderArgs []string) {
+// newRenderRunner returns a runner for the CLI of xprin test on v2, that modify can change (if it is not nil), and the
+// environment of a test case on an in-memory filesystem. The arguments of the render command are set in renderArgs.
+func newRenderRunner(t *testing.T, modify func(r *Runner)) (r *Runner, env *testCaseEnv, renderArgs *[]string) {
 	t.Helper()
 
-	r := newMockRunner(&testexecutionOptions.Options{
+	r = newMockRunner(&testexecutionOptions.Options{
 		Dependencies: map[string]string{"crossplane": config.CrossplaneCmd},
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
 		XPCLI:        xpcli.InitXPCLI(xpcli.TierV2),
 	})
 	r.fs = afero.NewMemMapFs()
+	renderArgs = new([]string)
 	r.runCommand = func(_ string, args ...string) ([]byte, error) {
-		renderArgs = args
+		*renderArgs = args
 
 		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n"), nil
 	}
@@ -306,12 +307,21 @@ func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (fa
 		modify(r)
 	}
 
-	env := &testCaseEnv{inputsDir: "/inputs", outputsDir: "/outputs"}
+	env = &testCaseEnv{inputsDir: "/inputs", outputsDir: "/outputs"}
 	require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
 
+	return r, env, renderArgs
+}
+
+// renderWith runs renderTestCase on the test case, with a runner from newRenderRunner, and returns what renderTestCase
+// returned and the arguments of the render command.
+func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (failed *engine.TestCaseResult, renderArgs []string) {
+	t.Helper()
+
+	r, env, args := newRenderRunner(t, modify)
 	failed = r.renderTestCase(env, testCase, engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false))
 
-	return failed, renderArgs
+	return failed, *args
 }
 
 func TestRenderTestCase_BuildsTheRenderCommand(t *testing.T) {
@@ -536,6 +546,46 @@ func TestRenderTestCase_Fails(t *testing.T) {
 	}
 }
 
+// The rendered resources are written to the outputs directory of the test case, one file for each and one for the XR,
+// which is the first resource, and the result has the paths.
+func TestRenderTestCase_WritesTheOutputs(t *testing.T) {
+	const rendered = `apiVersion: example.org/v1alpha1
+kind: Pod
+metadata:
+  name: test-pod
+---
+apiVersion: example.org/v1alpha1
+kind: ConfigMap
+metadata:
+  name: test-configmap`
+
+	r, env, _ := newRenderRunner(t, func(r *Runner) {
+		r.runCommand = func(string, ...string) ([]byte, error) { return []byte(rendered), nil }
+	})
+	result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
+
+	failed := r.renderTestCase(env, api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}, result)
+
+	require.Nil(t, failed)
+	assert.Equal(t, "/outputs/rendered.yaml", result.Outputs.Render)
+	assert.Equal(t, "/outputs/xr.yaml", result.Outputs.XR)
+	assert.Equal(t, 2, result.Outputs.RenderCount)
+	assert.Equal(t, map[string]string{
+		"Pod/test-pod":             "/outputs/rendered-pod-test-pod.yaml",
+		"ConfigMap/test-configmap": "/outputs/rendered-configmap-test-configmap.yaml",
+	}, result.Outputs.Rendered)
+
+	for _, path := range []string{result.Outputs.Render, result.Outputs.XR, result.Outputs.Rendered["Pod/test-pod"], result.Outputs.Rendered["ConfigMap/test-configmap"]} {
+		exists, err := afero.Exists(r.fs, path)
+		require.NoError(t, err)
+		assert.True(t, exists, "%s should have been written", path)
+	}
+
+	xr, err := afero.ReadFile(r.fs, result.Outputs.XR)
+	require.NoError(t, err)
+	assert.Contains(t, string(xr), "test-pod", "the XR is the first rendered resource")
+}
+
 func TestRenderTestCase_FailsWithTheOutputWhenTheRenderFails(t *testing.T) {
 	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
 
@@ -594,6 +644,13 @@ func TestValidateTestCase_PassesTheCrossplaneVersionAsTheImage(t *testing.T) {
 
 			assert.Nil(t, failed)
 			assert.Equal(t, tt.want, gotArgs)
+
+			if tt.want == nil {
+				assert.Nil(t, result.Outputs.Validate, "there is no validation output")
+			} else {
+				require.NotNil(t, result.Outputs.Validate)
+				assert.Equal(t, "/outputs/validate.txt", *result.Outputs.Validate)
+			}
 		})
 	}
 }
