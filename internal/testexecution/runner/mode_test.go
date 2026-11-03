@@ -17,7 +17,6 @@ limitations under the License.
 package runner
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
@@ -30,43 +29,15 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
-func TestNewRunnerMode(t *testing.T) {
+func TestNewRunnerSetsTheMode(t *testing.T) {
 	suite := testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{})
 
 	t.Run("xprin test", func(t *testing.T) {
-		assert.IsType(t, testMode{}, newRunnerMode(NewRunner(&testexecutionOptions.Options{}, suite)))
+		assert.IsType(t, testMode{}, NewRunner(&testexecutionOptions.Options{}, suite).mode)
 	})
 
 	t.Run("xprin update-goldens", func(t *testing.T) {
-		assert.IsType(t, updateGoldensMode{}, newRunnerMode(NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, suite)))
-	})
-}
-
-func TestGetMode(t *testing.T) {
-	suite := testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{})
-
-	t.Run("none set, as when runTestCase is called on its own: xprin test, whatever the options", func(t *testing.T) {
-		assert.IsType(t, testMode{}, NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, suite).getMode())
-	})
-
-	t.Run("the one that was set", func(t *testing.T) {
-		r := NewRunner(&testexecutionOptions.Options{}, suite)
-		r.mode = updateGoldensMode{r}
-
-		assert.IsType(t, updateGoldensMode{}, r.getMode())
-	})
-
-	t.Run("RunTests sets it, from the options", func(t *testing.T) {
-		for options, want := range map[*testexecutionOptions.Options]runnerMode{
-			{}:                    testMode{},
-			{UpdateGoldens: true}: updateGoldensMode{},
-		} {
-			r := NewRunner(options, suite)
-			r.output = &bytes.Buffer{}
-
-			require.NoError(t, r.RunTests())
-			assert.IsType(t, want, r.mode)
-		}
+		assert.IsType(t, updateGoldensMode{}, NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, suite).mode)
 	})
 }
 

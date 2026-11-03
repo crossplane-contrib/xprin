@@ -43,8 +43,7 @@ type Runner struct {
 	output                   io.Writer
 	testSuiteSavedOutputsDir string
 	totalTestCases           int
-	// mode is what differs between xprin test and xprin update-goldens, see mode.go. RunTests sets it, and nil means xprin test
-	mode runnerMode
+	mode                     runnerMode
 	// Mockable function fields
 	runTestsFunc                      func() error
 	runTestCaseFunc                   func(api.TestCase) *engine.TestCaseResult
@@ -66,7 +65,7 @@ type testCaseEnv struct {
 
 // NewRunner creates a new test runner.
 func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite) *Runner {
-	return &Runner{
+	r := &Runner{
 		fs:        afero.NewOsFs(),
 		output:    os.Stdout, // Default output to stdout
 		Options:   options,
@@ -91,6 +90,9 @@ func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestS
 		convertClaimToXRFunc: (*Runner).convertClaimToXR,
 		patchXRFunc:          (*Runner).patchXR,
 	}
+	r.mode = newRunnerMode(r)
+
+	return r
 }
 
 // RunTests runs all tests in a test suite.
@@ -142,7 +144,6 @@ func (r *Runner) RunTests() error {
 
 	r.totalTestCases = len(r.testSuite.Spec.Tests)
 
-	r.mode = newRunnerMode(r)
 	if r.ArtifactsBaseDir != "" && r.totalTestCases > 0 {
 		if err := r.initArtifactsRunDir(); err != nil {
 			return err
@@ -186,11 +187,9 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 
 	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, r.Verbose, r.ShowRender, r.ShowValidate, r.ShowHooks, r.ShowAssertions)
 
-	mode := r.getMode()
-
 	// Skip immediately a test case that the mode has no use for, whatever it needs (the modes are in mode.go and
 	// update_goldens.go)
-	if mode.skips(testCase) {
+	if r.mode.skips(testCase) {
 		return result.Skip()
 	}
 
@@ -274,5 +273,5 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 		return failed
 	}
 
-	return mode.runPhasesAfterRender(testCase, env, needsResults, result)
+	return r.mode.runPhasesAfterRender(testCase, env, needsResults, result)
 }

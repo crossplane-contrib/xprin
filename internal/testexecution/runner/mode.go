@@ -42,16 +42,6 @@ func newRunnerMode(r *Runner) runnerMode {
 	return testMode{r}
 }
 
-// getMode returns the mode that RunTests set. Without one, which is how the tests call runTestCase on its own,
-// it is the one of xprin test.
-func (r *Runner) getMode() runnerMode {
-	if r.mode == nil {
-		return testMode{r}
-	}
-
-	return r.mode
-}
-
 // testMode is the mode of `xprin test`. The one of `xprin update-goldens` is updateGoldensMode, in update_goldens.go.
 type testMode struct {
 	r *Runner
