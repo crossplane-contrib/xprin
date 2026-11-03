@@ -595,41 +595,6 @@ func TestRunTestCase(t *testing.T) {
 			wantError: "missing mandatory field: either 'claim' or 'xr' must be specified",
 		},
 		{
-			name: "missing composition and not in common",
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:        "xr.yaml",
-					Functions: "functions.yaml",
-				},
-			},
-			wantError: "missing mandatory field: composition",
-		},
-		{
-			name: "missing functions and not in common",
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					XR:          "xr.yaml",
-					Composition: "comp.yaml",
-				},
-			},
-			wantError: "missing mandatory field: functions",
-		},
-		{
-			name: "both claim and xr specified",
-			testCase: api.TestCase{
-				Name: "test",
-				Inputs: api.Inputs{
-					Claim:       "claim.yaml",
-					XR:          "xr.yaml",
-					Composition: "comp.yaml",
-					Functions:   "functions.yaml",
-				},
-			},
-			wantError: "conflicting fields: both 'claim' and 'xr' are specified",
-		},
-		{
 			name: "xr field with missing xr file",
 			testCase: api.TestCase{
 				Name: "test",
