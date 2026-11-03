@@ -140,7 +140,8 @@ func (c *Coordinator) processFunctionsFile(fs afero.Fs, path string) error {
 }
 
 // setFunctionContainerAnnotations injects runtime-docker-name/runtime-docker-cleanup annotations into
-// a single Function resource, unless the user already set them.
+// a single Function resource, replacing the ones that the user set.
+// It also removes the network annotation that the user set.
 func (c *Coordinator) setFunctionContainerAnnotations(obj *unstructured.Unstructured) error {
 	imageRef, _, err := unstructured.NestedString(obj.Object, "spec", "package")
 	if err != nil {
@@ -157,15 +158,15 @@ func (c *Coordinator) setFunctionContainerAnnotations(obj *unstructured.Unstruct
 		annotations = make(map[string]string)
 	}
 
-	if _, exists := annotations[annotationDockerName]; !exists {
-		name := c.ContainerName(imageRef)
-		annotations[annotationDockerName] = name
-		c.track(name)
-	}
+	// Container reuse only works when xprin controls the containers: whatever the user set is replaced, and the
+	// network is the one that render is told to use for all of them (--crossplane-docker-network)
+	name := c.ContainerName(imageRef)
+	annotations[annotationDockerName] = name
+	annotations[annotationDockerCleanup] = dockerCleanupOrphan
 
-	if _, exists := annotations[annotationDockerCleanup]; !exists {
-		annotations[annotationDockerCleanup] = dockerCleanupOrphan
-	}
+	delete(annotations, annotationDockerNetwork)
+
+	c.track(name)
 
 	obj.SetAnnotations(annotations)
 

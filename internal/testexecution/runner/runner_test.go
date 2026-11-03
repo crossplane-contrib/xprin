@@ -41,6 +41,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
 
@@ -4307,4 +4308,44 @@ func TestRunTests_Order(t *testing.T) {
 		assert.Contains(t, out, "--- SKIP: A")
 		assert.Contains(t, out, `[!] needs failed test case "b"`)
 	})
+}
+
+func TestRenderTestCase_AppliesTheContainerReuseToTheFunctionsRightBeforeRendering(t *testing.T) {
+	const functionsPath = "/inputs/functions.yaml"
+
+	fs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(fs, functionsPath, []byte(`apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-auto-ready
+  annotations:
+    render.crossplane.io/runtime-docker-name: set-by-a-hook
+    render.crossplane.io/runtime-docker-network: my-network
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.5.0
+`), 0o600))
+
+	coord := containers.NewCoordinator(&unittestsUtils.MockDocker{})
+	r := newMockRunner(&testexecutionOptions.Options{Containers: coord}, func(r *Runner) { r.fs = fs })
+
+	var annotations map[string]string
+
+	r.runCommand = func(string, ...string) ([]byte, error) {
+		data, err := afero.ReadFile(fs, functionsPath)
+		require.NoError(t, err)
+
+		function := &unstructured.Unstructured{}
+		require.NoError(t, yaml.Unmarshal(data, &function.Object))
+
+		annotations = function.GetAnnotations()
+
+		return nil, errors.New("stop here")
+	}
+
+	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: functionsPath}}
+	r.renderTestCase(&testCaseEnv{}, testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+
+	assert.Equal(t, coord.ContainerName("xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.5.0"), annotations["render.crossplane.io/runtime-docker-name"])
+	assert.Equal(t, "Orphan", annotations["render.crossplane.io/runtime-docker-cleanup"])
+	assert.NotContains(t, annotations, "render.crossplane.io/runtime-docker-network")
 }
