@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/graph"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/artifacts"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/gertd/go-pluralize"
@@ -129,7 +130,7 @@ func (s *Session) Setup() (err error) {
 	s.env.testCaseResults = make([]*engine.TestCaseResult, totalTestCases)
 
 	if s.options.ArtifactsBaseDir != "" && totalTestCases > 0 {
-		if err := s.initArtifactsRunDir(); err != nil {
+		if err := artifacts.InitRunDir(s.fs, s.options); err != nil {
 			return err
 		}
 	}
@@ -180,7 +181,7 @@ func (s *Session) Finish() error {
 	s.env.testSuiteResult.Print(s.output)
 
 	if s.options.ArtifactsRunDir != "" {
-		suiteArtifactsPath := filepath.Join(s.options.ArtifactsRunDir, artifactsRelPath(s.testSuite.File, s.options.WorkingDir))
+		suiteArtifactsPath := filepath.Join(s.options.ArtifactsRunDir, artifacts.RelPath(s.testSuite.File, s.options.WorkingDir))
 		fmt.Fprintf(os.Stderr, "artifacts: %s\n", suiteArtifactsPath)
 	}
 
