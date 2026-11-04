@@ -26,13 +26,16 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/scheduler"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/xpcli"
 	cp "github.com/otiai10/copy"
@@ -113,18 +116,28 @@ func makeOptions(cfg *config.Config, render, validate []string, overrides ...fun
 var timings = regexp.MustCompile(`\d+\.\d+s`)
 
 // runWithFakeResults runs the test cases of the spec with fake results: the ones in failing fail, and the others pass.
-// It runs them with RunTests or, with bySteps, with its steps one after the other.
+// With 0 workers it runs them with RunTests. With more, the steps of the runner are run by the scheduler, with that
+// many workers. The test cases take a little time, different for each, so that they don't finish in the order they
+// started.
 // It returns what was printed and the IDs of the ones that ran.
-func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, bySteps bool, failing ...string) (output string, ran []string) {
+func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, workers int, failing ...string) (output string, ran []string) {
 	t.Helper()
 
 	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
 
-	var out bytes.Buffer
+	var (
+		out bytes.Buffer
+		mu  sync.Mutex
+	)
 
 	r.output = &out
 	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+		time.Sleep(time.Duration(len(testCase.ID)%4) * time.Millisecond)
+
+		mu.Lock()
+
 		ran = append(ran, testCase.ID)
+		mu.Unlock()
 
 		result := engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
 		if slices.Contains(failing, testCase.ID) {
@@ -134,7 +147,7 @@ func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, bySteps bool, fai
 		return result
 	}
 
-	if !bySteps {
+	if workers == 0 {
 		_ = r.RunTests() // it fails when a test case does: what matters is what ran, and what was printed
 
 		return out.String(), ran
@@ -142,12 +155,8 @@ func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, bySteps bool, fai
 
 	require.NoError(t, r.setupTestSuite())
 
-	for _, i := range r.testSuite.Graph.GetOrder() {
-		r.runAndStoreTestCase(i)
-		r.printTestCaseResult(i)
-	}
-
-	_ = r.completeTestSuite()
+	_, err := scheduler.Run([]scheduler.Job{r.Job()}, workers)
+	require.NoError(t, err)
 
 	return out.String(), ran
 }
@@ -1353,7 +1362,7 @@ func TestRunTests_Needs(t *testing.T) {
 	}}
 
 	t.Run("nothing fails: everything runs", func(t *testing.T) {
-		out, ran := runWithFakeResults(t, spec, false)
+		out, ran := runWithFakeResults(t, spec, 0)
 
 		assert.Equal(t, []string{"a", "b", "c", "d", "e"}, ran)
 		assert.NotContains(t, out, "SKIP")
@@ -1361,7 +1370,7 @@ func TestRunTests_Needs(t *testing.T) {
 	})
 
 	t.Run("the dependents of a failed testcase are skipped, with the reason on follow-up lines, one per need", func(t *testing.T) {
-		out, ran := runWithFakeResults(t, spec, false, "a")
+		out, ran := runWithFakeResults(t, spec, 0, "a")
 
 		assert.Equal(t, []string{"a", "e"}, ran)
 		assert.Contains(t, out, "--- FAIL: A")
@@ -1385,13 +1394,13 @@ func TestRunTests_Order(t *testing.T) {
 	}
 
 	t.Run("the test cases run after the ones they need, the rest in the order of the file", func(t *testing.T) {
-		_, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests}, false)
+		_, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests}, 0)
 
 		assert.Equal(t, []string{"b", "c", "a", "d"}, ran)
 	})
 
 	t.Run("a test case that needs one listed after it is skipped when that one fails", func(t *testing.T) {
-		out, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests}, false, "b")
+		out, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests}, 0, "b")
 
 		assert.Equal(t, []string{"b", "c", "d"}, ran)
 		assert.Contains(t, out, "--- SKIP: A")
@@ -1399,8 +1408,9 @@ func TestRunTests_Order(t *testing.T) {
 	})
 }
 
-// The steps, run one after the other in the order of the graph, give the output and the test cases of RunTests.
-func TestRunner_StepsGiveTheOutputOfRunTests(t *testing.T) {
+// With the scheduler the output is the one of a serial run, whatever the number of workers and the order the test
+// cases finish in. Run with -race.
+func TestRunner_StepsRunByTheSchedulerGiveTheOutputOfASerialRun(t *testing.T) {
 	// One of the test cases is listed after the ones that need it, and some are independent
 	chain := []api.TestCase{
 		{Name: "A", ID: "a", Needs: []string{"c", "b"}},
@@ -1436,13 +1446,15 @@ func TestRunner_StepsGiveTheOutputOfRunTests(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			spec := &api.TestSuiteSpec{Tests: tt.tests}
 
-			serial, serialRan := runWithFakeResults(t, spec, false, tt.failing...)
+			serial, serialRan := runWithFakeResults(t, spec, 0, tt.failing...)
 			require.NotEmpty(t, serial)
 
-			got, ran := runWithFakeResults(t, spec, true, tt.failing...)
+			for _, workers := range []int{1, 2, 8, 16} {
+				got, ran := runWithFakeResults(t, spec, workers, tt.failing...)
 
-			assert.Equal(t, timings.ReplaceAllString(serial, "N"), timings.ReplaceAllString(got, "N"))
-			assert.Equal(t, serialRan, ran)
+				assert.Equal(t, timings.ReplaceAllString(serial, "N"), timings.ReplaceAllString(got, "N"), "workers: %d", workers)
+				assert.ElementsMatch(t, serialRan, ran, "workers: %d", workers)
+			}
 		})
 	}
 }

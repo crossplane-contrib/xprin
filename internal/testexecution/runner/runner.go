@@ -28,6 +28,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/scheduler"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/gertd/go-pluralize"
@@ -118,12 +119,12 @@ func (r *Runner) RunTests() error {
 	// completeTestSuite removes it too: this is for a run that ends without it
 	defer r.removeSavedOutputsDir()
 
-	for _, positionInTestSuite := range r.testSuite.Graph.GetOrder() {
-		r.runAndStoreTestCase(positionInTestSuite)
-		r.printTestCaseResult(positionInTestSuite)
+	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 1)
+	if err != nil {
+		return err
 	}
 
-	return r.completeTestSuite()
+	return finishErrs[0]
 }
 
 // setupTestSuite checks the testsuite file and makes the directories that the test cases use.
