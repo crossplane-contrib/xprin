@@ -52,7 +52,7 @@ func TestJob_APanicFailsOnlyThatTestCase(t *testing.T) {
 
 	require.NoError(t, r.Setup())
 
-	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 4)
+	finishErrs, err := scheduler.Run([]scheduler.Job{r}, 4)
 	require.NoError(t, err)
 
 	require.Len(t, finishErrs, 1)
@@ -76,7 +76,7 @@ func TestJob_FinishReturnsNothingWhenNothingFailed(t *testing.T) {
 
 	require.NoError(t, r.Setup())
 
-	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 2)
+	finishErrs, err := scheduler.Run([]scheduler.Job{r}, 2)
 	require.NoError(t, err)
 
 	require.Len(t, finishErrs, 1)

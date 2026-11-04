@@ -33,9 +33,9 @@ import (
 
 // sessionInterface is what the processor needs from the session of a testsuite file, and what its tests replace.
 type sessionInterface interface {
+	scheduler.Job
 	GetTestSuiteFilePath() string
 	Setup() error
-	Job() scheduler.Job
 }
 
 // Mockable functions
@@ -99,7 +99,7 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 		}
 
 		sessions = append(sessions, session)
-		jobs = append(jobs, session.Job())
+		jobs = append(jobs, session)
 
 		return nil
 	})

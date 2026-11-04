@@ -120,10 +120,10 @@ func runTestsSerial(t *testing.T, s *Session) error {
 
 	require.NoError(t, s.Setup())
 
-	// completeTestSuite removes it too: this is for a run that ends without it
+	// Finish removes it too: this is for a run that ends without it
 	defer s.removeSavedOutputsDir()
 
-	finishErrs, err := scheduler.Run([]scheduler.Job{s.Job()}, 1)
+	finishErrs, err := scheduler.Run([]scheduler.Job{s}, 1)
 	require.NoError(t, err)
 
 	return finishErrs[0]
@@ -172,7 +172,7 @@ func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, workers int, fail
 
 	require.NoError(t, r.Setup())
 
-	_, err := scheduler.Run([]scheduler.Job{r.Job()}, workers)
+	_, err := scheduler.Run([]scheduler.Job{r}, workers)
 	require.NoError(t, err)
 
 	return out.String(), ran
@@ -1200,7 +1200,7 @@ func TestRunTestCase_MergesTheCommonInputs(t *testing.T) {
 }
 
 // The internal artifacts directory, where the test cases of a run keep their outputs for the ones that need them, is
-// created by Setup and removed by completeTestSuite.
+// created by Setup and removed by Finish.
 func TestSessionSetup_CreatesTheInternalArtifactsDirectory(t *testing.T) {
 	r := newTestSession(&testexecutionOptions.Options{}, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "test1"}}}))
 	r.r.fs = afero.NewMemMapFs()
@@ -1216,11 +1216,11 @@ func TestSessionSetup_CreatesTheInternalArtifactsDirectory(t *testing.T) {
 
 	dir := r.env.savedOutputsDir
 
-	require.NoError(t, r.completeTestSuite())
+	require.NoError(t, r.Finish())
 
 	exists, err = afero.DirExists(r.r.fs, dir)
 	require.NoError(t, err)
-	assert.False(t, exists, "completeTestSuite should remove the directory")
+	assert.False(t, exists, "Finish should remove the directory")
 }
 
 func TestSetupTestSuite_RequiresTheFileAndTheSpec(t *testing.T) {

@@ -34,7 +34,7 @@ import (
 	"github.com/spf13/afero"
 )
 
-// ErrTestsFailed is what completeTestSuite wraps when some test cases failed.
+// ErrTestsFailed is what Session.Finish wraps when some test cases failed.
 var ErrTestsFailed = errors.New("tests failed")
 
 // Runner runs test cases. It is created once for an invocation, and keeps nothing of the test cases that it runs.

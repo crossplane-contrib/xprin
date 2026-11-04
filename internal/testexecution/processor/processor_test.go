@@ -35,7 +35,6 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	testexecutionRunner "github.com/crossplane-contrib/xprin/internal/testexecution/runner"
-	"github.com/crossplane-contrib/xprin/internal/testexecution/scheduler"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/spf13/afero"
@@ -60,29 +59,21 @@ type emptySession struct {
 	options    *testexecutionOptions.Options
 }
 
-func (m *emptySession) finish() error {
+func (m *emptySession) GetTestSuiteFilePath() string { return m.file }
+
+func (m *emptySession) Setup() error { return m.setupErr }
+
+func (*emptySession) Graph() *graph.Graph { return graph.Build(&api.TestSuiteSpec{}) }
+func (*emptySession) Run(int)             {}
+func (*emptySession) Report(int)          {}
+
+func (m *emptySession) Finish() error {
 	if m.finishFunc != nil {
 		return m.finishFunc()
 	}
 
 	return nil
 }
-
-func (m *emptySession) GetTestSuiteFilePath() string { return m.file }
-
-func (m *emptySession) Setup() error { return m.setupErr }
-
-func (m *emptySession) Job() scheduler.Job { return &emptyJob{finish: m.finish} }
-
-// emptyJob is a scheduler.Job without test cases, whose Finish is what the test says.
-type emptyJob struct {
-	finish func() error
-}
-
-func (*emptyJob) Graph() *graph.Graph { return graph.Build(&api.TestSuiteSpec{}) }
-func (*emptyJob) Run(int)             {}
-func (*emptyJob) Report(int)          {}
-func (s *emptyJob) Finish() error     { return s.finish() }
 
 // timeline records what the runners do, in the order it happens.
 type timeline struct {
@@ -151,22 +142,21 @@ func (s *timelineJob) Finish() error {
 	return s.finishErr
 }
 
-// timelineSession is a runner whose test cases are the ones of a timelineJob: what the processor does to it is recorded.
+// timelineSession is a session whose test cases are the ones of a timelineJob: what the processor does to it is recorded.
 type timelineSession struct {
+	*timelineJob
+
 	file     string
-	job      *timelineJob
 	setupErr error
 }
 
 func (r *timelineSession) GetTestSuiteFilePath() string { return r.file }
 
 func (r *timelineSession) Setup() error {
-	r.job.tl.addf("setup %s", r.job.name)
+	r.tl.addf("setup %s", r.name)
 
 	return r.setupErr
 }
-
-func (r *timelineSession) Job() scheduler.Job { return r.job }
 
 // suiteYAML is a testsuite file with n test cases.
 func suiteYAML(n int) string {
@@ -201,7 +191,7 @@ func setupTimelineSessions(t *testing.T, files map[string]string, configure func
 		name := filepath.Base(testSuite.File)
 		tl.addf("new %s", name)
 
-		r := &timelineSession{file: testSuite.File, job: &timelineJob{name: name, n: len(testSuite.Spec.Tests), tl: tl}}
+		r := &timelineSession{file: testSuite.File, timelineJob: &timelineJob{name: name, n: len(testSuite.Spec.Tests), tl: tl}}
 		if configure != nil {
 			configure(r)
 		}
@@ -895,10 +885,10 @@ func TestProcessTargets_TheTestCasesOfTheNextFileUseTheFreeWorkers(t *testing.T)
 	var tl *timeline
 
 	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(3)}, func(r *timelineSession) {
-		if r.job.name == "a_xprin.yaml" {
+		if r.name == "a_xprin.yaml" {
 			// The only test case of the first file does not end until the three of the second file did: until
 			// the timeline has their end, which is recorded after their run returns.
-			r.job.run = func(int) {
+			r.run = func(int) {
 				deadline := time.Now().Add(waitFor)
 				for len(tl.with("end b_xprin.yaml:")) < 3 {
 					if time.Now().After(deadline) {
@@ -922,8 +912,8 @@ func TestProcessTargets_TheTestCasesOfTheNextFileUseTheFreeWorkers(t *testing.T)
 
 func TestProcessTargets_FailIsPrintedOnceAtTheEnd(t *testing.T) {
 	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, func(r *timelineSession) {
-		if r.job.name == "a_xprin.yaml" {
-			r.job.finishErr = fmt.Errorf("%w in testsuite a_xprin.yaml", testexecutionRunner.ErrTestsFailed)
+		if r.name == "a_xprin.yaml" {
+			r.finishErr = fmt.Errorf("%w in testsuite a_xprin.yaml", testexecutionRunner.ErrTestsFailed)
 		}
 	})
 
@@ -957,7 +947,7 @@ func TestProcessTargets_AFileThatCanNotBeLoadedIsLeftOutAndFailsTheRun(t *testin
 
 func TestProcessTargets_AFileThatCanNotBeSetUpIsLeftOutAndFailsTheRun(t *testing.T) {
 	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, func(r *timelineSession) {
-		if r.job.name == "a_xprin.yaml" {
+		if r.name == "a_xprin.yaml" {
 			r.setupErr = errors.New("cannot make the directory")
 		}
 	})

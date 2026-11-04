@@ -21,8 +21,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/gertd/go-pluralize"
 	"github.com/spf13/afero"
@@ -39,6 +41,8 @@ type Session struct {
 	env       *testSuiteEnv
 }
 
+// Session is a scheduler.Job: the tasks are the test cases of the file, by their positionInTestSuite. Setup has to be
+// called before the scheduler runs it.
 // NewSession creates the session of a testsuite file, which runs its test cases with r. It is not set up yet.
 func NewSession(r *Runner, testSuite *testsuite.TestSuite) *Session {
 	return &Session{
@@ -79,7 +83,7 @@ func (s *Session) Setup() (err error) {
 
 	s.env = &testSuiteEnv{savedOutputsDir: savedOutputsDir}
 
-	// If it can't go on, nothing will call completeTestSuite to remove it
+	// If it can't go on, nothing will call Finish to remove it
 	defer func() {
 		if err != nil {
 			s.removeSavedOutputsDir()
@@ -136,10 +140,10 @@ func (s *Session) runAndStoreTestCase(positionInTestSuite int) {
 	s.env.testSuiteResult.AddResult(result)
 }
 
-// printTestCaseResult prints the stored result of the test case at positionInTestSuite.
+// Report prints the stored result of the test case at positionInTestSuite.
 // positionInTestSuite is the position of the test case in the tests of the file.
 // Not at the same time as another one: the output has the order of the calls.
-func (s *Session) printTestCaseResult(positionInTestSuite int) {
+func (s *Session) Report(positionInTestSuite int) {
 	result := s.env.testCaseResults[positionInTestSuite]
 
 	// The --debug lines of a test case that ran at the same time as others come with its result, not mixed with theirs
@@ -150,8 +154,8 @@ func (s *Session) printTestCaseResult(positionInTestSuite int) {
 	result.Print(s.output)
 }
 
-// completeTestSuite prints the summary of the file, and returns an error if any test case failed.
-func (s *Session) completeTestSuite() error {
+// Finish prints the summary of the file, and returns nil, or ErrTestsFailed when some test case failed.
+func (s *Session) Finish() error {
 	defer s.removeSavedOutputsDir()
 
 	// Complete the test suite result
@@ -179,4 +183,35 @@ func (s *Session) removeSavedOutputsDir() {
 	if s.env != nil && s.env.savedOutputsDir != "" {
 		_ = s.r.fs.RemoveAll(s.env.savedOutputsDir)
 	}
+}
+
+// Graph returns the dependency graph of the test cases of the file.
+func (s *Session) Graph() *graph.Graph { return s.testSuite.Graph }
+
+// Run runs the test case. A panic fails that test case only, so that the others, which run at the same time, finish.
+func (s *Session) Run(positionInTestSuite int) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			s.failPanicked(positionInTestSuite, recovered, debug.Stack())
+		}
+	}()
+
+	s.runAndStoreTestCase(positionInTestSuite)
+}
+
+// failPanicked records that the test case at positionInTestSuite failed because of a panic, as its result.
+func (s *Session) failPanicked(positionInTestSuite int, recovered any, stack []byte) {
+	r := s.r
+	testCase := s.testSuite.Spec.Tests[positionInTestSuite]
+	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, r.Verbose, r.ShowRender, r.ShowValidate, r.ShowHooks, r.ShowAssertions)
+
+	err := fmt.Errorf("panic: %v", recovered)
+	if r.Debug {
+		err = fmt.Errorf("%w\n%s", err, stack)
+	}
+
+	result.Fail(err)
+
+	s.env.testCaseResults[positionInTestSuite] = result
+	s.env.testSuiteResult.AddResult(result)
 }
