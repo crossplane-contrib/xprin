@@ -161,6 +161,12 @@ func (s *Session) runAndStoreTestCase(positionInTestSuite int) {
 	}
 	result := s.runner.RunTestCase(testSuiteContext, testCase, s.env.testSuiteResult.GetCompletedTests())
 
+	s.store(positionInTestSuite, result)
+}
+
+// store keeps the result of the test case at positionInTestSuite: by its position, for Report to print in order, and in
+// the result of the file, which the test cases that need it find it in.
+func (s *Session) store(positionInTestSuite int, result *engine.TestCaseResult) {
 	s.env.testCaseResults[positionInTestSuite] = result
 	s.env.testSuiteResult.AddResult(result)
 }
@@ -237,6 +243,5 @@ func (s *Session) failPanicked(positionInTestSuite int, recovered any, stack []b
 
 	result.Fail(err)
 
-	s.env.testCaseResults[positionInTestSuite] = result
-	s.env.testSuiteResult.AddResult(result)
+	s.store(positionInTestSuite, result)
 }
