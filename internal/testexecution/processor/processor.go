@@ -26,6 +26,7 @@ import (
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/runner"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/scheduler"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/session"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/spf13/afero"
@@ -43,7 +44,7 @@ type sessionInterface interface {
 //nolint:gochecknoglobals // Global variables for dependency injection in tests
 var (
 	newSessionFunc = func(r *runner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
-		return runner.NewSession(r.Options, testSuite, r)
+		return session.New(r.Options, testSuite, r)
 	}
 	newCoordinatorFunc = func() (*containers.Coordinator, error) {
 		docker, err := containers.NewDocker()
@@ -89,17 +90,17 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 
 	// A file that can't be loaded or set up is reported, left out, and makes the run fail
 	walkErr := discovery.Walk(fs, targets, discoveryOptions(options), func(testSuiteFile string) error {
-		session, err := createSession(fs, testSuiteFile, testRunner)
-		if err != nil || session == nil {
+		fileSession, err := createSession(fs, testSuiteFile, testRunner)
+		if err != nil || fileSession == nil {
 			return err
 		}
 
-		if err := session.Setup(); err != nil {
+		if err := fileSession.Setup(); err != nil {
 			return runError(testSuiteFile, err)
 		}
 
-		sessions = append(sessions, session)
-		jobs = append(jobs, session)
+		sessions = append(sessions, fileSession)
+		jobs = append(jobs, fileSession)
 
 		return nil
 	})
@@ -150,7 +151,7 @@ func runError(testSuiteFile string, runErr error) error {
 		return nil
 	}
 
-	if !errors.Is(runErr, runner.ErrTestsFailed) {
+	if !errors.Is(runErr, session.ErrTestsFailed) {
 		return discovery.ReportTestSuiteError(testSuiteFile, runErr, "testsuite file execution error")
 	}
 

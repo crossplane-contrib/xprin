@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	testexecutionRunner "github.com/crossplane-contrib/xprin/internal/testexecution/runner"
+	testexecutionSession "github.com/crossplane-contrib/xprin/internal/testexecution/session"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/spf13/afero"
@@ -721,10 +722,10 @@ func TestRunError(t *testing.T) {
 		var err error
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = runError(testSuiteYAML, fmt.Errorf("%w in testsuite suite.yaml", testexecutionRunner.ErrTestsFailed))
+			err = runError(testSuiteYAML, fmt.Errorf("%w in testsuite suite.yaml", testexecutionSession.ErrTestsFailed))
 		})
 
-		require.ErrorIs(t, err, testexecutionRunner.ErrTestsFailed)
+		require.ErrorIs(t, err, testexecutionSession.ErrTestsFailed)
 		assert.Contains(t, err.Error(), "test execution failed for /suite.yaml")
 		assert.Empty(t, stderrOutput, "there is nothing more to say about them")
 	})
@@ -913,7 +914,7 @@ func TestProcessTargets_TheTestCasesOfTheNextFileUseTheFreeWorkers(t *testing.T)
 func TestProcessTargets_FailIsPrintedOnceAtTheEnd(t *testing.T) {
 	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, func(r *timelineSession) {
 		if r.name == "a_xprin.yaml" {
-			r.finishErr = fmt.Errorf("%w in testsuite a_xprin.yaml", testexecutionRunner.ErrTestsFailed)
+			r.finishErr = fmt.Errorf("%w in testsuite a_xprin.yaml", testexecutionSession.ErrTestsFailed)
 		}
 	})
 
