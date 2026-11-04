@@ -43,7 +43,7 @@ type sessionInterface interface {
 //nolint:gochecknoglobals // Global variables for dependency injection in tests
 var (
 	newSessionFunc = func(r *runner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
-		return runner.NewSession(r, testSuite)
+		return runner.NewSession(r.Options, testSuite, r)
 	}
 	newCoordinatorFunc = func() (*containers.Coordinator, error) {
 		docker, err := containers.NewDocker()

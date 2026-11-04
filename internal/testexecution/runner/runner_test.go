@@ -140,7 +140,7 @@ var timings = regexp.MustCompile(`\d+\.\d+s`)
 func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, workers int, failing ...string) (output string, ran []string) {
 	t.Helper()
 
-	r := newTestSession(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
+	r, tcRunner := newTestSession(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
 
 	var (
 		out bytes.Buffer
@@ -148,7 +148,7 @@ func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, workers int, fail
 	)
 
 	r.output = &out
-	r.r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+	tcRunner.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
 		time.Sleep(time.Duration(len(testCase.ID)%4) * time.Millisecond)
 
 		mu.Lock()
@@ -307,12 +307,12 @@ func TestFileRun_Result(t *testing.T) {
 				Tests: tests,
 			}
 
-			runner := newTestSession(options, testsuite.New(testSuiteFile, testSuiteSpec))
+			runner, tcRunner := newTestSession(options, testsuite.New(testSuiteFile, testSuiteSpec))
 			runner.output = &buf
 
 			// Mock the runTestCaseFunc to return controlled results
 			call := 0
-			runner.r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+			tcRunner.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
 				err := tc.mockErrs[call]
 				call++
 
@@ -460,10 +460,10 @@ func TestFileRun_Output(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
 
-			runner := newTestSession(options, testsuite.New(testSuiteFile, tc.suite))
+			runner, tcRunner := newTestSession(options, testsuite.New(testSuiteFile, tc.suite))
 			runner.output = &buf
-			runner.r.runTestCaseFunc = tc.runFunc
-			runner.r.Verbose = tc.verbose // set per-test verbosity
+			tcRunner.runTestCaseFunc = tc.runFunc
+			tcRunner.Verbose = tc.verbose // set per-test verbosity
 
 			err := runTestsSerial(t, runner)
 			if tc.wantError {
@@ -518,17 +518,17 @@ func TestFileRun_Output(t *testing.T) {
 				}},
 			},
 		}
-		runner := newTestSession(options, testsuite.New(testSuiteFile, suite))
+		runner, tcRunner := newTestSession(options, testsuite.New(testSuiteFile, suite))
 		runner.output = &buf
 
 		// test1: pass, test2: fail, test3: pass
 		call := 0
 		results := []error{nil, errors.New("fail in test2"), nil}
-		runner.r.runTestCaseFunc = func(tc api.TestCase) *engine.TestCaseResult {
+		tcRunner.runTestCaseFunc = func(tc api.TestCase) *engine.TestCaseResult {
 			err := results[call]
 			call++
 
-			return createTestCaseResult(tc.Name, runner.r.Verbose, err)
+			return createTestCaseResult(tc.Name, tcRunner.Verbose, err)
 		}
 		err := runTestsSerial(t, runner)
 		require.Error(t, err)
@@ -568,13 +568,13 @@ func TestFileRun_Output(t *testing.T) {
 				}},
 			},
 		}
-		runner := newTestSession(options, testsuite.New(testSuiteFile, suite))
+		runner, tcRunner := newTestSession(options, testsuite.New(testSuiteFile, suite))
 		runner.output = &buf
 
 		// group1: pass, group2: fail, group3: pass
 		call := 0
 		results := []error{nil, errors.New("fail in group2"), nil}
-		runner.r.runTestCaseFunc = func(tc api.TestCase) *engine.TestCaseResult {
+		tcRunner.runTestCaseFunc = func(tc api.TestCase) *engine.TestCaseResult {
 			err := results[call]
 			call++
 
@@ -1055,7 +1055,7 @@ func TestRunTestCase(t *testing.T) {
 			testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
 			env := newTestEnv()
 			env.index = 1
-			result := testRunner.runTestCase(tc.testCase, env, testSuiteResult)
+			result := testRunner.RunTestCase(env, tc.testCase, testSuiteResult.GetCompletedTests())
 
 			if tc.wantError != "" {
 				assert.Equal(t, engine.StatusFail(), result.Status)
@@ -1183,7 +1183,7 @@ func TestRunTestCase_MergesTheCommonInputs(t *testing.T) {
 
 			env := testEnv(testsuite.New(testSuiteFile, &api.TestSuiteSpec{Common: common}))
 			env.index = 1
-			result := runner.runTestCase(tt.testCase, env, engine.NewTestSuiteResult("test-suite.yaml", false))
+			result := runner.RunTestCase(env, tt.testCase, nil)
 
 			require.Equal(t, engine.StatusPass(), result.Status)
 			require.GreaterOrEqual(t, len(renderArgs), 3)
@@ -1202,15 +1202,15 @@ func TestRunTestCase_MergesTheCommonInputs(t *testing.T) {
 // The internal artifacts directory, where the test cases of a run keep their outputs for the ones that need them, is
 // created by Setup and removed by Finish.
 func TestSessionSetup_CreatesTheInternalArtifactsDirectory(t *testing.T) {
-	r := newTestSession(&testexecutionOptions.Options{}, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "test1"}}}))
-	r.r.fs = afero.NewMemMapFs()
+	r, _ := newTestSession(&testexecutionOptions.Options{}, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "test1"}}}))
+	r.fs = afero.NewMemMapFs()
 	r.output = io.Discard
 
 	assert.Nil(t, r.env, "there is no env before the run is set up")
 
 	require.NoError(t, r.Setup())
 
-	exists, err := afero.DirExists(r.r.fs, r.env.savedOutputsDir)
+	exists, err := afero.DirExists(r.fs, r.env.savedOutputsDir)
 	require.NoError(t, err)
 	assert.True(t, exists, "Setup should create the directory")
 
@@ -1218,7 +1218,7 @@ func TestSessionSetup_CreatesTheInternalArtifactsDirectory(t *testing.T) {
 
 	require.NoError(t, r.Finish())
 
-	exists, err = afero.DirExists(r.r.fs, dir)
+	exists, err = afero.DirExists(r.fs, dir)
 	require.NoError(t, err)
 	assert.False(t, exists, "Finish should remove the directory")
 }
@@ -1233,7 +1233,7 @@ func TestSetupTestSuite_RequiresTheFileAndTheSpec(t *testing.T) {
 		"no specification": {file: testSuiteFile, spec: nil, want: "testsuite specification is required"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			s := newTestSession(&testexecutionOptions.Options{}, testsuite.New(tt.file, tt.spec))
+			s, _ := newTestSession(&testexecutionOptions.Options{}, testsuite.New(tt.file, tt.spec))
 
 			require.EqualError(t, s.Setup(), tt.want)
 			assert.Nil(t, s.env, "nothing is made for a file that is not set up")
@@ -1251,7 +1251,7 @@ func TestRunTestCase_ASkippedByTheMode(t *testing.T) {
 		return nil
 	}
 
-	result := r.runTestCase(spec.Tests[0], testEnv(testsuite.New(testSuiteFile, spec)), engine.NewTestSuiteResult(testSuiteFile, false))
+	result := r.executeTestCase(testEnv(testsuite.New(testSuiteFile, spec)), spec.Tests[0], nil)
 
 	assert.Equal(t, engine.StatusSkip(), result.Status)
 }
@@ -1292,7 +1292,7 @@ func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
 	env := newTestEnv()
 	env.index = 1
-	result := runner.runTestCase(testCase, env, testSuiteResult)
+	result := runner.RunTestCase(env, testCase, testSuiteResult.GetCompletedTests())
 	assert.Equal(t, engine.StatusPass(), result.Status)
 	require.NoError(t, result.Error)
 	assert.False(t, result.StartTime.IsZero(), "TestCaseResult should have StartTime set")
@@ -1405,9 +1405,11 @@ func TestRunner_StepsRunByTheSchedulerGiveTheOutputOfASerialRun(t *testing.T) {
 	}
 }
 
-// newTestSession returns the session of testSuite, with a runner that has options.
-func newTestSession(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite) *Session {
-	return NewSession(NewRunner(options), testSuite)
+// newTestSession returns the session of testSuite, and the runner that it runs its test cases with, which have options.
+func newTestSession(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite) (*Session, *Runner) {
+	r := NewRunner(options)
+
+	return NewSession(options, testSuite, r), r
 }
 
 // newTestEnv is the env of a test case of a testsuite file without test cases, which is the default of the tests that

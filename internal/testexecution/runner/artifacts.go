@@ -120,15 +120,15 @@ func indexPadWidth(n int) int {
 // initArtifactsRunDir creates <ArtifactsBaseDir>/xprin-artifacts-<YYYYMMDDHHMMSS>/,
 // stores the absolute path in ArtifactsRunDir, and prints it to stderr. Idempotent:
 // no-ops when ArtifactsRunDir is already set (shared across runners in one invocation).
-func (r *Runner) initArtifactsRunDir() error {
-	if r.ArtifactsBaseDir == "" || r.ArtifactsRunDir != "" {
+func (s *Session) initArtifactsRunDir() error {
+	if s.options.ArtifactsBaseDir == "" || s.options.ArtifactsRunDir != "" {
 		return nil
 	}
 
 	timestamp := time.Now().Format("20060102150405")
 
-	runRoot := filepath.Join(r.ArtifactsBaseDir, "xprin-artifacts-"+timestamp)
-	if err := r.fs.MkdirAll(runRoot, 0o750); err != nil {
+	runRoot := filepath.Join(s.options.ArtifactsBaseDir, "xprin-artifacts-"+timestamp)
+	if err := s.fs.MkdirAll(runRoot, 0o750); err != nil {
 		return fmt.Errorf("failed to create artifacts directory %s: %w", runRoot, err)
 	}
 
@@ -137,7 +137,7 @@ func (r *Runner) initArtifactsRunDir() error {
 		abs = runRoot
 	}
 
-	r.ArtifactsRunDir = abs
+	s.options.ArtifactsRunDir = abs
 
 	return nil
 }

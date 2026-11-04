@@ -19,12 +19,15 @@ package runner
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 
+	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/graph"
+	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/gertd/go-pluralize"
 	"github.com/spf13/afero"
@@ -32,23 +35,35 @@ import (
 
 // Session is the execution of one testsuite file: each testsuite file creates a session that runs as a job, and
 // its test cases are the tasks of the job. The session holds what is of the file as a whole, which is the results so
-// far, the directory of the outputs that test cases share, the order of the output and the summary. The Runner runs
+// far, the directory of the outputs that test cases share, the order of the output and the summary. The runner runs
 // each test case, and keeps nothing of the file.
+// Setup has to be called before the scheduler runs it.
 type Session struct {
-	r         *Runner
+	options   *testexecutionOptions.Options
+	fs        afero.Fs
+	runner    testCaseRunner
 	testSuite *testsuite.TestSuite // the file that is run: its path, its spec and its dependency graph
 	output    io.Writer
+	debug     *log.Logger
 	env       *testSuiteEnv
 }
 
-// Session is a scheduler.Job: the tasks are the test cases of the file, by their positionInTestSuite. Setup has to be
-// called before the scheduler runs it.
-// NewSession creates the session of a testsuite file, which runs its test cases with r. It is not set up yet.
-func NewSession(r *Runner, testSuite *testsuite.TestSuite) *Session {
+// testCaseRunner is what the session needs from the runner: to run one test case. The session makes the env of the test
+// case, and gives it the results of the ones that already ran, for it to find the ones that the test case needs.
+// It is the Runner, and the tests of the session replace it.
+type testCaseRunner interface {
+	RunTestCase(env *testCaseEnv, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult
+}
+
+// NewSession creates the session of a testsuite file, which runs its test cases with runner. It is not set up yet.
+func NewSession(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite, runner testCaseRunner) *Session {
 	return &Session{
-		r:         r,
+		options:   options,
+		fs:        afero.NewOsFs(),
+		runner:    runner,
 		testSuite: testSuite,
 		output:    os.Stdout, // Default output to stdout
+		debug:     options.DebugLog,
 	}
 }
 
@@ -76,7 +91,7 @@ func (s *Session) Setup() (err error) {
 	}
 
 	// Create the directory of the internal artifacts, the outputs that test cases share (always created, cleaned up when testsuite finishes)
-	savedOutputsDir, err := afero.TempDir(s.r.fs, "", "xprin-internal-artifacts-")
+	savedOutputsDir, err := afero.TempDir(s.fs, "", "xprin-internal-artifacts-")
 	if err != nil {
 		return fmt.Errorf("failed to create internal artifacts directory: %w", err)
 	}
@@ -90,31 +105,31 @@ func (s *Session) Setup() (err error) {
 		}
 	}()
 
-	if s.r.Debug {
-		s.r.debug.Printf("Created internal artifacts directory: %s\n", savedOutputsDir)
+	if s.options.Debug {
+		s.debug.Printf("Created internal artifacts directory: %s\n", savedOutputsDir)
 	}
 
-	if s.r.Debug {
-		s.r.debug.Printf("Using testsuite file directory for relative path resolution: %s\n", s.testSuite.GetDir())
+	if s.options.Debug {
+		s.debug.Printf("Using testsuite file directory for relative path resolution: %s\n", s.testSuite.GetDir())
 
 		// We do not expand or verify common fields here. They will be expanded and verified by the individual test cases that do not override them.
 		if s.testSuite.Spec.HasCommon() {
-			s.r.debugPrintCommon(s.testSuite.Spec.Common, "Found common configuration:")
+			s.debugPrintCommon(s.testSuite.Spec.Common, "Found common configuration:")
 		}
 
 		plural := pluralize.NewClient()
-		s.r.debug.Printf("Found %s\n", plural.Pluralize("test case", len(s.testSuite.Spec.Tests), true))
+		s.debug.Printf("Found %s\n", plural.Pluralize("test case", len(s.testSuite.Spec.Tests), true))
 	}
 
 	// Create test suite result
-	s.env.testSuiteResult = engine.NewTestSuiteResult(s.testSuite.File, s.r.Verbose)
-	s.env.testSuiteResult.SetWorkingDir(s.r.WorkingDir)
+	s.env.testSuiteResult = engine.NewTestSuiteResult(s.testSuite.File, s.options.Verbose)
+	s.env.testSuiteResult.SetWorkingDir(s.options.WorkingDir)
 
 	totalTestCases := len(s.testSuite.Spec.Tests)
 	s.env.testCaseResults = make([]*engine.TestCaseResult, totalTestCases)
 
-	if s.r.ArtifactsBaseDir != "" && totalTestCases > 0 {
-		if err := s.r.initArtifactsRunDir(); err != nil {
+	if s.options.ArtifactsBaseDir != "" && totalTestCases > 0 {
+		if err := s.initArtifactsRunDir(); err != nil {
 			return err
 		}
 	}
@@ -134,7 +149,7 @@ func (s *Session) runAndStoreTestCase(positionInTestSuite int) {
 		testSuite:       s.testSuite,
 		savedOutputsDir: s.env.savedOutputsDir,
 	}
-	result := s.r.runTestCase(testCase, env, s.env.testSuiteResult)
+	result := s.runner.RunTestCase(env, testCase, s.env.testSuiteResult.GetCompletedTests())
 
 	s.env.testCaseResults[positionInTestSuite] = result
 	s.env.testSuiteResult.AddResult(result)
@@ -148,7 +163,7 @@ func (s *Session) Report(positionInTestSuite int) {
 
 	// The --debug lines of a test case that ran at the same time as others come with its result, not mixed with theirs
 	if result.DebugLog != "" {
-		fmt.Fprint(s.r.debug.Writer(), result.DebugLog) //nolint:errcheck // output function, error handling not practical
+		fmt.Fprint(s.debug.Writer(), result.DebugLog) //nolint:errcheck // output function, error handling not practical
 	}
 
 	result.Print(s.output)
@@ -164,8 +179,8 @@ func (s *Session) Finish() error {
 	// Print only the file summary (not individual test results)
 	s.env.testSuiteResult.Print(s.output)
 
-	if s.r.ArtifactsRunDir != "" {
-		suiteArtifactsPath := filepath.Join(s.r.ArtifactsRunDir, artifactsRelPath(s.testSuite.File, s.r.WorkingDir))
+	if s.options.ArtifactsRunDir != "" {
+		suiteArtifactsPath := filepath.Join(s.options.ArtifactsRunDir, artifactsRelPath(s.testSuite.File, s.options.WorkingDir))
 		fmt.Fprintf(os.Stderr, "artifacts: %s\n", suiteArtifactsPath)
 	}
 
@@ -181,7 +196,7 @@ func (s *Session) Finish() error {
 // It is safe to call it more than once.
 func (s *Session) removeSavedOutputsDir() {
 	if s.env != nil && s.env.savedOutputsDir != "" {
-		_ = s.r.fs.RemoveAll(s.env.savedOutputsDir)
+		_ = s.fs.RemoveAll(s.env.savedOutputsDir)
 	}
 }
 
@@ -201,12 +216,12 @@ func (s *Session) Run(positionInTestSuite int) {
 
 // failPanicked records that the test case at positionInTestSuite failed because of a panic, as its result.
 func (s *Session) failPanicked(positionInTestSuite int, recovered any, stack []byte) {
-	r := s.r
+	o := s.options
 	testCase := s.testSuite.Spec.Tests[positionInTestSuite]
-	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, r.Verbose, r.ShowRender, r.ShowValidate, r.ShowHooks, r.ShowAssertions)
+	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, o.Verbose, o.ShowRender, o.ShowValidate, o.ShowHooks, o.ShowAssertions)
 
 	err := fmt.Errorf("panic: %v", recovered)
-	if r.Debug {
+	if o.Debug {
 		err = fmt.Errorf("%w\n%s", err, stack)
 	}
 

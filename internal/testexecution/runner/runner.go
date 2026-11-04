@@ -74,7 +74,6 @@ func NewRunner(options *testexecutionOptions.Options) *Runner {
 		Options: options,
 		debug:   options.DebugLog,
 		// Initialize mockable function fields with default implementations
-		runTestCaseFunc:                   nil, // will set default below
 		expandPathRelativeToTestSuiteFile: testsuite.ExpandPath,
 		verifyPathExists:                  utils.VerifyPathExists,
 		runCommand: func(dir, name string, args ...string) ([]byte, error) {
@@ -98,14 +97,16 @@ func NewRunner(options *testexecutionOptions.Options) *Runner {
 	return r
 }
 
-// runTestCase executes a single test case and returns a complete TestCaseResult.
+// RunTestCase runs a single test case, in the env that its session made for it, and returns a complete TestCaseResult.
+// completed are the results of the test cases that already ran, which the ones that this one needs are found in: it is
+// skipped if one of them failed or was skipped, or if the mode has no use for it.
 //
 // With --debug, the lines of the test case are printed as they happen when only one test case runs at a time. With
 // --parallel they would be mixed with those of the others, so they are kept in the DebugLog of the result, and its
 // session prints them with the result.
-func (r *Runner) runTestCase(testCase api.TestCase, env *testCaseEnv, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
+func (r *Runner) RunTestCase(env *testCaseEnv, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult {
 	if !r.Debug || r.Parallel <= 1 {
-		return r.executeTestCase(testCase, env, testSuiteResult)
+		return r.executeTestCase(env, testCase, completed)
 	}
 
 	// This copy of the runner is the one of this test case: it has its own debug log, and the mode that refers to it
@@ -115,13 +116,13 @@ func (r *Runner) runTestCase(testCase api.TestCase, env *testCaseEnv, testSuiteR
 	own.debug = log.New(&lines, r.debug.Prefix(), r.debug.Flags())
 	own.mode = newRunnerMode(&own)
 
-	result := own.executeTestCase(testCase, env, testSuiteResult)
+	result := own.executeTestCase(env, testCase, completed)
 	result.DebugLog = lines.String()
 
 	return result
 }
 
-func (r *Runner) executeTestCase(testCase api.TestCase, env *testCaseEnv, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
+func (r *Runner) executeTestCase(env *testCaseEnv, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult {
 	if r.Debug {
 		r.debug.Printf("Starting test case '%s'\n", testCase.Name)
 	}
@@ -136,7 +137,7 @@ func (r *Runner) executeTestCase(testCase api.TestCase, env *testCaseEnv, testSu
 
 	// Skip the test case if one of the test cases it needs failed or was skipped. Otherwise, the results of
 	// the test cases it lists in `needs` are the only ones it can use with `.Tests`.
-	needsResults, skipReasons := engine.GetNeedsResults(testCase.Needs, testSuiteResult.GetCompletedTests())
+	needsResults, skipReasons := engine.GetNeedsResults(testCase.Needs, completed)
 	if len(skipReasons) > 0 {
 		return result.Skip(skipReasons...)
 	}

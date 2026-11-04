@@ -134,14 +134,6 @@ func (r *Runner) debugPrintHooks(hooks api.Hooks) {
 	}
 }
 
-// debugPrintCommon prints debug information for common configuration.
-func (r *Runner) debugPrintCommon(common api.Common, header string) {
-	r.debug.Printf("%s\n", header)
-	r.debugPrintPatches(common.Patches)
-	r.debugPrintInputs(common.Inputs)
-	r.debugPrintHooks(common.Hooks)
-}
-
 // debugPrintTestCase prints debug information for a test case.
 func (r *Runner) debugPrintTestCase(testCase api.TestCase, header string) {
 	r.debug.Printf("%s\n", header)
