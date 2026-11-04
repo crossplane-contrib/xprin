@@ -33,7 +33,7 @@ type updateGoldensMode struct {
 // file depends on: the graph knows which those are. One without an ID is not in the graph by it, but no test case
 // can need it, so only its own golden-file assertions matter.
 func (m updateGoldensMode) skips(env *testCaseEnv, testCase api.TestCase) bool {
-	return !testCase.HasAssertionsGoldenFiles() && !env.testSuite.Graph.NodeByID(testCase.ID).NeededForGoldens
+	return !testCase.HasAssertionsGoldenFiles() && !env.TestSuite.Graph.NodeByID(testCase.ID).NeededForGoldens
 }
 
 // runPhasesAfterRender is the one phase of update-goldens that follows the render: it writes the golden files of the
@@ -83,7 +83,7 @@ func (r *Runner) runUpdateGoldens(env *testCaseEnv, testCase api.TestCase, resul
 // Returns the path of the golden file, also when it fails, to say which one it was: the absolute path that was
 // written, or the one of the assertion when it can't be resolved.
 func (r *Runner) writeGoldenFile(env *testCaseEnv, a api.AssertionGoldenFile, outputs *engine.Outputs) (string, error) {
-	expectedPath, err := r.expandPathRelativeToTestSuiteFile(env.testSuite.File, a.Expected)
+	expectedPath, err := r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, a.Expected)
 	if err != nil {
 		return a.Expected, fmt.Errorf("invalid expected path: %w", err)
 	}

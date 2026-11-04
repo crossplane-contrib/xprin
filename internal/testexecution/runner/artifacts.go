@@ -32,8 +32,8 @@ func (r *Runner) copyTestCaseArtifacts(env *testCaseEnv, testCaseName string) {
 		return
 	}
 
-	relPath := artifacts.RelPath(env.testSuite.File, r.WorkingDir)
-	dirName := artifacts.TestCaseDirName(env.index, len(env.testSuite.Spec.Tests), testCaseName)
+	relPath := artifacts.RelPath(env.TestSuite.File, r.WorkingDir)
+	dirName := artifacts.TestCaseDirName(env.Index, len(env.TestSuite.Spec.Tests), testCaseName)
 	dest := filepath.Join(r.ArtifactsRunDir, relPath, dirName)
 
 	if err := r.fs.MkdirAll(dest, 0o750); err != nil {

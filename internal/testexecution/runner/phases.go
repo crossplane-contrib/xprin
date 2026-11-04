@@ -61,7 +61,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.XR, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.XR)
+		testCase.Inputs.XR, err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, testCase.Inputs.XR)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand XR path: %v", err))
 		}
@@ -74,7 +74,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.Claim, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.Claim)
+		testCase.Inputs.Claim, err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, testCase.Inputs.Claim)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand Claim path: %v", err))
 		}
@@ -88,7 +88,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 		anyPathExpanded = true
 	}
 
-	testCase.Inputs.Composition, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.Composition)
+	testCase.Inputs.Composition, err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, testCase.Inputs.Composition)
 	if err != nil {
 		failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand composition path: %v", err))
 	}
@@ -101,7 +101,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 		anyPathExpanded = true
 	}
 
-	testCase.Inputs.Functions, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.Functions)
+	testCase.Inputs.Functions, err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, testCase.Inputs.Functions)
 	if err != nil {
 		failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand functions path: %v", err))
 	}
@@ -115,7 +115,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.CRDs[i], err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, originalCRDPath)
+		testCase.Inputs.CRDs[i], err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, originalCRDPath)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand CRD path %s: %v", originalCRDPath, err))
 			continue
@@ -132,7 +132,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.ContextFiles[key], err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, originalContextFilePath)
+		testCase.Inputs.ContextFiles[key], err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, originalContextFilePath)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand context file path for key '%s': %v", key, err))
 			continue
@@ -149,7 +149,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.ObservedResources, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.ObservedResources)
+		testCase.Inputs.ObservedResources, err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, testCase.Inputs.ObservedResources)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand observed resources path: %v", err))
 		}
@@ -164,7 +164,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.ExtraResources, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.ExtraResources)
+		testCase.Inputs.ExtraResources, err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, testCase.Inputs.ExtraResources)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand extra resources path: %v", err))
 		}
@@ -179,7 +179,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.FunctionCredentials, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.FunctionCredentials)
+		testCase.Inputs.FunctionCredentials, err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, testCase.Inputs.FunctionCredentials)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand function credentials path: %v", err))
 		}
@@ -194,7 +194,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 			anyPathExpanded = true
 		}
 
-		testCase.Patches.XRD, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Patches.XRD)
+		testCase.Patches.XRD, err = r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, testCase.Patches.XRD)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand XRD path: %v", err))
 		}
@@ -336,7 +336,7 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 		goldenPath := ""
 
 		if rel := firstFullRenderGolden(testCase.Assertions); rel != "" {
-			if expanded, expandErr := r.expandPathRelativeToTestSuiteFile(env.testSuite.File, rel); expandErr == nil {
+			if expanded, expandErr := r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, rel); expandErr == nil {
 				goldenPath = expanded
 			}
 		}
@@ -432,7 +432,7 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 		r.debug.Printf("Running render command: %s %s\n", r.Dependencies["crossplane"], strings.Join(renderArgs, " "))
 	}
 
-	result.RawRenderOutput, err = r.runCommand(env.testSuite.GetDir(), r.Dependencies["crossplane"], renderArgs...)
+	result.RawRenderOutput, err = r.runCommand(env.TestSuite.GetDir(), r.Dependencies["crossplane"], renderArgs...)
 
 	releaseContainers(err == nil)
 
@@ -518,7 +518,7 @@ func (r *Runner) validateTestCase(env *testCaseEnv, testCase api.TestCase, resul
 			r.debug.Printf("Running validate command: %s %s\n", r.Dependencies["crossplane"], strings.Join(validateArgs, " "))
 		}
 
-		result.RawValidateOutput, err = r.runCommand(env.testSuite.GetDir(), r.Dependencies["crossplane"], validateArgs...)
+		result.RawValidateOutput, err = r.runCommand(env.TestSuite.GetDir(), r.Dependencies["crossplane"], validateArgs...)
 		if err != nil {
 			_ = result.MarkValidateFailed()
 		}
@@ -555,7 +555,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 			r.fs,
 			&result.Outputs,
 			r.Debug,
-			env.testSuite.File,
+			env.TestSuite.File,
 			r.expandPathRelativeToTestSuiteFile,
 			r.Color,
 		)
@@ -633,7 +633,7 @@ func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *en
 		return nil
 	}
 
-	testCaseDir := filepath.Join(env.savedOutputsDir, testCase.ID)
+	testCaseDir := filepath.Join(env.SavedOutputsDir, testCase.ID)
 	if err := r.copy(env.outputsDir, testCaseDir); err != nil {
 		return fmt.Errorf("failed to save outputs as internal artifacts: %w", err)
 	}

@@ -126,7 +126,7 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
 		result.Outputs.Render = "/tmp/outputs/rendered.yaml"
 
-		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{testSuite: env.testSuite, savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, nil, result)
+		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{TestSuiteContext: TestSuiteContext{TestSuite: env.TestSuite, SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusPass(), got.Status)
 		assert.Equal(t, []string{"g: a.yaml"}, writtenGoldenFiles(got))
@@ -142,7 +142,7 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 		r, env, copied := newRunner()
 		result := engine.NewTestCaseResult("n", "", false, false, false, false, false)
 
-		got := updateGoldensMode{r}.runPhasesAfterRender(api.TestCase{Name: "n"}, &testCaseEnv{testSuite: env.testSuite, savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, nil, result)
+		got := updateGoldensMode{r}.runPhasesAfterRender(api.TestCase{Name: "n"}, &testCaseEnv{TestSuiteContext: TestSuiteContext{TestSuite: env.TestSuite, SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusPass(), got.Status)
 		assert.Empty(t, *copied)
@@ -155,7 +155,7 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 		testCase.Assertions.Diff[0].Resource = "Kind/missing"
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
 
-		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{testSuite: env.testSuite, savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, nil, result)
+		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{TestSuiteContext: TestSuiteContext{TestSuite: env.TestSuite, SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusFail(), got.Status)
 		assert.Empty(t, *copied)

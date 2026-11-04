@@ -69,12 +69,12 @@ func TestJob_APanicFailsOnlyThatTestCase(t *testing.T) {
 
 // mockTestCaseRunner is a testCaseRunner that passes every test case, and records what the session gave it.
 type mockTestCaseRunner struct {
-	envs      map[string]testCaseEnv // by the ID of the test case
-	completed map[string][]string    // the IDs of the results that the test case was given
+	contexts  map[string]TestSuiteContext // by the ID of the test case
+	completed map[string][]string         // the IDs of the results that the test case was given
 }
 
-func (m *mockTestCaseRunner) RunTestCase(env *testCaseEnv, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult {
-	m.envs[testCase.ID] = *env
+func (m *mockTestCaseRunner) RunTestCase(testSuiteContext TestSuiteContext, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult {
+	m.contexts[testCase.ID] = testSuiteContext
 
 	for id := range completed {
 		m.completed[testCase.ID] = append(m.completed[testCase.ID], id)
@@ -84,10 +84,10 @@ func (m *mockTestCaseRunner) RunTestCase(env *testCaseEnv, testCase api.TestCase
 }
 
 func newMockTestCaseRunner() *mockTestCaseRunner {
-	return &mockTestCaseRunner{envs: map[string]testCaseEnv{}, completed: map[string][]string{}}
+	return &mockTestCaseRunner{contexts: map[string]TestSuiteContext{}, completed: map[string][]string{}}
 }
 
-func TestSession_GivesTheRunnerTheEnvAndTheResultsThatAreDone(t *testing.T) {
+func TestSession_GivesTheRunnerTheTestSuiteContextAndTheResultsThatAreDone(t *testing.T) {
 	// B is first in the file, and runs second: it needs A
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
 		{Name: "B", ID: "b", Needs: []string{"a"}},
@@ -105,15 +105,15 @@ func TestSession_GivesTheRunnerTheEnvAndTheResultsThatAreDone(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, finishErrs[0])
 
-	require.Len(t, mock.envs, 2)
+	require.Len(t, mock.contexts, 2)
 
-	for id, env := range mock.envs {
-		assert.Same(t, suite, env.testSuite, "%s gets the file", id)
-		assert.NotEmpty(t, env.savedOutputsDir, "%s gets the directory of the saved outputs", id)
+	for id, testSuiteContext := range mock.contexts {
+		assert.Same(t, suite, testSuiteContext.TestSuite, "%s gets the file", id)
+		assert.NotEmpty(t, testSuiteContext.SavedOutputsDir, "%s gets the directory of the saved outputs", id)
 	}
 
-	assert.Equal(t, 1, mock.envs["a"].index, "the numbers are the ones of the order that they run in, which starts at 1")
-	assert.Equal(t, 2, mock.envs["b"].index)
+	assert.Equal(t, 1, mock.contexts["a"].Index, "the numbers are the ones of the order that they run in, which starts at 1")
+	assert.Equal(t, 2, mock.contexts["b"].Index)
 	assert.Empty(t, mock.completed["a"], "nothing is done when A runs")
 	assert.Equal(t, []string{"a"}, mock.completed["b"], "A is done when B runs")
 }

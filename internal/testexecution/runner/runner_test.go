@@ -1054,8 +1054,8 @@ func TestRunTestCase(t *testing.T) {
 
 			testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
 			env := newTestEnv()
-			env.index = 1
-			result := testRunner.RunTestCase(env, tc.testCase, testSuiteResult.GetCompletedTests())
+			env.Index = 1
+			result := testRunner.RunTestCase(env.TestSuiteContext, tc.testCase, testSuiteResult.GetCompletedTests())
 
 			if tc.wantError != "" {
 				assert.Equal(t, engine.StatusFail(), result.Status)
@@ -1182,8 +1182,8 @@ func TestRunTestCase_MergesTheCommonInputs(t *testing.T) {
 			}
 
 			env := testEnv(testsuite.New(testSuiteFile, &api.TestSuiteSpec{Common: common}))
-			env.index = 1
-			result := runner.RunTestCase(env, tt.testCase, nil)
+			env.Index = 1
+			result := runner.RunTestCase(env.TestSuiteContext, tt.testCase, nil)
 
 			require.Equal(t, engine.StatusPass(), result.Status)
 			require.GreaterOrEqual(t, len(renderArgs), 3)
@@ -1251,7 +1251,7 @@ func TestRunTestCase_ASkippedByTheMode(t *testing.T) {
 		return nil
 	}
 
-	result := r.executeTestCase(testEnv(testsuite.New(testSuiteFile, spec)), spec.Tests[0], nil)
+	result := r.executeTestCase(TestSuiteContext{Index: 1, TestSuite: testsuite.New(testSuiteFile, spec)}, spec.Tests[0], nil)
 
 	assert.Equal(t, engine.StatusSkip(), result.Status)
 }
@@ -1291,8 +1291,8 @@ func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
 	}
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
 	env := newTestEnv()
-	env.index = 1
-	result := runner.RunTestCase(env, testCase, testSuiteResult.GetCompletedTests())
+	env.Index = 1
+	result := runner.RunTestCase(env.TestSuiteContext, testCase, testSuiteResult.GetCompletedTests())
 	assert.Equal(t, engine.StatusPass(), result.Status)
 	require.NoError(t, result.Error)
 	assert.False(t, result.StartTime.IsZero(), "TestCaseResult should have StartTime set")
@@ -1420,5 +1420,5 @@ func newTestEnv() *testCaseEnv {
 
 // testEnv is the env of a test case of testSuite, for the tests of the parts that take it.
 func testEnv(testSuite *testsuite.TestSuite) *testCaseEnv {
-	return &testCaseEnv{testSuite: testSuite}
+	return &testCaseEnv{TestSuiteContext: TestSuiteContext{TestSuite: testSuite}}
 }

@@ -99,7 +99,7 @@ func (r *Runner) processTemplateVariables(env *testCaseEnv, testCase *api.TestCa
 // runCommandIn is runCommand in the directory of the testsuite file of env, as the hooks take it.
 func (r *Runner) runCommandIn(env *testCaseEnv) func(string, ...string) ([]byte, error) {
 	return func(name string, args ...string) ([]byte, error) {
-		return r.runCommand(env.testSuite.GetDir(), name, args...)
+		return r.runCommand(env.TestSuite.GetDir(), name, args...)
 	}
 }
 
@@ -141,7 +141,7 @@ func (r *Runner) explainMissingNeeds(env *testCaseEnv, err error) error {
 
 	id := match[1] + match[2] // one of them is set, depending on how the test case is used
 
-	if env.testSuite.Spec.HasID(id) {
+	if env.TestSuite.Spec.HasID(id) {
 		return errors.New("one or more test cases are used but are not listed in needs")
 	}
 

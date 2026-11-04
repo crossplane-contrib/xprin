@@ -49,11 +49,11 @@ type Session struct {
 	env       *testSuiteEnv
 }
 
-// testCaseRunner is what the session needs from the runner: to run one test case. The session makes the env of the test
+// testCaseRunner is what the session needs from the runner: to run one test case. The session makes the testSuiteContext of the test
 // case, and gives it the results of the ones that already ran, for it to find the ones that the test case needs.
 // It is the Runner, and the tests of the session replace it.
 type testCaseRunner interface {
-	RunTestCase(env *testCaseEnv, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult
+	RunTestCase(testSuiteContext TestSuiteContext, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult
 }
 
 // NewSession creates the session of a testsuite file, which runs its test cases with runner. It is not set up yet.
@@ -145,12 +145,12 @@ func (s *Session) runAndStoreTestCase(positionInTestSuite int) {
 	testCase := s.testSuite.Spec.Tests[positionInTestSuite]
 
 	// Run the test and let the engine handle everything
-	env := &testCaseEnv{
-		index:           s.testSuite.Graph.PositionInOrder(positionInTestSuite) + 1,
-		testSuite:       s.testSuite,
-		savedOutputsDir: s.env.savedOutputsDir,
+	testSuiteContext := TestSuiteContext{
+		Index:           s.testSuite.Graph.PositionInOrder(positionInTestSuite) + 1,
+		TestSuite:       s.testSuite,
+		SavedOutputsDir: s.env.savedOutputsDir,
 	}
-	result := s.runner.RunTestCase(env, testCase, s.env.testSuiteResult.GetCompletedTests())
+	result := s.runner.RunTestCase(testSuiteContext, testCase, s.env.testSuiteResult.GetCompletedTests())
 
 	s.env.testCaseResults[positionInTestSuite] = result
 	s.env.testSuiteResult.AddResult(result)

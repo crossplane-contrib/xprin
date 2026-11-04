@@ -107,7 +107,7 @@ func TestSaveOutputs(t *testing.T) {
 			Rendered:   map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"},
 		}
 
-		require.NoError(t, r.saveOutputs(api.TestCase{ID: "a"}, &testCaseEnv{savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, result))
+		require.NoError(t, r.saveOutputs(api.TestCase{ID: "a"}, &testCaseEnv{TestSuiteContext: TestSuiteContext{SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, result))
 
 		assert.Equal(t, []string{"/tmp/outputs -> /saved-outputs/a"}, *copied)
 		assert.Equal(t, "/saved-outputs/a/rendered.yaml", result.Outputs.Render)
@@ -122,7 +122,7 @@ func TestSaveOutputs(t *testing.T) {
 		result := engine.NewTestCaseResult("a", "", false, false, false, false, false)
 		result.Outputs.XR = "/tmp/outputs/xr.yaml"
 
-		require.NoError(t, r.saveOutputs(api.TestCase{}, &testCaseEnv{savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, result))
+		require.NoError(t, r.saveOutputs(api.TestCase{}, &testCaseEnv{TestSuiteContext: TestSuiteContext{SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, result))
 
 		assert.Empty(t, *copied)
 		assert.Equal(t, "/tmp/outputs/xr.yaml", result.Outputs.XR)
