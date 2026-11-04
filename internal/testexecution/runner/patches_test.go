@@ -30,6 +30,27 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// xrdWithClaim is a minimal XRD YAML where the XR kind doesn't follow the "X" + Claim kind
+// convention.
+const xrdWithClaim = `
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: widgets.example.org
+spec:
+  group: example.org
+  names:
+    kind: Widget
+    plural: widgets
+  claimNames:
+    kind: WidgetClaim
+    plural: widgetclaims
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+`
+
 // TestPatchXR tests the patchXR function directly.
 func TestPatchXR(t *testing.T) {
 	fs := afero.NewMemMapFs()
@@ -149,27 +170,6 @@ spec:
 	}
 }
 
-// xrdWithClaim is a minimal XRD YAML where the XR kind doesn't follow the "X" + Claim kind
-// convention.
-const xrdWithClaim = `
-apiVersion: apiextensions.crossplane.io/v1
-kind: CompositeResourceDefinition
-metadata:
-  name: widgets.example.org
-spec:
-  group: example.org
-  names:
-    kind: Widget
-    plural: widgets
-  claimNames:
-    kind: WidgetClaim
-    plural: widgetclaims
-  versions:
-    - name: v1alpha1
-      served: true
-      referenceable: true
-`
-
 // TestConvertClaimToXR tests the convertClaimToXR function directly, in particular its XRD-based
 // kind resolution.
 func TestConvertClaimToXR(t *testing.T) {
@@ -263,6 +263,19 @@ metadata:
 			}
 		})
 	}
+}
+
+func TestConvertClaimToXR_FailsWhenTheClaimCannotBeRead(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	require.NoError(t, fs.MkdirAll("/output", 0o755))
+
+	runner := NewRunner(&testexecutionOptions.Options{}, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
+	runner.fs = fs
+
+	_, err := runner.convertClaimToXR("/missing-claim.yaml", "", "", "/output")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read claim file")
 }
 
 // TestFirstFullRenderGolden tests the pure function that picks the golden file to reuse an XR

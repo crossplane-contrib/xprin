@@ -70,6 +70,47 @@ func failedGoldenFiles(result *engine.TestCaseResult) []string {
 	return goldenFileLines(result, engine.StatusError())
 }
 
+// goldenCase is a test case with golden files, which update-goldens writes.
+func goldenCase(id string, needs ...string) api.TestCase {
+	return api.TestCase{
+		Name:       id,
+		ID:         id,
+		Needs:      needs,
+		Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "g", Expected: id + ".yaml"}}},
+	}
+}
+
+// plainCase is a test case without golden files.
+func plainCase(id string, needs ...string) api.TestCase {
+	return api.TestCase{Name: id, ID: id, Needs: needs}
+}
+
+// updateGoldensRan runs the test cases of the spec as update-goldens does, where the ones in failing fail
+// and the others pass, and returns what was printed and which of them actually ran.
+func updateGoldensRan(t *testing.T, spec *api.TestSuiteSpec, failing ...string) (output string, ran []string) {
+	t.Helper()
+
+	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", spec))
+
+	var out bytes.Buffer
+
+	r.output = &out
+	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+		ran = append(ran, testCase.ID)
+
+		result := engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
+		if slices.Contains(failing, testCase.ID) {
+			return result.Fail(errors.New("boom"))
+		}
+
+		return result
+	}
+
+	_ = r.RunTests() // it fails when a test case does: what matters is what ran, and what was printed
+
+	return out.String(), ran
+}
+
 func TestRunUpdateGoldens_IsNoOpWhenNoGoldenAssertions(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	r := newUpdateGoldensRunner(fs)
@@ -260,47 +301,6 @@ func TestRunUpdateGoldens_AFileThatCantBeWritten(t *testing.T) {
 	require.Len(t, failedGoldenFiles(out), 1)
 	assert.Contains(t, failedGoldenFiles(out)[0], "g: /expected/g.yaml: write expected file:")
 	assert.Empty(t, writtenGoldenFiles(out))
-}
-
-// goldenCase is a test case with golden files, which update-goldens writes.
-func goldenCase(id string, needs ...string) api.TestCase {
-	return api.TestCase{
-		Name:       id,
-		ID:         id,
-		Needs:      needs,
-		Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "g", Expected: id + ".yaml"}}},
-	}
-}
-
-// plainCase is a test case without golden files.
-func plainCase(id string, needs ...string) api.TestCase {
-	return api.TestCase{Name: id, ID: id, Needs: needs}
-}
-
-// updateGoldensRan runs the test cases of the spec as update-goldens does, where the ones in failing fail
-// and the others pass, and returns what was printed and which of them actually ran.
-func updateGoldensRan(t *testing.T, spec *api.TestSuiteSpec, failing ...string) (output string, ran []string) {
-	t.Helper()
-
-	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", spec))
-
-	var out bytes.Buffer
-
-	r.output = &out
-	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
-		ran = append(ran, testCase.ID)
-
-		result := engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
-		if slices.Contains(failing, testCase.ID) {
-			return result.Fail(errors.New("boom"))
-		}
-
-		return result
-	}
-
-	_ = r.RunTests() // it fails when a test case does: what matters is what ran, and what was printed
-
-	return out.String(), ran
 }
 
 func TestRunTests_UpdateGoldensRunsTheOnesThatWriteAndWhatTheyNeed(t *testing.T) {
