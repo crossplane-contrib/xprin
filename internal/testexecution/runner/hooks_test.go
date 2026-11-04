@@ -506,7 +506,7 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 	}
 
 	// Execute hooks
-	hookExecutor := newHookExecutor(nil, noDebug, runner.runCommand, runner.renderTemplate)
+	hookExecutor := newHookExecutor(nil, noDebug, runner.runCommand, runner.renderTemplateOf(testEnv(runner)))
 	results, err := hookExecutor.executeHooks(hooks, "pre-test", api.Inputs{}, nil, map[string]*engine.TestCaseResult{})
 
 	require.NoError(t, err)

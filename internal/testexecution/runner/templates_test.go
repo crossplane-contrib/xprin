@@ -37,42 +37,42 @@ func TestRenderTemplate_MissingNeed(t *testing.T) {
 	ctx := newTemplateContext(nil, api.Inputs{}, nil, map[string]*engine.TestCaseResult{"b": {}})
 
 	t.Run("a testcase that exists but is not listed", func(t *testing.T) {
-		_, err := r.renderTemplate("{{ .Tests.a.Outputs.XR }}", ctx, "test")
+		_, err := r.renderTemplate(testEnv(r), "{{ .Tests.a.Outputs.XR }}", ctx, "test")
 
 		require.ErrorContains(t, err, "failed to execute template: one or more test cases are used but are not listed in needs")
 		assert.NotContains(t, err.Error(), "map has no entry")
 	})
 
 	t.Run("a testcase that exists but is not listed, used with index (an ID with a hyphen)", func(t *testing.T) {
-		_, err := r.renderTemplate(`{{ (index .Tests "a").Outputs.XR }}`, ctx, "test")
+		_, err := r.renderTemplate(testEnv(r), `{{ (index .Tests "a").Outputs.XR }}`, ctx, "test")
 
 		require.ErrorContains(t, err, "failed to execute template: one or more test cases are used but are not listed in needs")
 		assert.NotContains(t, err.Error(), "nil pointer")
 	})
 
 	t.Run("a resource of one that is not listed, with index on its outputs", func(t *testing.T) {
-		_, err := r.renderTemplate(`{{ index .Tests.a.Outputs.Rendered "Kind/name" }}`, ctx, "test")
+		_, err := r.renderTemplate(testEnv(r), `{{ index .Tests.a.Outputs.Rendered "Kind/name" }}`, ctx, "test")
 
 		require.ErrorContains(t, err, "failed to execute template: one or more test cases are used but are not listed in needs")
 		assert.NotContains(t, err.Error(), "map has no entry")
 	})
 
 	t.Run("index with a name that is no testcase keeps the original error", func(t *testing.T) {
-		_, err := r.renderTemplate(`{{ (index .Tests "typo").Outputs.XR }}`, ctx, "test")
+		_, err := r.renderTemplate(testEnv(r), `{{ (index .Tests "typo").Outputs.XR }}`, ctx, "test")
 
 		require.ErrorContains(t, err, "nil pointer evaluating")
 		assert.NotContains(t, err.Error(), "not listed in needs")
 	})
 
 	t.Run("index with one that is listed works", func(t *testing.T) {
-		out, err := r.renderTemplate(`{{ (index .Tests "b").Outputs.XR }}x`, ctx, "test")
+		out, err := r.renderTemplate(testEnv(r), `{{ (index .Tests "b").Outputs.XR }}x`, ctx, "test")
 
 		require.NoError(t, err)
 		assert.Equal(t, "x", out)
 	})
 
 	t.Run("something that is not a testcase", func(t *testing.T) {
-		_, err := r.renderTemplate("{{ .Repositories.nope }}", ctx, "test")
+		_, err := r.renderTemplate(testEnv(r), "{{ .Repositories.nope }}", ctx, "test")
 
 		require.ErrorContains(t, err, `map has no entry for key "nope"`)
 		assert.NotContains(t, err.Error(), "not listed in needs")
@@ -80,7 +80,7 @@ func TestRenderTemplate_MissingNeed(t *testing.T) {
 
 	t.Run("a file without any needs: nothing is found from the templates", func(t *testing.T) {
 		noNeeds := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}, {ID: "b"}}}))
-		_, err := noNeeds.renderTemplate("{{ .Tests.a.Outputs.XR }}", newTemplateContext(nil, api.Inputs{}, nil, map[string]*engine.TestCaseResult{}), "test")
+		_, err := noNeeds.renderTemplate(testEnv(noNeeds), "{{ .Tests.a.Outputs.XR }}", newTemplateContext(nil, api.Inputs{}, nil, map[string]*engine.TestCaseResult{}), "test")
 
 		require.ErrorContains(t, err, "failed to execute template: one or more test cases are used but are not listed in needs")
 	})
@@ -136,7 +136,7 @@ common:
 
 		templateContext := newTemplateContext(repos, api.Inputs{}, nil, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		assert.Contains(t, out, "/path/to/myrepo/foo")
 		assert.Contains(t, out, "/path/to/otherrepo/bar")
@@ -158,7 +158,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, inputs, nil, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		assert.Contains(t, out, "echo 'Setting up my-xr.yaml with my-composition.yaml'")
 		assert.NotContains(t, out, "{{ .Inputs.XR }}")
@@ -183,7 +183,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, inputs, nil, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		assert.Contains(t, out, "echo 'XR: my-xr.yaml, Claim: my-claim.yaml, Functions: my-functions/, Observed: my-observed.yaml'")
 		assert.NotContains(t, out, "{{ .Inputs.XR }}")
@@ -213,7 +213,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, inputs, nil, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		// Note: map rendering in Go templates can vary, so we check for key components
 		assert.Contains(t, out, "Context files:")
@@ -236,7 +236,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		assert.Contains(t, out, "echo 'Cleaning up rendered-xr.yaml and rendered-resources.yaml'")
 		assert.NotContains(t, out, "{{ .Outputs.XR }}")
@@ -260,7 +260,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		assert.Contains(t, out, "echo 'Validation: /path/to/validate.txt, Count: 5'")
 		assert.NotContains(t, out, "{{ .Outputs.Validate }}")
@@ -283,7 +283,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		assert.Contains(t, out, "echo 'Validation: <nil>, Count: 3'")
 		assert.NotContains(t, out, "{{ .Outputs.Validate }}")
@@ -308,7 +308,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		// Note: map rendering in Go templates can vary, so we check for key components
 		assert.Contains(t, out, "Rendered resources:")
@@ -331,7 +331,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		assert.Contains(t, out, "echo 'Assertions: /path/to/assertions.txt'")
 		assert.NotContains(t, out, "{{ .Outputs.Assertions }}")
@@ -352,7 +352,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 		assert.Contains(t, out, "echo 'Assertions: <nil>'")
 		assert.NotContains(t, out, "{{ .Outputs.Assertions }}")
@@ -376,7 +376,7 @@ hooks:
 
 		templateContext := newTemplateContext(repos, inputs, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(yaml, templateContext, "test")
+		out, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.NoError(t, err)
 
 		// Check repository variables
@@ -398,7 +398,7 @@ hooks:
 
 		templateContext := newTemplateContext(repos, api.Inputs{}, nil, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		_, err := runner.renderTemplate(yaml, templateContext, "test")
+		_, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "map has no entry for key \"unknownrepo\"")
 	})
@@ -409,7 +409,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, inputs, nil, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		_, err := runner.renderTemplate(yaml, templateContext, "test")
+		_, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "can't evaluate field UnknownField")
 	})
@@ -420,7 +420,7 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		_, err := runner.renderTemplate(yaml, templateContext, "test")
+		_, err := runner.renderTemplate(testEnv(runner), yaml, templateContext, "test")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "can't evaluate field UnknownField")
 	})
@@ -454,7 +454,7 @@ func TestProcessTemplateVariables(t *testing.T) {
 
 	// Process template variables
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-	err := runner.processTemplateVariables(&testCase, testSuiteResult.GetCompletedTests())
+	err := runner.processTemplateVariables(testEnv(runner), &testCase, testSuiteResult.GetCompletedTests())
 	require.NoError(t, err)
 
 	// Verify that template variables were processed
@@ -506,7 +506,7 @@ metadata:
 
 	// Process template variables
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-	err := runner.processTemplateVariables(&testCase, testSuiteResult.GetCompletedTests())
+	err := runner.processTemplateVariables(testEnv(runner), &testCase, testSuiteResult.GetCompletedTests())
 	require.NoError(t, err)
 
 	// Verify that the test case was not modified
@@ -533,7 +533,7 @@ func TestProcessTemplateVariables_LeavesTheHooksToTheStepsThatRunThem(t *testing
 
 	runner := &Runner{Options: &testexecutionOptions.Options{Repositories: map[string]string{"myrepo": "/path/to/myrepo"}}}
 
-	require.NoError(t, runner.processTemplateVariables(&testCase, nil))
+	require.NoError(t, runner.processTemplateVariables(testEnv(runner), &testCase, nil))
 
 	assert.Equal(t, "/path/to/myrepo/xr.yaml", testCase.Inputs.XR, "the rest of the test case is rendered")
 	assert.Equal(t, "echo "+preTest, testCase.Hooks.PreTest[0].Run, "the hooks are not")

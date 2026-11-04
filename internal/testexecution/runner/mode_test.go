@@ -42,8 +42,8 @@ func TestNewRunnerSetsTheMode(t *testing.T) {
 }
 
 func TestTestModeSkipsNothing(t *testing.T) {
-	assert.False(t, testMode{}.skips(api.TestCase{}))
-	assert.False(t, testMode{}.skips(goldenCase("a")))
+	assert.False(t, testMode{}.skips(nil, api.TestCase{}))
+	assert.False(t, testMode{}.skips(nil, goldenCase("a")))
 }
 
 func TestUpdateGoldensModeSkips(t *testing.T) {
@@ -96,7 +96,7 @@ func TestUpdateGoldensModeSkips(t *testing.T) {
 			got := make([]bool, len(tt.tests))
 
 			for i, testCase := range tt.tests {
-				got[i] = updateGoldensMode{r}.skips(testCase)
+				got[i] = updateGoldensMode{r}.skips(testEnv(r), testCase)
 			}
 
 			assert.Equal(t, tt.want, got)
@@ -107,7 +107,6 @@ func TestUpdateGoldensModeSkips(t *testing.T) {
 func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 	newRunner := func() (*Runner, *[]string) {
 		r := newUpdateGoldensRunner(afero.NewMemMapFs())
-		r.env = &testSuiteEnv{savedOutputsDir: "/saved-outputs"}
 
 		var copied []string
 
@@ -128,7 +127,7 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
 		result.Outputs.Render = "/tmp/outputs/rendered.yaml"
 
-		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
+		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{testSuite: r.testSuite, savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusPass(), got.Status)
 		assert.Equal(t, []string{"g: a.yaml"}, writtenGoldenFiles(got))
@@ -144,7 +143,7 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 		r, copied := newRunner()
 		result := engine.NewTestCaseResult("n", "", false, false, false, false, false)
 
-		got := updateGoldensMode{r}.runPhasesAfterRender(api.TestCase{Name: "n"}, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
+		got := updateGoldensMode{r}.runPhasesAfterRender(api.TestCase{Name: "n"}, &testCaseEnv{testSuite: r.testSuite, savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusPass(), got.Status)
 		assert.Empty(t, *copied)
@@ -157,7 +156,7 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 		testCase.Assertions.Diff[0].Resource = "Kind/missing"
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
 
-		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
+		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{testSuite: r.testSuite, savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusFail(), got.Status)
 		assert.Empty(t, *copied)

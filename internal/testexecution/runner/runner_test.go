@@ -1077,6 +1077,7 @@ func TestRunTestCase(t *testing.T) {
 			}
 
 			testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
+			testRunner.env = &testSuiteEnv{} // as SetupTestSuite makes it
 			result := testRunner.runTestCase(tc.testCase, 1, testSuiteResult)
 
 			if tc.wantError != "" {
@@ -1204,6 +1205,7 @@ func TestRunTestCase_MergesTheCommonInputs(t *testing.T) {
 				return []byte{}, nil
 			}
 
+			runner.env = &testSuiteEnv{} // as SetupTestSuite makes it
 			result := runner.runTestCase(tt.testCase, 1, engine.NewTestSuiteResult("test-suite.yaml", false))
 
 			require.Equal(t, engine.StatusPass(), result.Status)
@@ -1266,6 +1268,7 @@ func TestSetupTestSuite_RequiresTheFileAndTheSpec(t *testing.T) {
 func TestRunTestCase_ASkippedByTheMode(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "plain", ID: "plain"}}}
 	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New(testSuiteFile, spec))
+	r.env = &testSuiteEnv{}
 	r.runTestCaseFunc = func(api.TestCase) *engine.TestCaseResult {
 		t.Fatal("a test case that the mode skips must not run")
 
@@ -1312,6 +1315,7 @@ func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
 		},
 	}
 	testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
+	runner.env = &testSuiteEnv{} // as SetupTestSuite makes it
 	result := runner.runTestCase(testCase, 1, testSuiteResult)
 	assert.Equal(t, engine.StatusPass(), result.Status)
 	require.NoError(t, result.Error)
@@ -1423,4 +1427,14 @@ func TestRunner_StepsRunByTheSchedulerGiveTheOutputOfASerialRun(t *testing.T) {
 			}
 		})
 	}
+}
+
+// testEnv is the env of a test case run of r, as runTestCase makes it, for the tests of the parts that take it.
+func testEnv(r *Runner) *testCaseEnv {
+	env := &testCaseEnv{testSuite: r.testSuite}
+	if r.env != nil {
+		env.savedOutputsDir = r.env.savedOutputsDir
+	}
+
+	return env
 }

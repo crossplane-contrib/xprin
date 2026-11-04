@@ -82,7 +82,6 @@ func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (fa
 func TestSaveOutputs(t *testing.T) {
 	newRunner := func() (*Runner, *[]string) {
 		r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/suite_xprin.yaml", &api.TestSuiteSpec{}))
-		r.env = &testSuiteEnv{savedOutputsDir: "/saved-outputs"}
 
 		var copied []string
 
@@ -107,7 +106,7 @@ func TestSaveOutputs(t *testing.T) {
 			Rendered:   map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"},
 		}
 
-		require.NoError(t, r.saveOutputs(api.TestCase{ID: "a"}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
+		require.NoError(t, r.saveOutputs(api.TestCase{ID: "a"}, &testCaseEnv{savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, result))
 
 		assert.Equal(t, []string{"/tmp/outputs -> /saved-outputs/a"}, *copied)
 		assert.Equal(t, "/saved-outputs/a/rendered.yaml", result.Outputs.Render)
@@ -122,7 +121,7 @@ func TestSaveOutputs(t *testing.T) {
 		result := engine.NewTestCaseResult("a", "", false, false, false, false, false)
 		result.Outputs.XR = "/tmp/outputs/xr.yaml"
 
-		require.NoError(t, r.saveOutputs(api.TestCase{}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
+		require.NoError(t, r.saveOutputs(api.TestCase{}, &testCaseEnv{savedOutputsDir: "/saved-outputs", outputsDir: "/tmp/outputs"}, result))
 
 		assert.Empty(t, *copied)
 		assert.Equal(t, "/tmp/outputs/xr.yaml", result.Outputs.XR)
@@ -258,7 +257,7 @@ func TestExpandInputPaths_ReportsTheInputThatFails(t *testing.T) {
 					want = in.verifyErr + ": not found"
 				}
 
-				result := r.expandInputPaths(&testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+				result := r.expandInputPaths(testEnv(r), &testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 
 				require.NotNil(t, result, "the test case should fail")
 				assert.Equal(t, engine.StatusFail(), result.Status)
@@ -286,7 +285,7 @@ func TestExpandInputPaths_ReportsEveryInputThatFails(t *testing.T) {
 		CRDs:        []string{"crd.yaml", "missing_crd.yaml"},
 	}}
 
-	result := r.expandInputPaths(&testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+	result := r.expandInputPaths(testEnv(r), &testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 
 	require.NotNil(t, result)
 	require.Error(t, result.Error)
@@ -310,7 +309,7 @@ func TestExpandInputPaths_ExpandsRelativePathsAndKeepsTheAbsoluteOnes(t *testing
 		FunctionCredentials: "credentials.yaml",
 	}, Patches: api.Patches{XRD: "xrd.yaml"}}
 
-	result := r.expandInputPaths(&testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+	result := r.expandInputPaths(testEnv(r), &testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 
 	assert.Nil(t, result, "nothing should fail")
 	assert.Equal(t, "/xr.yaml", testCase.Inputs.XR)

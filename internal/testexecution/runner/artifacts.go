@@ -150,8 +150,8 @@ func (r *Runner) copyTestCaseArtifacts(env *testCaseEnv, testCaseName string) {
 		return
 	}
 
-	relPath := artifactsRelPath(r.testSuite.File, r.WorkingDir)
-	w := indexPadWidth(len(r.testSuite.Spec.Tests))
+	relPath := artifactsRelPath(env.testSuite.File, r.WorkingDir)
+	w := indexPadWidth(len(env.testSuite.Spec.Tests))
 	dirName := fmt.Sprintf("%0*d_%s", w, env.index, sanitizePathSegment(testCaseName))
 	dest := filepath.Join(r.ArtifactsRunDir, relPath, dirName)
 

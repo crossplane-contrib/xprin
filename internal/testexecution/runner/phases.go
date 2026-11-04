@@ -43,7 +43,7 @@ import (
 // test case, and nil to go on.
 //
 //nolint:gocognit // Every path of the test case is expanded and verified the same way, one after the other
-func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
+func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
 	var err error
 
 	// Always resolve compositionPath, functionPath and all the crdPaths relative to the testsuite file and verify they exist
@@ -61,7 +61,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.XR, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.XR)
+		testCase.Inputs.XR, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.XR)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand XR path: %v", err))
 		}
@@ -74,7 +74,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.Claim, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.Claim)
+		testCase.Inputs.Claim, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.Claim)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand Claim path: %v", err))
 		}
@@ -88,7 +88,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 		anyPathExpanded = true
 	}
 
-	testCase.Inputs.Composition, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.Composition)
+	testCase.Inputs.Composition, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.Composition)
 	if err != nil {
 		failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand composition path: %v", err))
 	}
@@ -101,7 +101,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 		anyPathExpanded = true
 	}
 
-	testCase.Inputs.Functions, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.Functions)
+	testCase.Inputs.Functions, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.Functions)
 	if err != nil {
 		failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand functions path: %v", err))
 	}
@@ -115,7 +115,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.CRDs[i], err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, originalCRDPath)
+		testCase.Inputs.CRDs[i], err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, originalCRDPath)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand CRD path %s: %v", originalCRDPath, err))
 			continue
@@ -132,7 +132,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.ContextFiles[key], err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, originalContextFilePath)
+		testCase.Inputs.ContextFiles[key], err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, originalContextFilePath)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand context file path for key '%s': %v", key, err))
 			continue
@@ -149,7 +149,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.ObservedResources, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.ObservedResources)
+		testCase.Inputs.ObservedResources, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.ObservedResources)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand observed resources path: %v", err))
 		}
@@ -164,7 +164,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.ExtraResources, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.ExtraResources)
+		testCase.Inputs.ExtraResources, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.ExtraResources)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand extra resources path: %v", err))
 		}
@@ -179,7 +179,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 			anyPathExpanded = true
 		}
 
-		testCase.Inputs.FunctionCredentials, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Inputs.FunctionCredentials)
+		testCase.Inputs.FunctionCredentials, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Inputs.FunctionCredentials)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand function credentials path: %v", err))
 		}
@@ -194,7 +194,7 @@ func (r *Runner) expandInputPaths(testCase *api.TestCase, result *engine.TestCas
 			anyPathExpanded = true
 		}
 
-		testCase.Patches.XRD, err = r.expandPathRelativeToTestSuiteFile(r.testSuite.File, testCase.Patches.XRD)
+		testCase.Patches.XRD, err = r.expandPathRelativeToTestSuiteFile(env.testSuite.File, testCase.Patches.XRD)
 		if err != nil {
 			failedExpandedPaths = append(failedExpandedPaths, fmt.Sprintf("failed to expand XRD path: %v", err))
 		}
@@ -297,9 +297,9 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 
 // runPreTestHooks runs the pre-test hooks of the test case, if it has any. It returns the failed result when one
 // fails, to end the run of the test case, and nil to go on.
-func (r *Runner) runPreTestHooks(testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
+func (r *Runner) runPreTestHooks(env *testCaseEnv, testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
 	if testCase.HasPreTestHooks() {
-		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommand, r.renderTemplate)
+		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommand, r.renderTemplateOf(env))
 
 		var err error
 
@@ -336,7 +336,7 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 		goldenPath := ""
 
 		if rel := firstFullRenderGolden(testCase.Assertions); rel != "" {
-			if expanded, expandErr := r.expandPathRelativeToTestSuiteFile(r.testSuite.File, rel); expandErr == nil {
+			if expanded, expandErr := r.expandPathRelativeToTestSuiteFile(env.testSuite.File, rel); expandErr == nil {
 				goldenPath = expanded
 			}
 		}
@@ -555,7 +555,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 			r.fs,
 			&result.Outputs,
 			r.Debug,
-			r.testSuite.File,
+			env.testSuite.File,
 			r.expandPathRelativeToTestSuiteFile,
 			r.Color,
 		)
@@ -615,9 +615,9 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 
 // runPostTestHooks runs the post-test hooks of the test case, if it has any, after its assertions. A failed hook
 // does not end the run of the test case: it is in the result.
-func (r *Runner) runPostTestHooks(testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) {
+func (r *Runner) runPostTestHooks(env *testCaseEnv, testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) {
 	if testCase.HasPostTestHooks() {
-		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommand, r.renderTemplate)
+		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommand, r.renderTemplateOf(env))
 
 		result.PostTestHooksResults, _ = hookExecutor.executeHooks(testCase.Hooks.PostTest, "post-test", testCase.Inputs, &result.Outputs, needsResults)
 		result.ProcessPostTestHooksOutput()
@@ -633,7 +633,7 @@ func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *en
 		return nil
 	}
 
-	testCaseDir := filepath.Join(r.env.savedOutputsDir, testCase.ID)
+	testCaseDir := filepath.Join(env.savedOutputsDir, testCase.ID)
 	if err := r.copy(env.outputsDir, testCaseDir); err != nil {
 		return fmt.Errorf("failed to save outputs as internal artifacts: %w", err)
 	}
