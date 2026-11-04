@@ -31,10 +31,10 @@ import (
 	"github.com/spf13/afero"
 )
 
-// runnerInterface is what the processor needs from the runner of a testsuite file, and what its tests replace.
-type runnerInterface interface {
+// sessionInterface is what the processor needs from the session of a testsuite file, and what its tests replace.
+type sessionInterface interface {
 	GetTestSuiteFilePath() string
-	SetupTestSuite() error
+	Setup() error
 	Job() scheduler.Job
 }
 
@@ -42,8 +42,8 @@ type runnerInterface interface {
 //
 //nolint:gochecknoglobals // Global variables for dependency injection in tests
 var (
-	newRunnerFunc = func(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
-		return runner.NewRunner(options, testSuite)
+	newSessionFunc = func(r *runner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
+		return runner.NewSession(r, testSuite)
 	}
 	newCoordinatorFunc = func() (*containers.Coordinator, error) {
 		docker, err := containers.NewDocker()
@@ -79,23 +79,27 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 	// 2. Run the test cases of all the files, with the scheduler.
 	// 3. Report what failed in the files, and print one FAIL.
 	var (
-		runners []runnerInterface
-		jobs    []scheduler.Job
+		sessions []sessionInterface
+		jobs     []scheduler.Job
 	)
+
+	// One runner for all the files: it is stateless, it runs a test case and gives its result back to the session.
+	// Each file gets its own session, which holds the state of the file (the results so far, the shared outputs).
+	testRunner := runner.NewRunner(options)
 
 	// A file that can't be loaded or set up is reported, left out, and makes the run fail
 	walkErr := discovery.Walk(fs, targets, discoveryOptions(options), func(testSuiteFile string) error {
-		testRunner, err := createRunner(fs, testSuiteFile, options)
-		if err != nil || testRunner == nil {
+		session, err := createSession(fs, testSuiteFile, testRunner)
+		if err != nil || session == nil {
 			return err
 		}
 
-		if err := testRunner.SetupTestSuite(); err != nil {
+		if err := session.Setup(); err != nil {
 			return runError(testSuiteFile, err)
 		}
 
-		runners = append(runners, testRunner)
-		jobs = append(jobs, testRunner.Job())
+		sessions = append(sessions, session)
+		jobs = append(jobs, session.Job())
 
 		return nil
 	})
@@ -109,9 +113,9 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 		failed = true
 	}
 
-	// finishErrs[i] is the result of the file of runners[i]
+	// finishErrs[i] is the result of the file of sessions[i]
 	for i, finishErr := range finishErrs {
-		if runError(runners[i].GetTestSuiteFilePath(), finishErr) != nil {
+		if runError(sessions[i].GetTestSuiteFilePath(), finishErr) != nil {
 			failed = true
 		}
 	}
@@ -128,15 +132,15 @@ func discoveryOptions(options *testexecutionOptions.Options) discovery.Options {
 	return discovery.Options{Quiet: options.Quiet, Debug: options.Debug, DebugLog: options.DebugLog}
 }
 
-// createRunner loads the testsuite file, and creates its runner, which is not set up yet. It returns no runner, and
-// no error, for a file that has no test cases.
-func createRunner(fs afero.Fs, testSuiteFile string, options *testexecutionOptions.Options) (runnerInterface, error) {
-	testSuite, err := discovery.Load(fs, testSuiteFile, discoveryOptions(options))
+// createSession loads the testsuite file, and creates its session, which runs its test cases with r and is not set up
+// yet. It returns no session, and no error, for a file that has no test cases.
+func createSession(fs afero.Fs, testSuiteFile string, r *runner.Runner) (sessionInterface, error) {
+	testSuite, err := discovery.Load(fs, testSuiteFile, discoveryOptions(r.Options))
 	if err != nil || testSuite == nil {
 		return nil, err
 	}
 
-	return newRunnerFunc(options, testSuite), nil
+	return newSessionFunc(r, testSuite), nil
 }
 
 // runError returns the error of running the test cases of a testsuite file, after reporting it when it is not about

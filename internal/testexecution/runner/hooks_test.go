@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -477,22 +476,17 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 	// Create the testsuite file in the in-memory filesystem
 	require.NoError(t, afero.WriteFile(fs, testSuiteFile, []byte("tests: []"), 0o644))
 
-	// Create a runner with the testsuite file path
+	// Create a runner, and the env of a test case of the testsuite file
 	options := &testexecutionOptions.Options{}
-	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
+	runner := NewRunner(options)
+	env := testEnv(testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
-	// Verify that the directory of the test suite is computed correctly
-	assert.Equal(t, testSuiteDir, runner.testSuite.GetDir(), "the directory should be computed from the file of the test suite")
-
-	// Verify that the working directory is set correctly by capturing cmd.Dir
-	// We don't need to actually run the command - just verify cmd.Dir is set
+	// Verify that the directory that the hooks get is the one of the testsuite file, by capturing it
+	// We don't need to actually run the command
 	var capturedDir string
 
-	runner.runCommand = func(name string, args ...string) ([]byte, error) {
-		cmd := exec.Command(name, args...)
-		// Set Dir the same way the original does
-		cmd.Dir = runner.testSuite.GetDir()
-		capturedDir = cmd.Dir
+	runner.runCommand = func(dir, _ string, _ ...string) ([]byte, error) {
+		capturedDir = dir
 		// Return without running to avoid filesystem I/O
 		return []byte{}, nil
 	}
@@ -506,13 +500,13 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 	}
 
 	// Execute hooks
-	hookExecutor := newHookExecutor(nil, noDebug, runner.runCommand, runner.renderTemplateOf(testEnv(runner)))
+	hookExecutor := newHookExecutor(nil, noDebug, runner.runCommandIn(env), runner.renderTemplateOf(env))
 	results, err := hookExecutor.executeHooks(hooks, "pre-test", api.Inputs{}, nil, map[string]*engine.TestCaseResult{})
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.NoError(t, results[0].Error, "hook should execute successfully")
-	assert.Equal(t, testSuiteDir, capturedDir, "runCommand should set cmd.Dir to testsuite file directory")
+	assert.Equal(t, testSuiteDir, capturedDir, "the hooks should run in the directory of the testsuite file")
 }
 
 // TestProcessHookTemplateVariables tests the processHookTemplateVariables helper.

@@ -31,13 +31,13 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
-func newUpdateGoldensRunner(fs afero.Fs) *Runner {
+func newUpdateGoldensRunner(fs afero.Fs) (*Runner, *testCaseEnv) {
 	options := &testexecutionOptions.Options{UpdateGoldens: true}
-	r := NewRunner(options, testsuite.New("/suite_xprin.yaml", &api.TestSuiteSpec{}))
+	r := NewRunner(options)
 	r.fs = fs
 	r.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) { return path, nil }
 
-	return r
+	return r, testEnv(testsuite.New("/suite_xprin.yaml", &api.TestSuiteSpec{}))
 }
 
 // goldenFileLines returns the texts of the lines of the section of golden files of a test case that have this status.
@@ -90,12 +90,12 @@ func plainCase(id string, needs ...string) api.TestCase {
 func updateGoldensRan(t *testing.T, spec *api.TestSuiteSpec, failing ...string) (output string, ran []string) {
 	t.Helper()
 
-	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", spec))
+	r := newTestSession(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", spec))
 
 	var out bytes.Buffer
 
 	r.output = &out
-	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+	r.r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
 		ran = append(ran, testCase.ID)
 
 		result := engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
@@ -113,7 +113,7 @@ func updateGoldensRan(t *testing.T, spec *api.TestSuiteSpec, failing ...string) 
 
 func TestRunUpdateGoldens_IsNoOpWhenNoGoldenAssertions(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	r := newUpdateGoldensRunner(fs)
+	r, env := newUpdateGoldensRunner(fs)
 
 	testCase := api.TestCase{
 		Name: "no assertions",
@@ -123,7 +123,7 @@ func TestRunUpdateGoldens_IsNoOpWhenNoGoldenAssertions(t *testing.T) {
 	}
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
 
-	out := r.runUpdateGoldens(testEnv(r), testCase, result)
+	out := r.runUpdateGoldens(env, testCase, result)
 
 	// runUpdateGoldens is only called when diff/dyff assertions exist (runTestCase short-circuits
 	// before reaching it otherwise). With no golden assertions, it is a no-op: PASS, nothing written.
@@ -133,7 +133,7 @@ func TestRunUpdateGoldens_IsNoOpWhenNoGoldenAssertions(t *testing.T) {
 
 func TestRunUpdateGoldens_WritesDiffAndDyffAssertions(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	r := newUpdateGoldensRunner(fs)
+	r, env := newUpdateGoldensRunner(fs)
 
 	renderContent := []byte("apiVersion: v1\nkind: ConfigMap\n")
 	require.NoError(t, afero.WriteFile(fs, "/actual/render.yaml", renderContent, 0o600))
@@ -152,7 +152,7 @@ func TestRunUpdateGoldens_WritesDiffAndDyffAssertions(t *testing.T) {
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
 	result.Outputs.Render = "/actual/render.yaml"
 
-	out := r.runUpdateGoldens(testEnv(r), testCase, result)
+	out := r.runUpdateGoldens(env, testCase, result)
 
 	require.Equal(t, engine.StatusPass(), out.Status)
 	require.Equal(t, []string{"full render diff: /expected/golden-diff.yaml", "full render dyff: /expected/golden-dyff.yaml"}, writtenGoldenFiles(out))
@@ -168,7 +168,7 @@ func TestRunUpdateGoldens_WritesDiffAndDyffAssertions(t *testing.T) {
 
 func TestRunUpdateGoldens_TwoAssertionsForTheSameFileAreToldApartByTheirNames(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	r := newUpdateGoldensRunner(fs)
+	r, env := newUpdateGoldensRunner(fs)
 
 	require.NoError(t, afero.WriteFile(fs, "/actual/render.yaml", []byte("kind: X\n"), 0o600))
 
@@ -182,14 +182,14 @@ func TestRunUpdateGoldens_TwoAssertionsForTheSameFileAreToldApartByTheirNames(t 
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
 	result.Outputs.Render = "/actual/render.yaml"
 
-	out := r.runUpdateGoldens(testEnv(r), testCase, result)
+	out := r.runUpdateGoldens(env, testCase, result)
 
 	assert.Equal(t, []string{"diff: /expected/golden.yaml", "dyff: /expected/golden.yaml"}, writtenGoldenFiles(out))
 }
 
 func TestRunUpdateGoldens_WritesResourceScopedAssertion(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	r := newUpdateGoldensRunner(fs)
+	r, env := newUpdateGoldensRunner(fs)
 
 	resourceContent := []byte("apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-pod\n")
 	require.NoError(t, afero.WriteFile(fs, "/actual/pod.yaml", resourceContent, 0o600))
@@ -205,7 +205,7 @@ func TestRunUpdateGoldens_WritesResourceScopedAssertion(t *testing.T) {
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
 	result.Outputs.Rendered = map[string]string{"Pod/my-pod": "/actual/pod.yaml"}
 
-	out := r.runUpdateGoldens(testEnv(r), testCase, result)
+	out := r.runUpdateGoldens(env, testCase, result)
 
 	require.Equal(t, engine.StatusPass(), out.Status)
 	require.Equal(t, []string{"pod diff: /expected/pod.yaml"}, writtenGoldenFiles(out))
@@ -217,7 +217,7 @@ func TestRunUpdateGoldens_WritesResourceScopedAssertion(t *testing.T) {
 
 func TestRunUpdateGoldens_FailsOnUnknownResource(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	r := newUpdateGoldensRunner(fs)
+	r, env := newUpdateGoldensRunner(fs)
 
 	testCase := api.TestCase{
 		Name: "unknown resource",
@@ -230,7 +230,7 @@ func TestRunUpdateGoldens_FailsOnUnknownResource(t *testing.T) {
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
 	result.Outputs.Rendered = map[string]string{}
 
-	out := r.runUpdateGoldens(testEnv(r), testCase, result)
+	out := r.runUpdateGoldens(env, testCase, result)
 
 	assert.Equal(t, engine.StatusFail(), out.Status)
 	require.NoError(t, out.Error, "the failure is a line of the section, and there is no other error")
@@ -240,7 +240,7 @@ func TestRunUpdateGoldens_FailsOnUnknownResource(t *testing.T) {
 
 func TestRunUpdateGoldens_TheFailedFileComesAfterTheWrittenOnes(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	r := newUpdateGoldensRunner(fs)
+	r, env := newUpdateGoldensRunner(fs)
 
 	require.NoError(t, afero.WriteFile(fs, "/actual/render.yaml", []byte("kind: X\n"), 0o600))
 
@@ -258,7 +258,7 @@ func TestRunUpdateGoldens_TheFailedFileComesAfterTheWrittenOnes(t *testing.T) {
 	result.Outputs.Render = "/actual/render.yaml"
 	result.Outputs.Rendered = map[string]string{}
 
-	out := r.runUpdateGoldens(testEnv(r), testCase, result)
+	out := r.runUpdateGoldens(env, testCase, result)
 
 	assert.Equal(t, engine.StatusFail(), out.Status)
 	assert.Equal(t, []string{"first: /expected/first.yaml"}, writtenGoldenFiles(out))
@@ -273,13 +273,13 @@ func TestRunUpdateGoldens_TheFailedFileComesAfterTheWrittenOnes(t *testing.T) {
 }
 
 func TestRunUpdateGoldens_AnExpectedPathThatCantBeResolved(t *testing.T) {
-	r := newUpdateGoldensRunner(afero.NewMemMapFs())
+	r, env := newUpdateGoldensRunner(afero.NewMemMapFs())
 	r.expandPathRelativeToTestSuiteFile = func(_, _ string) (string, error) { return "", errors.New("boom") }
 
 	testCase := api.TestCase{Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "bad", Expected: "~nobody/g.yaml"}}}}
 	result := engine.NewTestCaseResult("bad path", "", false, false, false, false, false)
 
-	out := r.runUpdateGoldens(testEnv(r), testCase, result)
+	out := r.runUpdateGoldens(env, testCase, result)
 
 	assert.Equal(t, engine.StatusFail(), out.Status)
 	assert.Equal(t, []string{"bad: ~nobody/g.yaml: invalid expected path: boom"}, failedGoldenFiles(out), "the path is the one of the assertion")
@@ -289,13 +289,13 @@ func TestRunUpdateGoldens_AFileThatCantBeWritten(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/actual/render.yaml", []byte("kind: X\n"), 0o600))
 
-	r := newUpdateGoldensRunner(afero.NewReadOnlyFs(fs))
+	r, env := newUpdateGoldensRunner(afero.NewReadOnlyFs(fs))
 
 	testCase := api.TestCase{Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "g", Expected: "/expected/g.yaml"}}}}
 	result := engine.NewTestCaseResult("read only", "", false, false, false, false, false)
 	result.Outputs.Render = "/actual/render.yaml"
 
-	out := r.runUpdateGoldens(testEnv(r), testCase, result)
+	out := r.runUpdateGoldens(env, testCase, result)
 
 	assert.Equal(t, engine.StatusFail(), out.Status)
 	require.Len(t, failedGoldenFiles(out), 1)
@@ -410,12 +410,12 @@ func TestFileRun_Needs_UpdateGoldens(t *testing.T) {
 		{Name: "C", ID: "c", Needs: []string{"a"}, Assertions: golden},
 	}}
 
-	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", spec))
+	r := newTestSession(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", spec))
 
 	var out bytes.Buffer
 
 	r.output = &out
-	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+	r.r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
 		return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false).Fail(errors.New("boom"))
 	}
 

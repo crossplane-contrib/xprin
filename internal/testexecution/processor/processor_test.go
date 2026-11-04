@@ -49,10 +49,10 @@ const (
 	waitFor       = 5 * time.Second
 )
 
-// emptyRunner is a runnerInterface for testing a file without test cases: what finishFunc returns is what the scheduler
+// emptySession is a sessionInterface for testing a file without test cases: what finishFunc returns is what the scheduler
 // gets from the end of the file, which is where the test cases of the real runner report their failures.
-// A file with test cases is a timelineRunner, further down.
-type emptyRunner struct {
+// A file with test cases is a timelineSession, further down.
+type emptySession struct {
 	finishFunc func() error
 	setupErr   error
 	file       string
@@ -60,7 +60,7 @@ type emptyRunner struct {
 	options    *testexecutionOptions.Options
 }
 
-func (m *emptyRunner) finish() error {
+func (m *emptySession) finish() error {
 	if m.finishFunc != nil {
 		return m.finishFunc()
 	}
@@ -68,11 +68,11 @@ func (m *emptyRunner) finish() error {
 	return nil
 }
 
-func (m *emptyRunner) GetTestSuiteFilePath() string { return m.file }
+func (m *emptySession) GetTestSuiteFilePath() string { return m.file }
 
-func (m *emptyRunner) SetupTestSuite() error { return m.setupErr }
+func (m *emptySession) Setup() error { return m.setupErr }
 
-func (m *emptyRunner) Job() scheduler.Job { return &emptyJob{finish: m.finish} }
+func (m *emptySession) Job() scheduler.Job { return &emptyJob{finish: m.finish} }
 
 // emptyJob is a scheduler.Job without test cases, whose Finish is what the test says.
 type emptyJob struct {
@@ -151,22 +151,22 @@ func (s *timelineJob) Finish() error {
 	return s.finishErr
 }
 
-// timelineRunner is a runner whose test cases are the ones of a timelineJob: what the processor does to it is recorded.
-type timelineRunner struct {
+// timelineSession is a runner whose test cases are the ones of a timelineJob: what the processor does to it is recorded.
+type timelineSession struct {
 	file     string
 	job      *timelineJob
 	setupErr error
 }
 
-func (r *timelineRunner) GetTestSuiteFilePath() string { return r.file }
+func (r *timelineSession) GetTestSuiteFilePath() string { return r.file }
 
-func (r *timelineRunner) SetupTestSuite() error {
+func (r *timelineSession) Setup() error {
 	r.job.tl.addf("setup %s", r.job.name)
 
 	return r.setupErr
 }
 
-func (r *timelineRunner) Job() scheduler.Job { return r.job }
+func (r *timelineSession) Job() scheduler.Job { return r.job }
 
 // suiteYAML is a testsuite file with n test cases.
 func suiteYAML(n int) string {
@@ -181,9 +181,9 @@ func suiteYAML(n int) string {
 	return b.String()
 }
 
-// setupTimelineRunners writes the testsuite files (the name of each with its content), and makes newRunnerFunc return
+// setupTimelineSessions writes the testsuite files (the name of each with its content), and makes newSessionFunc return
 // timeline runners, which configure can change.
-func setupTimelineRunners(t *testing.T, files map[string]string, configure func(r *timelineRunner)) (fs afero.Fs, tl *timeline) {
+func setupTimelineSessions(t *testing.T, files map[string]string, configure func(r *timelineSession)) (fs afero.Fs, tl *timeline) {
 	t.Helper()
 
 	fs = afero.NewMemMapFs()
@@ -193,15 +193,15 @@ func setupTimelineRunners(t *testing.T, files map[string]string, configure func(
 		require.NoError(t, afero.WriteFile(fs, "/tests/"+name, []byte(content), 0o644))
 	}
 
-	original := newRunnerFunc
+	original := newSessionFunc
 
-	t.Cleanup(func() { newRunnerFunc = original })
+	t.Cleanup(func() { newSessionFunc = original })
 
-	newRunnerFunc = func(_ *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
+	newSessionFunc = func(_ *testexecutionRunner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
 		name := filepath.Base(testSuite.File)
 		tl.addf("new %s", name)
 
-		r := &timelineRunner{file: testSuite.File, job: &timelineJob{name: name, n: len(testSuite.Spec.Tests), tl: tl}}
+		r := &timelineSession{file: testSuite.File, job: &timelineJob{name: name, n: len(testSuite.Spec.Tests), tl: tl}}
 		if configure != nil {
 			configure(r)
 		}
@@ -218,10 +218,10 @@ func optionsWithWorkers(workers int) *testexecutionOptions.Options {
 }
 
 func TestProcessTargets_GivesTheRunnerTheTestSuite(t *testing.T) {
-	originalNewRunnerFunc := newRunnerFunc
+	originalNewSessionFunc := newSessionFunc
 
 	defer func() {
-		newRunnerFunc = originalNewRunnerFunc
+		newSessionFunc = originalNewSessionFunc
 	}()
 
 	fs := afero.NewMemMapFs()
@@ -230,10 +230,10 @@ func TestProcessTargets_GivesTheRunnerTheTestSuite(t *testing.T) {
 
 	var given *testsuite.TestSuite
 
-	newRunnerFunc = func(_ *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
+	newSessionFunc = func(_ *testexecutionRunner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
 		given = testSuite
 
-		return &emptyRunner{}
+		return &emptySession{}
 	}
 
 	require.NoError(t, ProcessTargets(fs, []string{"/testdir/a_xprin.yaml"}, &testexecutionOptions.Options{NoContainerReuse: true}))
@@ -245,15 +245,17 @@ func TestProcessTargets_GivesTheRunnerTheTestSuite(t *testing.T) {
 }
 
 func TestProcessTargets(t *testing.T) {
-	originalNewRunnerFunc := newRunnerFunc
+	originalNewSessionFunc := newSessionFunc
 
 	defer func() {
-		newRunnerFunc = originalNewRunnerFunc
+		newSessionFunc = originalNewSessionFunc
 	}()
 
 	t.Run("non-existent path", func(t *testing.T) {
-		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &emptyRunner{options: options}
+		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+			options := r.Options
+
+			return &emptySession{options: options}
 		}
 
 		err := ProcessTargets(afero.NewMemMapFs(), []string{"non-existent-path"}, &testexecutionOptions.Options{Debug: false})
@@ -265,8 +267,10 @@ func TestProcessTargets(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll("/testdir", 0o755))
 
-		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &emptyRunner{options: options}
+		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+			options := r.Options
+
+			return &emptySession{options: options}
 		}
 
 		var err error
@@ -284,8 +288,10 @@ func TestProcessTargets(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
-		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &emptyRunner{options: options}
+		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+			options := r.Options
+
+			return &emptySession{options: options}
 		}
 
 		var err error
@@ -301,8 +307,10 @@ func TestProcessTargets(t *testing.T) {
 	})
 
 	t.Run("recursive path with error", func(t *testing.T) {
-		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &emptyRunner{options: options}
+		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+			options := r.Options
+
+			return &emptySession{options: options}
 		}
 
 		// Invalid glob pattern will cause recursiveDirs to fail
@@ -323,8 +331,10 @@ func TestProcessTargets(t *testing.T) {
 		testFile := "/test_xprin.yaml"
 		require.NoError(t, afero.WriteFile(fs, testFile, []byte("invalid: yaml: : content}"), 0o644))
 
-		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &emptyRunner{options: options}
+		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+			options := r.Options
+
+			return &emptySession{options: options}
 		}
 
 		var err error
@@ -350,14 +360,14 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, afero.WriteFile(fs, testFile, []byte(suiteYAML(1)), 0o644))
 
 		// Mock runner with custom runTests implementation
-		runner := &emptyRunner{
+		runner := &emptySession{
 			options: &testexecutionOptions.Options{},
 			finishFunc: func() error {
 				return nil // Success
 			},
 		}
 
-		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
+		newSessionFunc = func(_ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return runner
 		}
 
@@ -374,8 +384,10 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
 		// Create mock runner
-		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &emptyRunner{
+		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+			options := r.Options
+
+			return &emptySession{
 				options: options,
 			}
 		}
@@ -402,8 +414,10 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
 		// Create mock runner
-		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &emptyRunner{
+		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+			options := r.Options
+
+			return &emptySession{
 				options: options,
 			}
 		}
@@ -455,13 +469,13 @@ func TestProcessTargets(t *testing.T) {
 		}
 
 		// Replace the runner factory
-		origNewRunnerFunc := newRunnerFunc
+		origNewSessionFunc := newSessionFunc
 
-		defer func() { newRunnerFunc = origNewRunnerFunc }()
+		defer func() { newSessionFunc = origNewSessionFunc }()
 
-		newRunnerFunc = func(_ *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
+		newSessionFunc = func(_ *testexecutionRunner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
 			// Create runner with output capture, capturing the test suite in closure
-			runner := &emptyRunner{
+			runner := &emptySession{
 				output:  &buf,
 				options: &testexecutionOptions.Options{},
 				finishFunc: func() error {
@@ -496,7 +510,7 @@ func TestProcessTargets(t *testing.T) {
 	})
 }
 
-func TestCreateRunner(t *testing.T) {
+func TestCreateSession(t *testing.T) {
 	t.Run("no test cases found error", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		testFile := testSuiteYAML
@@ -506,7 +520,7 @@ func TestCreateRunner(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			_, err = createRunner(fs, testFile, &testexecutionOptions.Options{})
+			_, err = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{}))
 		})
 		if !strings.Contains(out, "?   \t/suite.yaml\t[no test cases found]") {
 			t.Errorf("expected no test cases found output, got: %q", out)
@@ -525,7 +539,7 @@ func TestCreateRunner(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			_, err = createRunner(fs, testFile, &testexecutionOptions.Options{Quiet: true})
+			_, err = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{Quiet: true}))
 		})
 
 		require.NoError(t, err)
@@ -540,13 +554,13 @@ func TestCreateRunner(t *testing.T) {
 
 		var err error
 
-		runner := &emptyRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
-		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
+		runner := &emptySession{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
+		newSessionFunc = func(_ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			_, err = createRunner(fs, testFile, &testexecutionOptions.Options{})
+			_, err = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{}))
 		})
 
 		// Should have an error returned
@@ -572,13 +586,13 @@ func TestCreateRunner(t *testing.T) {
 
 		var err error
 
-		runner := &emptyRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
-		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
+		runner := &emptySession{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
+		newSessionFunc = func(_ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			_, err = createRunner(fs, testFile, &testexecutionOptions.Options{})
+			_, err = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{}))
 		})
 
 		if !strings.Contains(stderrOutput, "?   \t/suite.yaml\t[no test cases found]") {
@@ -661,16 +675,16 @@ func TestCreateRunner(t *testing.T) {
 
 				var processErr error
 
-				runner := &emptyRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
+				runner := &emptySession{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
 				runner.finishFunc = func() error {
 					return nil
 				}
-				newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
+				newSessionFunc = func(_ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 					return runner
 				}
 
 				stderrOutput := unittestsUtils.CaptureStderr(func() {
-					_, processErr = createRunner(fs, testFile, &testexecutionOptions.Options{})
+					_, processErr = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{}))
 				})
 
 				if len(tt.expectedErrors) > 0 {
@@ -740,11 +754,11 @@ func TestRunError(t *testing.T) {
 }
 
 func TestProcessTargets_ContainerCleanup(t *testing.T) {
-	origNewRunnerFunc := newRunnerFunc
+	origNewSessionFunc := newSessionFunc
 	origNewCoordinatorFunc := newCoordinatorFunc
 
 	defer func() {
-		newRunnerFunc = origNewRunnerFunc
+		newSessionFunc = origNewSessionFunc
 		newCoordinatorFunc = origNewCoordinatorFunc
 	}()
 
@@ -771,10 +785,12 @@ spec:
   package: xpkg.crossplane.io/crossplane-contrib/function-b:v1.0.0
 `), 0o644))
 
-		newRunnerFunc = func(opts *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
+		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+			opts := r.Options
+
 			options = opts
 
-			return &emptyRunner{
+			return &emptySession{
 				finishFunc: func() error {
 					// Simulate a Runner applying container reuse for this suite's functions.
 					require.NotNil(t, opts.Containers, "ProcessTargets must initialize Containers before running any suite")
@@ -819,8 +835,10 @@ spec:
 
 		var containersSeenByRunner *containers.Coordinator
 
-		newRunnerFunc = func(opts *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &emptyRunner{
+		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+			opts := r.Options
+
+			return &emptySession{
 				finishFunc: func() error {
 					containersSeenByRunner = opts.Containers
 					return nil
@@ -861,7 +879,7 @@ spec:
 }
 
 func TestProcessTargets_LoadsTheFilesBeforeRunningAnything(t *testing.T) {
-	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(2), "b_xprin.yaml": suiteYAML(2)}, nil)
+	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(2), "b_xprin.yaml": suiteYAML(2)}, nil)
 
 	require.NoError(t, ProcessTargets(fs, []string{"/tests/..."}, optionsWithWorkers(2)))
 
@@ -876,7 +894,7 @@ func TestProcessTargets_LoadsTheFilesBeforeRunningAnything(t *testing.T) {
 func TestProcessTargets_TheTestCasesOfTheNextFileUseTheFreeWorkers(t *testing.T) {
 	var tl *timeline
 
-	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(3)}, func(r *timelineRunner) {
+	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(3)}, func(r *timelineSession) {
 		if r.job.name == "a_xprin.yaml" {
 			// The only test case of the first file does not end until the three of the second file did: until
 			// the timeline has their end, which is recorded after their run returns.
@@ -903,7 +921,7 @@ func TestProcessTargets_TheTestCasesOfTheNextFileUseTheFreeWorkers(t *testing.T)
 }
 
 func TestProcessTargets_FailIsPrintedOnceAtTheEnd(t *testing.T) {
-	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, func(r *timelineRunner) {
+	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, func(r *timelineSession) {
 		if r.job.name == "a_xprin.yaml" {
 			r.job.finishErr = fmt.Errorf("%w in testsuite a_xprin.yaml", testexecutionRunner.ErrTestsFailed)
 		}
@@ -922,7 +940,7 @@ func TestProcessTargets_FailIsPrintedOnceAtTheEnd(t *testing.T) {
 }
 
 func TestProcessTargets_AFileThatCanNotBeLoadedIsLeftOutAndFailsTheRun(t *testing.T) {
-	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": "tests: [", "b_xprin.yaml": suiteYAML(1)}, nil)
+	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": "tests: [", "b_xprin.yaml": suiteYAML(1)}, nil)
 
 	var err error
 
@@ -938,7 +956,7 @@ func TestProcessTargets_AFileThatCanNotBeLoadedIsLeftOutAndFailsTheRun(t *testin
 }
 
 func TestProcessTargets_AFileThatCanNotBeSetUpIsLeftOutAndFailsTheRun(t *testing.T) {
-	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, func(r *timelineRunner) {
+	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, func(r *timelineSession) {
 		if r.job.name == "a_xprin.yaml" {
 			r.setupErr = errors.New("cannot make the directory")
 		}
@@ -958,7 +976,7 @@ func TestProcessTargets_AFileThatCanNotBeSetUpIsLeftOutAndFailsTheRun(t *testing
 }
 
 func TestProcessTargets_AFileWithoutTestCasesIsNotRun(t *testing.T) {
-	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": "tests: []\n", "b_xprin.yaml": suiteYAML(1)}, nil)
+	fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": "tests: []\n", "b_xprin.yaml": suiteYAML(1)}, nil)
 
 	var err error
 
@@ -973,7 +991,7 @@ func TestProcessTargets_AFileWithoutTestCasesIsNotRun(t *testing.T) {
 
 func TestProcessTargets_OneOrNoneRunsTheTestCasesOneAfterTheOther(t *testing.T) {
 	for _, workers := range []int{0, 1} {
-		fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(2), "b_xprin.yaml": suiteYAML(1)}, nil)
+		fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(2), "b_xprin.yaml": suiteYAML(1)}, nil)
 
 		require.NoError(t, ProcessTargets(fs, []string{"/tests/..."}, optionsWithWorkers(workers)), "workers: %d", workers)
 

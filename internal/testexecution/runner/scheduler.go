@@ -25,40 +25,41 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/testexecution/scheduler"
 )
 
-// Job returns the runner as the scheduler sees it: the steps of the runner, and the dependency graph of its file.
-// SetupTestSuite has to be called before the scheduler runs it.
-func (r *Runner) Job() scheduler.Job {
-	return &schedulerJob{r: r}
+// Job returns the session as the scheduler sees it: its steps, and the dependency graph of its file.
+// Setup has to be called before the scheduler runs it.
+func (s *Session) Job() scheduler.Job {
+	return &schedulerJob{s: s}
 }
 
-// schedulerJob gives the steps of a runner, and the dependency graph of its file, to the scheduler.
+// schedulerJob gives the steps of a session, and the dependency graph of its file, to the scheduler.
 type schedulerJob struct {
-	r *Runner
+	s *Session
 }
 
-func (s *schedulerJob) Graph() *graph.Graph { return s.r.testSuite.Graph }
+func (j *schedulerJob) Graph() *graph.Graph { return j.s.testSuite.Graph }
 
 // Run runs the test case. A panic fails that test case only, so that the others, which run at the same time, finish.
-func (s *schedulerJob) Run(positionInTestSuite int) {
+func (j *schedulerJob) Run(positionInTestSuite int) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			s.r.failPanicked(positionInTestSuite, recovered, debug.Stack())
+			j.s.failPanicked(positionInTestSuite, recovered, debug.Stack())
 		}
 	}()
 
-	s.r.runAndStoreTestCase(positionInTestSuite)
+	j.s.runAndStoreTestCase(positionInTestSuite)
 }
 
-func (s *schedulerJob) Report(positionInTestSuite int) {
-	s.r.printTestCaseResult(positionInTestSuite)
+func (j *schedulerJob) Report(positionInTestSuite int) {
+	j.s.printTestCaseResult(positionInTestSuite)
 }
 
 // Finish returns what completeTestSuite returned: nil, or ErrTestsFailed when some test case failed.
-func (s *schedulerJob) Finish() error { return s.r.completeTestSuite() }
+func (j *schedulerJob) Finish() error { return j.s.completeTestSuite() }
 
 // failPanicked records that the test case at positionInTestSuite failed because of a panic, as its result.
-func (r *Runner) failPanicked(positionInTestSuite int, recovered any, stack []byte) {
-	testCase := r.testSuite.Spec.Tests[positionInTestSuite]
+func (s *Session) failPanicked(positionInTestSuite int, recovered any, stack []byte) {
+	r := s.r
+	testCase := s.testSuite.Spec.Tests[positionInTestSuite]
 	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, r.Verbose, r.ShowRender, r.ShowValidate, r.ShowHooks, r.ShowAssertions)
 
 	err := fmt.Errorf("panic: %v", recovered)
@@ -68,6 +69,6 @@ func (r *Runner) failPanicked(positionInTestSuite int, recovered any, stack []by
 
 	result.Fail(err)
 
-	r.env.testCaseResults[positionInTestSuite] = result
-	r.env.testSuiteResult.AddResult(result)
+	s.env.testCaseResults[positionInTestSuite] = result
+	s.env.testSuiteResult.AddResult(result)
 }

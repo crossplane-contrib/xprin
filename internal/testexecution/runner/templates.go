@@ -96,6 +96,13 @@ func (r *Runner) processTemplateVariables(env *testCaseEnv, testCase *api.TestCa
 	return nil
 }
 
+// runCommandIn is runCommand in the directory of the testsuite file of env, as the hooks take it.
+func (r *Runner) runCommandIn(env *testCaseEnv) func(string, ...string) ([]byte, error) {
+	return func(name string, args ...string) ([]byte, error) {
+		return r.runCommand(env.testSuite.GetDir(), name, args...)
+	}
+}
+
 // renderTemplateOf is renderTemplate for the test case of env, as the hooks take it.
 func (r *Runner) renderTemplateOf(env *testCaseEnv) func(string, *templateContext, string) (string, error) {
 	return func(content string, templateContext *templateContext, templateName string) (string, error) {

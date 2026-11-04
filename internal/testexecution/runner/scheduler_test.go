@@ -37,12 +37,12 @@ func TestJob_APanicFailsOnlyThatTestCase(t *testing.T) {
 		{Name: "D", ID: "d"},
 	}}
 
-	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
+	r := newTestSession(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
 
 	var out bytes.Buffer
 
 	r.output = &out
-	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+	r.r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
 		if testCase.ID == "b" {
 			panic("boom")
 		}
@@ -50,7 +50,7 @@ func TestJob_APanicFailsOnlyThatTestCase(t *testing.T) {
 		return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
 	}
 
-	require.NoError(t, r.SetupTestSuite())
+	require.NoError(t, r.Setup())
 
 	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 4)
 	require.NoError(t, err)
@@ -68,13 +68,13 @@ func TestJob_APanicFailsOnlyThatTestCase(t *testing.T) {
 func TestJob_FinishReturnsNothingWhenNothingFailed(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "A", ID: "a"}}}
 
-	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
+	r := newTestSession(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
 	r.output = &bytes.Buffer{}
-	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+	r.r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
 		return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
 	}
 
-	require.NoError(t, r.SetupTestSuite())
+	require.NoError(t, r.Setup())
 
 	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 2)
 	require.NoError(t, err)

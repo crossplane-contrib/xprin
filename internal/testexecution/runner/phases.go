@@ -299,7 +299,7 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 // fails, to end the run of the test case, and nil to go on.
 func (r *Runner) runPreTestHooks(env *testCaseEnv, testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
 	if testCase.HasPreTestHooks() {
-		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommand, r.renderTemplateOf(env))
+		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommandIn(env), r.renderTemplateOf(env))
 
 		var err error
 
@@ -432,7 +432,7 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 		r.debug.Printf("Running render command: %s %s\n", r.Dependencies["crossplane"], strings.Join(renderArgs, " "))
 	}
 
-	result.RawRenderOutput, err = r.runCommand(r.Dependencies["crossplane"], renderArgs...)
+	result.RawRenderOutput, err = r.runCommand(env.testSuite.GetDir(), r.Dependencies["crossplane"], renderArgs...)
 
 	releaseContainers(err == nil)
 
@@ -518,7 +518,7 @@ func (r *Runner) validateTestCase(env *testCaseEnv, testCase api.TestCase, resul
 			r.debug.Printf("Running validate command: %s %s\n", r.Dependencies["crossplane"], strings.Join(validateArgs, " "))
 		}
 
-		result.RawValidateOutput, err = r.runCommand(r.Dependencies["crossplane"], validateArgs...)
+		result.RawValidateOutput, err = r.runCommand(env.testSuite.GetDir(), r.Dependencies["crossplane"], validateArgs...)
 		if err != nil {
 			_ = result.MarkValidateFailed()
 		}
@@ -617,7 +617,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 // does not end the run of the test case: it is in the result.
 func (r *Runner) runPostTestHooks(env *testCaseEnv, testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) {
 	if testCase.HasPostTestHooks() {
-		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommand, r.renderTemplateOf(env))
+		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommandIn(env), r.renderTemplateOf(env))
 
 		result.PostTestHooksResults, _ = hookExecutor.executeHooks(testCase.Hooks.PostTest, "post-test", testCase.Inputs, &result.Outputs, needsResults)
 		result.ProcessPostTestHooksOutput()
