@@ -50,7 +50,7 @@ func TestJob_APanicFailsOnlyThatTestCase(t *testing.T) {
 		return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
 	}
 
-	require.NoError(t, r.setupTestSuite())
+	require.NoError(t, r.SetupTestSuite())
 
 	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 4)
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestJob_FinishReturnsNothingWhenNothingFailed(t *testing.T) {
 		return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
 	}
 
-	require.NoError(t, r.setupTestSuite())
+	require.NoError(t, r.SetupTestSuite())
 
 	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 2)
 	require.NoError(t, err)

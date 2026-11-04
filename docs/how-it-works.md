@@ -4,7 +4,7 @@ This document describes how xprin behaves, step by step: how a testsuite file is
 
 ## Discovering Testsuite Files
 
-`xprin test` takes one or more targets: files, directories, or `dir/...` for a directory and everything below it. It discovers the files named `xprin.yaml` or `*_xprin.yaml` among them, and loads and runs them one by one, each with its own result line.
+`xprin test` takes one or more targets: files, directories, or `dir/...` for a directory and everything below it. It discovers the files named `xprin.yaml` or `*_xprin.yaml` among them, loads all of them, and then runs their test cases, with a result line for each file. A file that can't be loaded is reported, left out, and makes the run fail; the others still run.
 
 ## Loading a Testsuite File
 

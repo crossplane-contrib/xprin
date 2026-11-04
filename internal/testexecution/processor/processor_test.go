@@ -21,13 +21,21 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
+	"github.com/crossplane-contrib/xprin/internal/discovery"
+	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	testexecutionRunner "github.com/crossplane-contrib/xprin/internal/testexecution/runner"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/scheduler"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/spf13/afero"
@@ -37,24 +45,176 @@ import (
 )
 
 const (
-	testContentWithTests = `tests:
-  - name: test1`
 	testSuiteYAML = "/suite.yaml"
+	waitFor       = 5 * time.Second
 )
 
-// mockRunner is a mock implementation of runnerInterface for testing.
-type mockRunner struct {
-	runTestsFunc func() error
-	output       io.Writer
-	options      *testexecutionOptions.Options
+// emptyRunner is a runnerInterface for testing a file without test cases: what finishFunc returns is what the scheduler
+// gets from the end of the file, which is where the test cases of the real runner report their failures.
+// A file with test cases is a timelineRunner, further down.
+type emptyRunner struct {
+	finishFunc func() error
+	setupErr   error
+	file       string
+	output     io.Writer
+	options    *testexecutionOptions.Options
 }
 
-func (m *mockRunner) RunTests() error {
-	if m.runTestsFunc != nil {
-		return m.runTestsFunc()
+func (m *emptyRunner) finish() error {
+	if m.finishFunc != nil {
+		return m.finishFunc()
 	}
 
 	return nil
+}
+
+func (m *emptyRunner) GetTestSuiteFilePath() string { return m.file }
+
+func (m *emptyRunner) SetupTestSuite() error { return m.setupErr }
+
+func (m *emptyRunner) Job() scheduler.Job { return &emptyJob{finish: m.finish} }
+
+// emptyJob is a scheduler.Job without test cases, whose Finish is what the test says.
+type emptyJob struct {
+	finish func() error
+}
+
+func (*emptyJob) Graph() *graph.Graph { return graph.Build(&api.TestSuiteSpec{}) }
+func (*emptyJob) Run(int)             {}
+func (*emptyJob) Report(int)          {}
+func (s *emptyJob) Finish() error     { return s.finish() }
+
+// timeline records what the runners do, in the order it happens.
+type timeline struct {
+	mu     sync.Mutex
+	events []string
+}
+
+func (tl *timeline) addf(format string, args ...any) {
+	tl.mu.Lock()
+	defer tl.mu.Unlock()
+
+	tl.events = append(tl.events, fmt.Sprintf(format, args...))
+}
+
+func (tl *timeline) all() []string {
+	tl.mu.Lock()
+	defer tl.mu.Unlock()
+
+	return slices.Clone(tl.events)
+}
+
+// with returns the events that start with prefix, in order.
+func (tl *timeline) with(prefix string) []string {
+	return slices.DeleteFunc(tl.all(), func(e string) bool { return !strings.HasPrefix(e, prefix) })
+}
+
+func (tl *timeline) indexOf(t *testing.T, event string) int {
+	t.Helper()
+
+	i := slices.Index(tl.all(), event)
+	require.GreaterOrEqual(t, i, 0, "%q did not happen: %v", event, tl.all())
+
+	return i
+}
+
+// timelineJob is a testsuite file as the scheduler sees it, without any need: what is done to it is recorded.
+type timelineJob struct {
+	name      string
+	n         int
+	tl        *timeline
+	run       func(i int) // called between the start and the end of a test case
+	finishErr error       // what Finish returns
+}
+
+// Graph returns the graph of n test cases that don't need each other.
+func (s *timelineJob) Graph() *graph.Graph {
+	return graph.Build(&api.TestSuiteSpec{Tests: make([]api.TestCase, s.n)})
+}
+
+func (s *timelineJob) Run(i int) {
+	s.tl.addf("start %s:%d", s.name, i)
+
+	if s.run != nil {
+		s.run(i)
+	}
+
+	s.tl.addf("end %s:%d", s.name, i)
+}
+
+func (s *timelineJob) Report(i int) { s.tl.addf("report %s:%d", s.name, i) }
+
+func (s *timelineJob) Finish() error {
+	s.tl.addf("finish %s", s.name)
+	fmt.Fprintf(os.Stdout, "ok\t%s\n", s.name) // the summary of the file, as the runner prints it
+
+	return s.finishErr
+}
+
+// timelineRunner is a runner whose test cases are the ones of a timelineJob: what the processor does to it is recorded.
+type timelineRunner struct {
+	file     string
+	job      *timelineJob
+	setupErr error
+}
+
+func (r *timelineRunner) GetTestSuiteFilePath() string { return r.file }
+
+func (r *timelineRunner) SetupTestSuite() error {
+	r.job.tl.addf("setup %s", r.job.name)
+
+	return r.setupErr
+}
+
+func (r *timelineRunner) Job() scheduler.Job { return r.job }
+
+// suiteYAML is a testsuite file with n test cases.
+func suiteYAML(n int) string {
+	var b strings.Builder
+
+	b.WriteString("tests:\n")
+
+	for i := range n {
+		fmt.Fprintf(&b, "- name: t%d\n", i)
+	}
+
+	return b.String()
+}
+
+// setupTimelineRunners writes the testsuite files (the name of each with its content), and makes newRunnerFunc return
+// timeline runners, which configure can change.
+func setupTimelineRunners(t *testing.T, files map[string]string, configure func(r *timelineRunner)) (fs afero.Fs, tl *timeline) {
+	t.Helper()
+
+	fs = afero.NewMemMapFs()
+	tl = &timeline{}
+
+	for name, content := range files {
+		require.NoError(t, afero.WriteFile(fs, "/tests/"+name, []byte(content), 0o644))
+	}
+
+	original := newRunnerFunc
+
+	t.Cleanup(func() { newRunnerFunc = original })
+
+	newRunnerFunc = func(_ *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
+		name := filepath.Base(testSuite.File)
+		tl.addf("new %s", name)
+
+		r := &timelineRunner{file: testSuite.File, job: &timelineJob{name: name, n: len(testSuite.Spec.Tests), tl: tl}}
+		if configure != nil {
+			configure(r)
+		}
+
+		return r
+	}
+
+	return fs, tl
+}
+
+// optionsWithWorkers are the options of a run with that number of workers, without the reuse of the containers.
+func optionsWithWorkers(workers int) *testexecutionOptions.Options {
+	return &testexecutionOptions.Options{Parallel: workers, NoContainerReuse: true}
 }
 
 func TestProcessTargets_GivesTheRunnerTheTestSuite(t *testing.T) {
@@ -73,7 +233,7 @@ func TestProcessTargets_GivesTheRunnerTheTestSuite(t *testing.T) {
 	newRunnerFunc = func(_ *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
 		given = testSuite
 
-		return &mockRunner{}
+		return &emptyRunner{}
 	}
 
 	require.NoError(t, ProcessTargets(fs, []string{"/testdir/a_xprin.yaml"}, &testexecutionOptions.Options{NoContainerReuse: true}))
@@ -93,7 +253,7 @@ func TestProcessTargets(t *testing.T) {
 
 	t.Run("non-existent path", func(t *testing.T) {
 		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &mockRunner{options: options}
+			return &emptyRunner{options: options}
 		}
 
 		err := ProcessTargets(afero.NewMemMapFs(), []string{"non-existent-path"}, &testexecutionOptions.Options{Debug: false})
@@ -106,7 +266,7 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/testdir", 0o755))
 
 		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &mockRunner{options: options}
+			return &emptyRunner{options: options}
 		}
 
 		var err error
@@ -125,7 +285,7 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
 		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &mockRunner{options: options}
+			return &emptyRunner{options: options}
 		}
 
 		var err error
@@ -142,7 +302,7 @@ func TestProcessTargets(t *testing.T) {
 
 	t.Run("recursive path with error", func(t *testing.T) {
 		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &mockRunner{options: options}
+			return &emptyRunner{options: options}
 		}
 
 		// Invalid glob pattern will cause recursiveDirs to fail
@@ -164,7 +324,7 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, afero.WriteFile(fs, testFile, []byte("invalid: yaml: : content}"), 0o644))
 
 		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &mockRunner{options: options}
+			return &emptyRunner{options: options}
 		}
 
 		var err error
@@ -187,12 +347,12 @@ func TestProcessTargets(t *testing.T) {
 		testFile := "/test_xprin.yaml"
 
 		// Create a valid test file
-		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
+		require.NoError(t, afero.WriteFile(fs, testFile, []byte(suiteYAML(1)), 0o644))
 
 		// Mock runner with custom runTests implementation
-		runner := &mockRunner{
+		runner := &emptyRunner{
 			options: &testexecutionOptions.Options{},
-			runTestsFunc: func() error {
+			finishFunc: func() error {
 				return nil // Success
 			},
 		}
@@ -215,7 +375,7 @@ func TestProcessTargets(t *testing.T) {
 
 		// Create mock runner
 		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &mockRunner{
+			return &emptyRunner{
 				options: options,
 			}
 		}
@@ -243,7 +403,7 @@ func TestProcessTargets(t *testing.T) {
 
 		// Create mock runner
 		newRunnerFunc = func(options *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &mockRunner{
+			return &emptyRunner{
 				options: options,
 			}
 		}
@@ -291,7 +451,7 @@ func TestProcessTargets(t *testing.T) {
 
 		// Create valid test files
 		for _, file := range []string{validFile1, validFile2, validFile3} {
-			require.NoError(t, afero.WriteFile(fs, file, []byte(testContentWithTests), 0o644))
+			require.NoError(t, afero.WriteFile(fs, file, []byte(suiteYAML(1)), 0o644))
 		}
 
 		// Replace the runner factory
@@ -301,10 +461,10 @@ func TestProcessTargets(t *testing.T) {
 
 		newRunnerFunc = func(_ *testexecutionOptions.Options, testSuite *testsuite.TestSuite) runnerInterface {
 			// Create runner with output capture, capturing the test suite in closure
-			runner := &mockRunner{
+			runner := &emptyRunner{
 				output:  &buf,
 				options: &testexecutionOptions.Options{},
-				runTestsFunc: func() error {
+				finishFunc: func() error {
 					// Simulate what the real runTests would do by printing file results
 					// Write directly to the buffer we already have
 					fmt.Fprintf(&buf, "ok  \t%s\t%.3fs\n", testSuite.File, 0.123)
@@ -336,7 +496,7 @@ func TestProcessTargets(t *testing.T) {
 	})
 }
 
-func TestProcessTestSuiteFile(t *testing.T) {
+func TestCreateRunner(t *testing.T) {
 	t.Run("no test cases found error", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		testFile := testSuiteYAML
@@ -346,7 +506,7 @@ func TestProcessTestSuiteFile(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
+			_, err = createRunner(fs, testFile, &testexecutionOptions.Options{})
 		})
 		if !strings.Contains(out, "?   \t/suite.yaml\t[no test cases found]") {
 			t.Errorf("expected no test cases found output, got: %q", out)
@@ -365,7 +525,7 @@ func TestProcessTestSuiteFile(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{Quiet: true})
+			_, err = createRunner(fs, testFile, &testexecutionOptions.Options{Quiet: true})
 		})
 
 		require.NoError(t, err)
@@ -380,13 +540,13 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 		var err error
 
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
+		runner := &emptyRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
 		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
+			_, err = createRunner(fs, testFile, &testexecutionOptions.Options{})
 		})
 
 		// Should have an error returned
@@ -412,104 +572,17 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 		var err error
 
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
+		runner := &emptyRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
 		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
+			_, err = createRunner(fs, testFile, &testexecutionOptions.Options{})
 		})
 
 		if !strings.Contains(stderrOutput, "?   \t/suite.yaml\t[no test cases found]") {
 			t.Errorf("expected no test cases found output, got: %q", stderrOutput)
-		}
-
-		if err != nil {
-			t.Errorf("did not expect error, got: %v", err)
-		}
-	})
-
-	t.Run("test failure with test case", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		testFile := testSuiteYAML
-		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
-
-		var err error
-
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
-		runner.runTestsFunc = func() error {
-			return fmt.Errorf("%w in testsuite suite.yaml: something failed", testexecutionRunner.ErrTestsFailed)
-		}
-		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return runner
-		}
-
-		err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
-		if err == nil {
-			t.Errorf("expected error, got nil")
-		}
-
-		assert.Contains(t, err.Error(), "tests failed in testsuite suite.yaml: something failed")
-	})
-
-	t.Run("test failure without group", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		testFile := testSuiteYAML
-		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
-
-		var err error
-
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
-		runner.runTestsFunc = func() error {
-			return errors.New("some other error") // Use a generic error, not a group error
-		}
-		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return runner
-		}
-
-		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
-		})
-
-		// Check stderr for FAIL status
-		if !strings.Contains(stderrOutput, "FAIL\t/suite.yaml\t[testsuite file execution error]") {
-			t.Errorf("expected file fail output in stderr, got: %q", stderrOutput)
-		}
-
-		// Check stderr for detailed error message
-		if !strings.Contains(stderrOutput, "some other error") {
-			t.Errorf("expected error output in stderr, got: %q", stderrOutput)
-		}
-
-		if err == nil {
-			t.Errorf("expected error, got nil")
-		}
-
-		assert.Contains(t, err.Error(), "some other error")
-	})
-
-	t.Run("success", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		testFile := testSuiteYAML
-		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
-
-		var err error
-
-		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
-		runner.runTestsFunc = func() error {
-			return nil
-		}
-		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return runner
-		}
-
-		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			err = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
-		})
-
-		if strings.Contains(stderrOutput, "FAIL") {
-			t.Errorf("did not expect FAIL output, got: %q", stderrOutput)
 		}
 
 		if err != nil {
@@ -588,8 +661,8 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 				var processErr error
 
-				runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
-				runner.runTestsFunc = func() error {
+				runner := &emptyRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
+				runner.finishFunc = func() error {
 					return nil
 				}
 				newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
@@ -597,7 +670,7 @@ func TestProcessTestSuiteFile(t *testing.T) {
 				}
 
 				stderrOutput := unittestsUtils.CaptureStderr(func() {
-					processErr = processTestSuiteFile(fs, testFile, &testexecutionOptions.Options{})
+					_, processErr = createRunner(fs, testFile, &testexecutionOptions.Options{})
 				})
 
 				if len(tt.expectedErrors) > 0 {
@@ -628,6 +701,44 @@ func TestProcessTestSuiteFile(t *testing.T) {
 	})
 }
 
+func TestRunError(t *testing.T) {
+	t.Run("nothing failed", func(t *testing.T) {
+		var err error
+
+		stderrOutput := unittestsUtils.CaptureStderr(func() {
+			err = runError(testSuiteYAML, nil)
+		})
+
+		require.NoError(t, err)
+		assert.Empty(t, stderrOutput)
+	})
+
+	t.Run("test cases failed: they were reported as they ran", func(t *testing.T) {
+		var err error
+
+		stderrOutput := unittestsUtils.CaptureStderr(func() {
+			err = runError(testSuiteYAML, fmt.Errorf("%w in testsuite suite.yaml", testexecutionRunner.ErrTestsFailed))
+		})
+
+		require.ErrorIs(t, err, testexecutionRunner.ErrTestsFailed)
+		assert.Contains(t, err.Error(), "test execution failed for /suite.yaml")
+		assert.Empty(t, stderrOutput, "there is nothing more to say about them")
+	})
+
+	t.Run("another error is reported with the file", func(t *testing.T) {
+		var err error
+
+		stderrOutput := unittestsUtils.CaptureStderr(func() {
+			err = runError(testSuiteYAML, errors.New("some other error"))
+		})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "some other error")
+		assert.Contains(t, stderrOutput, "FAIL\t/suite.yaml\t[testsuite file execution error]")
+		assert.Contains(t, stderrOutput, "some other error")
+	})
+}
+
 func TestProcessTargets_ContainerCleanup(t *testing.T) {
 	origNewRunnerFunc := newRunnerFunc
 	origNewCoordinatorFunc := newCoordinatorFunc
@@ -640,7 +751,7 @@ func TestProcessTargets_ContainerCleanup(t *testing.T) {
 	t.Run("initializes Containers and cleans up every tracked name", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		testFile := "/suite_xprin.yaml"
-		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
+		require.NoError(t, afero.WriteFile(fs, testFile, []byte(suiteYAML(1)), 0o644))
 
 		var options *testexecutionOptions.Options
 
@@ -663,8 +774,8 @@ spec:
 		newRunnerFunc = func(opts *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			options = opts
 
-			return &mockRunner{
-				runTestsFunc: func() error {
+			return &emptyRunner{
+				finishFunc: func() error {
 					// Simulate a Runner applying container reuse for this suite's functions.
 					require.NotNil(t, opts.Containers, "ProcessTargets must initialize Containers before running any suite")
 
@@ -704,13 +815,13 @@ spec:
 	t.Run("NoContainerReuse disables the registry entirely", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		testFile := "/suite_xprin.yaml"
-		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
+		require.NoError(t, afero.WriteFile(fs, testFile, []byte(suiteYAML(1)), 0o644))
 
 		var containersSeenByRunner *containers.Coordinator
 
 		newRunnerFunc = func(opts *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
-			return &mockRunner{
-				runTestsFunc: func() error {
+			return &emptyRunner{
+				finishFunc: func() error {
 					containersSeenByRunner = opts.Containers
 					return nil
 				},
@@ -738,7 +849,7 @@ spec:
 	t.Run("coordinator creation failure is returned", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		testFile := "/suite_xprin.yaml"
-		require.NoError(t, afero.WriteFile(fs, testFile, []byte(testContentWithTests), 0o644))
+		require.NoError(t, afero.WriteFile(fs, testFile, []byte(suiteYAML(1)), 0o644))
 
 		newCoordinatorFunc = func() (*containers.Coordinator, error) {
 			return nil, errors.New("no docker")
@@ -747,4 +858,126 @@ spec:
 		err := ProcessTargets(fs, []string{testFile}, &testexecutionOptions.Options{})
 		require.ErrorContains(t, err, "failed to set up container reuse: no docker")
 	})
+}
+
+func TestProcessTargets_LoadsTheFilesBeforeRunningAnything(t *testing.T) {
+	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(2), "b_xprin.yaml": suiteYAML(2)}, nil)
+
+	require.NoError(t, ProcessTargets(fs, []string{"/tests/..."}, optionsWithWorkers(2)))
+
+	assert.Less(t, tl.indexOf(t, "new b_xprin.yaml"), tl.indexOf(t, "start a_xprin.yaml:0"), "every file is loaded before a test case starts")
+	assert.Equal(t, []string{"setup a_xprin.yaml", "setup b_xprin.yaml"}, tl.with("setup "))
+	assert.Equal(t, []string{
+		"report a_xprin.yaml:0", "report a_xprin.yaml:1", "finish a_xprin.yaml",
+		"report b_xprin.yaml:0", "report b_xprin.yaml:1", "finish b_xprin.yaml",
+	}, slices.DeleteFunc(tl.all(), func(e string) bool { return !strings.HasPrefix(e, "report ") && !strings.HasPrefix(e, "finish ") }))
+}
+
+func TestProcessTargets_TheTestCasesOfTheNextFileUseTheFreeWorkers(t *testing.T) {
+	var tl *timeline
+
+	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(3)}, func(r *timelineRunner) {
+		if r.job.name == "a_xprin.yaml" {
+			// The only test case of the first file does not end until the three of the second file did: until
+			// the timeline has their end, which is recorded after their run returns.
+			r.job.run = func(int) {
+				deadline := time.Now().Add(waitFor)
+				for len(tl.with("end b_xprin.yaml:")) < 3 {
+					if time.Now().After(deadline) {
+						t.Error("the test cases of the second file did not run while the first one was busy")
+
+						return
+					}
+
+					time.Sleep(time.Millisecond)
+				}
+			}
+		}
+	})
+
+	require.NoError(t, ProcessTargets(fs, []string{"/tests/..."}, optionsWithWorkers(2)))
+
+	// They ran in the other order, and are reported in the order of the files
+	assert.Less(t, tl.indexOf(t, "end b_xprin.yaml:2"), tl.indexOf(t, "end a_xprin.yaml:0"))
+	assert.Less(t, tl.indexOf(t, "report a_xprin.yaml:0"), tl.indexOf(t, "report b_xprin.yaml:0"))
+}
+
+func TestProcessTargets_FailIsPrintedOnceAtTheEnd(t *testing.T) {
+	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, func(r *timelineRunner) {
+		if r.job.name == "a_xprin.yaml" {
+			r.job.finishErr = fmt.Errorf("%w in testsuite a_xprin.yaml", testexecutionRunner.ErrTestsFailed)
+		}
+	})
+
+	var err error
+
+	out := unittestsUtils.CaptureOutput(func() {
+		err = ProcessTargets(fs, []string{"/tests/..."}, optionsWithWorkers(2))
+	})
+
+	require.ErrorIs(t, err, discovery.ErrFailed)
+	assert.Equal(t, 1, strings.Count(out.Stdout, "FAIL"), "once: %q", out.Stdout)
+	assert.NotContains(t, out.Stderr, "testsuite file execution error", "the test cases that failed were reported as they ran, nothing more")
+	assert.Len(t, tl.with("finish "), 2, "the other file was run to the end")
+}
+
+func TestProcessTargets_AFileThatCanNotBeLoadedIsLeftOutAndFailsTheRun(t *testing.T) {
+	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": "tests: [", "b_xprin.yaml": suiteYAML(1)}, nil)
+
+	var err error
+
+	out := unittestsUtils.CaptureOutput(func() {
+		err = ProcessTargets(fs, []string{"/tests/..."}, optionsWithWorkers(2))
+	})
+
+	require.ErrorIs(t, err, discovery.ErrFailed)
+	// FAIL is for the run, once, and after the summary of the file that did run: not when the file was found
+	assert.Equal(t, "ok\tb_xprin.yaml\nFAIL\n", out.Stdout)
+	assert.Empty(t, tl.with("new a_xprin.yaml"), "no runner for it")
+	assert.Equal(t, []string{"report b_xprin.yaml:0"}, tl.with("report "), "the others run")
+}
+
+func TestProcessTargets_AFileThatCanNotBeSetUpIsLeftOutAndFailsTheRun(t *testing.T) {
+	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, func(r *timelineRunner) {
+		if r.job.name == "a_xprin.yaml" {
+			r.setupErr = errors.New("cannot make the directory")
+		}
+	})
+
+	var err error
+
+	out := unittestsUtils.CaptureOutput(func() {
+		err = ProcessTargets(fs, []string{"/tests/..."}, optionsWithWorkers(2))
+	})
+
+	require.ErrorIs(t, err, discovery.ErrFailed)
+	assert.Contains(t, out.Stderr, "cannot make the directory", "it is reported")
+	assert.Contains(t, out.Stderr, "[testsuite file execution error]")
+	assert.Empty(t, tl.with("start a_xprin.yaml"))
+	assert.Equal(t, []string{"report b_xprin.yaml:0"}, tl.with("report "), "the others run")
+}
+
+func TestProcessTargets_AFileWithoutTestCasesIsNotRun(t *testing.T) {
+	fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": "tests: []\n", "b_xprin.yaml": suiteYAML(1)}, nil)
+
+	var err error
+
+	out := unittestsUtils.CaptureOutput(func() {
+		err = ProcessTargets(fs, []string{"/tests/..."}, optionsWithWorkers(2))
+	})
+
+	require.NoError(t, err)
+	assert.Contains(t, out.Stderr, "[no test cases found]")
+	assert.Empty(t, tl.with("new a_xprin.yaml"))
+}
+
+func TestProcessTargets_OneOrNoneRunsTheTestCasesOneAfterTheOther(t *testing.T) {
+	for _, workers := range []int{0, 1} {
+		fs, tl := setupTimelineRunners(t, map[string]string{"a_xprin.yaml": suiteYAML(2), "b_xprin.yaml": suiteYAML(1)}, nil)
+
+		require.NoError(t, ProcessTargets(fs, []string{"/tests/..."}, optionsWithWorkers(workers)), "workers: %d", workers)
+
+		assert.Less(t, tl.indexOf(t, "end a_xprin.yaml:0"), tl.indexOf(t, "start a_xprin.yaml:1"), "workers: %d", workers)
+		assert.Less(t, tl.indexOf(t, "end a_xprin.yaml:1"), tl.indexOf(t, "start b_xprin.yaml:0"), "workers: %d", workers)
+	}
 }
