@@ -36,13 +36,15 @@ type Options struct {
 	Quiet bool
 	// Debug prints how targets and files are processed.
 	Debug bool
+	// DeferFail makes Walk leave the final FAIL line to the caller (see FinalFail) when it fails.
+	DeferFail bool
 }
 
 // ErrFailed is the error of a Walk that found problems, or whose visits failed.
 var ErrFailed = errors.New("processing completed with errors")
 
-// finalFail prints the final FAIL line, and returns ErrFailed.
-func finalFail() error {
+// FinalFail prints the final FAIL line, and returns ErrFailed.
+func FinalFail() error {
 	utils.OutputPrintf("FAIL\n")
 
 	return ErrFailed
@@ -53,7 +55,7 @@ type Visitor func(testSuiteFile string) error
 
 // Walk resolves the targets (files, directories, or recursive directories) to testsuite files and
 // calls visit for each of them. It reports the problems it finds, and returns an error if any of
-// them, or any visit, failed: ErrFailed, after printing FAIL.
+// them, or any visit, failed: ErrFailed, after printing FAIL (unless Options.DeferFail is set).
 //
 //nolint:gocognit // Complex target processing with multiple validation phases
 func Walk(fs afero.Fs, targets []string, options Options, visit Visitor) error {
@@ -127,7 +129,11 @@ func Walk(fs afero.Fs, targets []string, options Options, visit Visitor) error {
 	}
 
 	if hasErrors {
-		return finalFail()
+		if options.DeferFail {
+			return ErrFailed
+		}
+
+		return FinalFail()
 	}
 
 	return nil

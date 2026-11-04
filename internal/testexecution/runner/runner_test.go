@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -3879,7 +3880,7 @@ func TestSavedOutputsDirectory(t *testing.T) {
 		}
 
 		// Before runTests, internal artifacts directory should not exist
-		assert.Empty(t, runner.testSuiteSavedOutputsDir, "internal artifacts directory should not exist before runTests")
+		assert.Nil(t, runner.env, "internal artifacts directory should not exist before runTests")
 
 		err := runner.RunTests()
 		require.NoError(t, err)
@@ -3889,7 +3890,7 @@ func TestSavedOutputsDirectory(t *testing.T) {
 		// Note: The directory is cleaned up by defer, so we verify the field was set during execution
 		// Since we can't check after defer runs, we verify through behavior: if runTests succeeded,
 		// the directory was created. The actual copying logic is tested in other tests.
-		assert.NotEmpty(t, runner.testSuiteSavedOutputsDir, "internal artifacts directory path should have been set by runTests")
+		assert.NotEmpty(t, runner.env.savedOutputsDir, "internal artifacts directory path should have been set by runTests")
 	})
 
 	t.Run("saves outputs as internal artifacts when testCase.ID is set", func(t *testing.T) {
@@ -3932,7 +3933,7 @@ metadata:
 		// Set internal artifacts directory (simulating what runTests does)
 		testSuiteSavedOutputsDir := "/saved-outputs-dir"
 		require.NoError(t, fs.MkdirAll(testSuiteSavedOutputsDir, 0o755))
-		runner.testSuiteSavedOutputsDir = testSuiteSavedOutputsDir
+		runner.env = &testSuiteEnv{savedOutputsDir: testSuiteSavedOutputsDir}
 
 		// Mock path expansion and verification
 		runner.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) {
@@ -4076,8 +4077,8 @@ metadata:
 		}
 
 		testSuiteResult := engine.NewTestSuiteResult("test-suite.yaml", false)
-		runner.testSuiteSavedOutputsDir = "/saved-outputs-dir"
-		require.NoError(t, fs.MkdirAll(runner.testSuiteSavedOutputsDir, 0o755))
+		runner.env = &testSuiteEnv{savedOutputsDir: "/saved-outputs-dir"}
+		require.NoError(t, fs.MkdirAll(runner.env.savedOutputsDir, 0o755))
 
 		testCase := api.TestCase{
 			Name: "test1", // No ID
@@ -4182,7 +4183,7 @@ metadata:
 func TestSaveOutputs(t *testing.T) {
 	newRunner := func() (*Runner, *[]string) {
 		r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/suite_xprin.yaml", &api.TestSuiteSpec{}))
-		r.testSuiteSavedOutputsDir = "/saved-outputs"
+		r.env = &testSuiteEnv{savedOutputsDir: "/saved-outputs"}
 
 		var copied []string
 
@@ -4229,9 +4230,13 @@ func TestSaveOutputs(t *testing.T) {
 	})
 }
 
-// runWithFakeResults runs the testcases of the spec with RunTests, where the ones in failing fail and the
-// others pass, and returns what was printed and which testcases actually ran.
-func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, failing ...string) (output string, ran []string) {
+// timings are what differs between two runs of the same test cases.
+var timings = regexp.MustCompile(`\d+\.\d+s`)
+
+// runWithFakeResults runs the test cases of the spec with fake results: the ones in failing fail, and the others pass.
+// It runs them with RunTests or, with bySteps, with its steps one after the other.
+// It returns what was printed and the IDs of the ones that ran.
+func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, bySteps bool, failing ...string) (output string, ran []string) {
 	t.Helper()
 
 	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
@@ -4250,7 +4255,20 @@ func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, failing ...string
 		return result
 	}
 
-	_ = r.RunTests() // it fails when a testcase does: what matters is what ran, and what was printed
+	if !bySteps {
+		_ = r.RunTests() // it fails when a test case does: what matters is what ran, and what was printed
+
+		return out.String(), ran
+	}
+
+	require.NoError(t, r.setupTestSuite())
+
+	for _, i := range r.testSuite.Graph.GetOrder() {
+		r.runAndStoreTestCase(i)
+		r.printTestCaseResult(i)
+	}
+
+	_ = r.completeTestSuite()
 
 	return out.String(), ran
 }
@@ -4265,7 +4283,7 @@ func TestRunTests_Needs(t *testing.T) {
 	}}
 
 	t.Run("nothing fails: everything runs", func(t *testing.T) {
-		out, ran := runWithFakeResults(t, spec)
+		out, ran := runWithFakeResults(t, spec, false)
 
 		assert.Equal(t, []string{"a", "b", "c", "d", "e"}, ran)
 		assert.NotContains(t, out, "SKIP")
@@ -4273,7 +4291,7 @@ func TestRunTests_Needs(t *testing.T) {
 	})
 
 	t.Run("the dependents of a failed testcase are skipped, with the reason on follow-up lines, one per need", func(t *testing.T) {
-		out, ran := runWithFakeResults(t, spec, "a")
+		out, ran := runWithFakeResults(t, spec, false, "a")
 
 		assert.Equal(t, []string{"a", "e"}, ran)
 		assert.Contains(t, out, "--- FAIL: A")
@@ -4297,13 +4315,13 @@ func TestRunTests_Order(t *testing.T) {
 	}
 
 	t.Run("the test cases run after the ones they need, the rest in the order of the file", func(t *testing.T) {
-		_, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests})
+		_, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests}, false)
 
 		assert.Equal(t, []string{"b", "c", "a", "d"}, ran)
 	})
 
 	t.Run("a test case that needs one listed after it is skipped when that one fails", func(t *testing.T) {
-		out, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests}, "b")
+		out, ran := runWithFakeResults(t, &api.TestSuiteSpec{Tests: tests}, false, "b")
 
 		assert.Equal(t, []string{"b", "c", "d"}, ran)
 		assert.Contains(t, out, "--- SKIP: A")
@@ -4387,5 +4405,53 @@ spec:
 	case <-acquired:
 	case <-time.After(5 * time.Second):
 		t.Fatal("the container is still locked after the render panicked")
+	}
+}
+
+// The steps, run one after the other in the order of the graph, give the output and the test cases of RunTests.
+func TestRunner_StepsGiveTheOutputOfRunTests(t *testing.T) {
+	// One of the test cases is listed after the ones that need it, and some are independent
+	chain := []api.TestCase{
+		{Name: "A", ID: "a", Needs: []string{"c", "b"}},
+		{Name: "B", ID: "b"},
+		{Name: "C", ID: "c", Needs: []string{"b"}},
+		{Name: "D", ID: "dd", Needs: []string{"a"}},
+		{Name: "E", ID: "eee"},
+		{Name: "F", ID: "ffff", Needs: []string{"b", "eee"}},
+	}
+
+	many := make([]api.TestCase, 0, 40)
+
+	for i := range 40 {
+		testCase := api.TestCase{Name: fmt.Sprintf("test %d", i), ID: fmt.Sprintf("t%d", i)}
+		if i%5 == 4 {
+			testCase.Needs = []string{fmt.Sprintf("t%d", i-3), fmt.Sprintf("t%d", i-1)}
+		}
+
+		many = append(many, testCase)
+	}
+
+	for name, tt := range map[string]struct {
+		tests   []api.TestCase
+		failing []string
+	}{
+		"everything passes":                          {tests: chain},
+		"a failure skips the ones that need it":      {tests: chain, failing: []string{"b"}},
+		"a failure in the middle of a chain":         {tests: chain, failing: []string{"a"}},
+		"many test cases, some of them independent":  {tests: many, failing: []string{"t1", "t10"}},
+		"many test cases, and none of them fail":     {tests: many},
+		"every test case fails, so every need fails": {tests: chain, failing: []string{"a", "b", "c", "dd", "eee", "ffff"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			spec := &api.TestSuiteSpec{Tests: tt.tests}
+
+			serial, serialRan := runWithFakeResults(t, spec, false, tt.failing...)
+			require.NotEmpty(t, serial)
+
+			got, ran := runWithFakeResults(t, spec, true, tt.failing...)
+
+			assert.Equal(t, timings.ReplaceAllString(serial, "N"), timings.ReplaceAllString(got, "N"))
+			assert.Equal(t, serialRan, ran)
+		})
 	}
 }

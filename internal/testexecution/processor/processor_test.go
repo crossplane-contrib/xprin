@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
+	testexecutionRunner "github.com/crossplane-contrib/xprin/internal/testexecution/runner"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	unittestsUtils "github.com/crossplane-contrib/xprin/internal/unittests/utils"
 	"github.com/spf13/afero"
@@ -438,7 +439,7 @@ func TestProcessTestSuiteFile(t *testing.T) {
 
 		runner := &mockRunner{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
 		runner.runTestsFunc = func() error {
-			return errors.New("tests failed in testsuite suite.yaml: something failed")
+			return fmt.Errorf("%w in testsuite suite.yaml: something failed", testexecutionRunner.ErrTestsFailed)
 		}
 		newRunnerFunc = func(_ *testexecutionOptions.Options, _ *testsuite.TestSuite) runnerInterface {
 			return runner

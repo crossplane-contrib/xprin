@@ -18,8 +18,8 @@ limitations under the License.
 package processor
 
 import (
+	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/discovery"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
@@ -89,8 +89,7 @@ func processTestSuiteFile(fs afero.Fs, testSuiteFile string, options *testexecut
 
 	fileErr := testRunner.RunTests()
 	if fileErr != nil {
-		errMsg := fileErr.Error()
-		if !strings.Contains(errMsg, "tests failed in testsuite") {
+		if !errors.Is(fileErr, runner.ErrTestsFailed) {
 			return discovery.ReportTestSuiteError(testSuiteFile, fileErr, "testsuite file execution error")
 		}
 
