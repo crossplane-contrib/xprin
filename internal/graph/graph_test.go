@@ -401,6 +401,40 @@ func TestOrder_ADependencyUnlocksTheOnesThatWaitForIt(t *testing.T) {
 	assert.Equal(t, []int{2, 3, 1, 0}, order(t, spec))
 }
 
+func TestPositionInOrder(t *testing.T) {
+	t.Run("it is where the testcase is in the order, the opposite of GetOrder", func(t *testing.T) {
+		// B is listed first and needs A, so the order is A, B
+		g := Build(&api.TestSuiteSpec{Tests: []api.TestCase{testCase("B", "b", "a"), testCase("A", "a")}})
+
+		assert.Equal(t, []int{1, 0}, g.GetOrder())
+		assert.Equal(t, 1, g.PositionInOrder(0))
+		assert.Equal(t, 0, g.PositionInOrder(1))
+	})
+
+	t.Run("it is the inverse of the order, for each testcase", func(t *testing.T) {
+		var spec api.TestSuiteSpec
+		require.NoError(t, yaml.Unmarshal([]byte(chainedSuite), &spec))
+
+		g := Build(&spec)
+
+		for positionInOrder, position := range g.GetOrder() {
+			assert.Equal(t, positionInOrder, g.PositionInOrder(position), "testcase at position %d", position)
+		}
+	})
+
+	t.Run("it is -1 for a testcase that is in a cycle, or needs one", func(t *testing.T) {
+		g := Build(&api.TestSuiteSpec{Tests: []api.TestCase{
+			testCase("A", "a", "b"),
+			testCase("B", "b", "a"),
+			testCase("C", "c", "b"),
+			testCase("D", "d"),
+		}})
+
+		assert.Equal(t, []int{3}, g.GetOrder())
+		assert.Equal(t, []int{-1, -1, -1, 0}, []int{g.PositionInOrder(0), g.PositionInOrder(1), g.PositionInOrder(2), g.PositionInOrder(3)})
+	})
+}
+
 func TestCheckCycles(t *testing.T) {
 	tests := map[string]struct {
 		tests []api.TestCase
@@ -448,6 +482,8 @@ func TestCheckCycles_KeepsTheOrderOnlyWhenThereAreNoCycles(t *testing.T) {
 		assert.Empty(t, g.CheckCycles())
 		assert.Equal(t, []int{1, 0, 2}, g.order)
 		assert.Equal(t, []int{1, 0, 2}, g.GetOrder())
+		assert.Equal(t, []int{1, 0, 2}, g.positionsInOrder, "and where each one is in it")
+		assert.Equal(t, []int{1, 0, 2}, []int{g.PositionInOrder(0), g.PositionInOrder(1), g.PositionInOrder(2)})
 	})
 
 	t.Run("a graph that was not checked sorts in GetOrder", func(t *testing.T) {
@@ -455,6 +491,8 @@ func TestCheckCycles_KeepsTheOrderOnlyWhenThereAreNoCycles(t *testing.T) {
 
 		assert.Equal(t, []int{1, 0}, g.GetOrder())
 		assert.Nil(t, g.order, "GetOrder doesn't keep what it sorts")
+		assert.Equal(t, 1, g.PositionInOrder(0))
+		assert.Nil(t, g.positionsInOrder, "and neither does PositionInOrder")
 	})
 
 	t.Run("cycles: nothing is kept, because what was sorted is only the part that is not in a cycle", func(t *testing.T) {
@@ -462,5 +500,6 @@ func TestCheckCycles_KeepsTheOrderOnlyWhenThereAreNoCycles(t *testing.T) {
 
 		assert.Len(t, g.CheckCycles(), 1)
 		assert.Nil(t, g.order)
+		assert.Nil(t, g.positionsInOrder)
 	})
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/scheduler"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/gertd/go-pluralize"
@@ -63,10 +64,6 @@ type testSuiteEnv struct {
 	savedOutputsDir string                   // the internal artifacts, the outputs that test cases share
 	testSuiteResult *engine.TestSuiteResult  // the result of the file, which the result of each test case is added to
 	testCaseResults []*engine.TestCaseResult // the result of each test case, by its positionInTestSuite, once it ran
-	// positionInOrder[positionInTestSuite] is where the test case at positionInTestSuite is in the order they run.
-	// That is the order of the dependency graph, which can differ from the order of the file.
-	// It starts at 0, and numbers the artifacts of the test cases.
-	positionInOrder []int
 }
 
 // testCaseEnv is the state of one test case run.
@@ -122,12 +119,12 @@ func (r *Runner) RunTests() error {
 	// completeTestSuite removes it too: this is for a run that ends without it
 	defer r.removeSavedOutputsDir()
 
-	for _, positionInTestSuite := range r.testSuite.Graph.GetOrder() {
-		r.runAndStoreTestCase(positionInTestSuite)
-		r.printTestCaseResult(positionInTestSuite)
+	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 1)
+	if err != nil {
+		return err
 	}
 
-	return r.completeTestSuite()
+	return finishErrs[0]
 }
 
 // setupTestSuite checks the testsuite file and makes the directories that the test cases use.
@@ -179,11 +176,6 @@ func (r *Runner) setupTestSuite() (err error) {
 	totalTestCases := len(r.testSuite.Spec.Tests)
 	r.env.testCaseResults = make([]*engine.TestCaseResult, totalTestCases)
 
-	r.env.positionInOrder = make([]int, totalTestCases)
-	for positionInOrder, positionInTestSuite := range r.testSuite.Graph.GetOrder() {
-		r.env.positionInOrder[positionInTestSuite] = positionInOrder
-	}
-
 	if r.ArtifactsBaseDir != "" && totalTestCases > 0 {
 		if err := r.initArtifactsRunDir(); err != nil {
 			return err
@@ -199,8 +191,8 @@ func (r *Runner) setupTestSuite() (err error) {
 func (r *Runner) runAndStoreTestCase(positionInTestSuite int) {
 	testCase := r.testSuite.Spec.Tests[positionInTestSuite]
 
-	// Run the test and let the engine handle everything
-	result := r.runTestCase(testCase, r.env.positionInOrder[positionInTestSuite]+1, r.env.testSuiteResult)
+	// Run the test and let the engine handle everything. The test cases are numbered, from 1, in the order they run in.
+	result := r.runTestCase(testCase, r.testSuite.Graph.PositionInOrder(positionInTestSuite)+1, r.env.testSuiteResult)
 
 	r.env.testCaseResults[positionInTestSuite] = result
 	r.env.testSuiteResult.AddResult(result)

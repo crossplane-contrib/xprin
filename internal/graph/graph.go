@@ -48,6 +48,9 @@ type Graph struct {
 	byID map[string]int
 	// order is the positions of the testcases in the order they run. CheckCycles sets it, when it finds no cycles
 	order []int
+	// positionsInOrder[i] is where the testcase at position i is in order, or -1 if it is not in it. CheckCycles sets
+	// it with order
+	positionsInOrder []int
 }
 
 // Build returns the dependency graph of the testcases in spec: a testcase depends on the testcases
@@ -189,6 +192,32 @@ func (g *Graph) GetOrder() []int {
 	return g.order
 }
 
+// PositionInOrder returns where the testcase at position is in GetOrder: 0 for the one that runs first.
+// It is -1 for a testcase that is not in the order, because it is in a cycle of needs, or needs one that is.
+func (g *Graph) PositionInOrder(position int) int {
+	if g.positionsInOrder != nil {
+		return g.positionsInOrder[position]
+	}
+
+	// A graph that was not checked works it out now, so that it is never missing, as GetOrder does
+	return positionsOf(g.GetOrder(), len(g.nodes))[position]
+}
+
+// positionsOf returns, for each of the n positions, where it is in order: the opposite of order. A position that is
+// not in order gets -1.
+func positionsOf(order []int, n int) []int {
+	positions := make([]int, n)
+	for i := range positions {
+		positions[i] = -1
+	}
+
+	for positionInOrder, position := range order {
+		positions[position] = positionInOrder
+	}
+
+	return positions
+}
+
 // CheckCycles describes each cycle of testcases that need each other, one message for each, like
 // `needs cycle: a -> b -> a` (a needs b, which needs a). It is empty when the testcases can be ordered.
 func (g *Graph) CheckCycles() []string {
@@ -202,9 +231,10 @@ func (g *Graph) CheckCycles() []string {
 		order, waiting := g.sortByDependencies(done)
 
 		if g.noCyclesLeft(order, done) {
-			// No cycle at all: this sort is the order of the testcases, keep it for GetOrder
+			// No cycle at all: this sort is the order of the testcases, keep it for GetOrder and PositionInOrder
 			if len(cycles) == 0 {
 				g.order = order
+				g.positionsInOrder = positionsOf(order, len(g.nodes))
 			}
 
 			return cycles
