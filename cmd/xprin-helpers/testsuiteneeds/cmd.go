@@ -123,6 +123,11 @@ func (c *Cmd) Run(k *kong.Context) error {
 		return nil
 	})
 
+	// The FAIL comes before the summary, as it does in xprin test
+	if walkErr != nil {
+		walkErr = discovery.FinalFail()
+	}
+
 	writeSummary(errOut, missNeeds, requireAPerson)
 
 	if err := errOut.Flush(); err != nil && walkErr == nil {
