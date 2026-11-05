@@ -68,9 +68,13 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 		defer options.Containers.RemoveAll()
 	}
 
-	return discovery.Walk(fs, targets, discoveryOptions(options), func(testSuiteFile string) error {
+	if err := discovery.Walk(fs, targets, discoveryOptions(options), func(testSuiteFile string) error {
 		return processTestSuiteFile(fs, testSuiteFile, options)
-	})
+	}); err != nil {
+		return discovery.FinalFail()
+	}
+
+	return nil
 }
 
 // discoveryOptions returns what the discovery package needs to know from the options.

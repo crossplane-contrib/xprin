@@ -52,7 +52,7 @@ func graphTargets(fs afero.Fs, out io.Writer, targets []string, quiet bool) erro
 	options := discovery.Options{Quiet: quiet}
 	first := true
 
-	return discovery.Walk(fs, targets, options, func(testSuiteFile string) error {
+	err := discovery.Walk(fs, targets, options, func(testSuiteFile string) error {
 		testSuite, err := discovery.Load(fs, testSuiteFile, options)
 		if err != nil || testSuite == nil {
 			return err
@@ -68,4 +68,9 @@ func graphTargets(fs afero.Fs, out io.Writer, targets []string, quiet bool) erro
 
 		return graphRender.Tree(out, testSuite)
 	})
+	if err != nil {
+		return discovery.FinalFail()
+	}
+
+	return nil
 }

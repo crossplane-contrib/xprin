@@ -155,7 +155,7 @@ func TestWalk(t *testing.T) {
 		})
 	}
 
-	t.Run("a failing visit fails the walk and prints FAIL, but the next target is still visited", func(t *testing.T) {
+	t.Run("a failing visit fails the walk, but the next target is still visited, and it prints no FAIL", func(t *testing.T) {
 		var (
 			err     error
 			visited []string
@@ -166,39 +166,18 @@ func TestWalk(t *testing.T) {
 		})
 
 		require.ErrorIs(t, err, ErrFailed)
-		assert.Contains(t, out.Stdout, "FAIL")
+		assert.NotContains(t, out.Stdout, "FAIL", "that is for the caller to print, with FinalFail")
 		assert.Len(t, visited, 2)
 	})
 
-	t.Run("DeferFail leaves the FAIL line to the caller", func(t *testing.T) {
-		var (
-			err     error
-			visited []string
-		)
+	t.Run("FinalFail prints FAIL and returns ErrFailed", func(t *testing.T) {
+		var err error
 
 		out := unittestsUtils.CaptureOutput(func() {
-			err = Walk(newFS(t), []string{"/tests/a_xprin.yaml"}, Options{DeferFail: true}, recorder(&visited, errors.New("boom")))
-		})
-
-		require.ErrorIs(t, err, ErrFailed)
-		assert.NotContains(t, out.Stdout, "FAIL")
-
-		out = unittestsUtils.CaptureOutput(func() {
 			err = FinalFail()
 		})
 
 		require.ErrorIs(t, err, ErrFailed)
 		assert.Contains(t, out.Stdout, "FAIL")
-	})
-
-	t.Run("DeferFail does not change a walk that succeeds", func(t *testing.T) {
-		var visited []string
-
-		out := unittestsUtils.CaptureOutput(func() {
-			require.NoError(t, Walk(newFS(t), []string{"/tests/a_xprin.yaml"}, Options{DeferFail: true}, recorder(&visited, nil)))
-		})
-
-		assert.NotContains(t, out.Stdout, "FAIL")
-		assert.Len(t, visited, 1)
 	})
 }
