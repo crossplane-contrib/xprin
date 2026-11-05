@@ -43,8 +43,8 @@ type sessionInterface interface {
 //
 //nolint:gochecknoglobals // Global variables for dependency injection in tests
 var (
-	newSessionFunc = func(r *runner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
-		return session.New(r.Options, testSuite, r)
+	newSessionFunc = func(options *testexecutionOptions.Options, r *runner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
+		return session.New(options, testSuite, r)
 	}
 	newCoordinatorFunc = func() (*containers.Coordinator, error) {
 		docker, err := containers.NewDocker()
@@ -90,7 +90,7 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 
 	// A file that can't be loaded or set up is reported, left out, and makes the run fail
 	walkErr := discovery.Walk(fs, targets, discoveryOptions(options), func(testSuiteFile string) error {
-		fileSession, err := createSession(fs, testSuiteFile, testRunner)
+		fileSession, err := createSession(fs, testSuiteFile, options, testRunner)
 		if err != nil || fileSession == nil {
 			return err
 		}
@@ -135,13 +135,13 @@ func discoveryOptions(options *testexecutionOptions.Options) discovery.Options {
 
 // createSession loads the testsuite file, and creates its session, which runs its test cases with r and is not set up
 // yet. It returns no session, and no error, for a file that has no test cases.
-func createSession(fs afero.Fs, testSuiteFile string, r *runner.Runner) (sessionInterface, error) {
-	testSuite, err := discovery.Load(fs, testSuiteFile, discoveryOptions(r.Options))
+func createSession(fs afero.Fs, testSuiteFile string, options *testexecutionOptions.Options, r *runner.Runner) (sessionInterface, error) {
+	testSuite, err := discovery.Load(fs, testSuiteFile, discoveryOptions(options))
 	if err != nil || testSuite == nil {
 		return nil, err
 	}
 
-	return newSessionFunc(r, testSuite), nil
+	return newSessionFunc(options, r, testSuite), nil
 }
 
 // runError returns the error of running the test cases of a testsuite file, after reporting it when it is not about

@@ -49,6 +49,11 @@ const (
 	waitFor       = 5 * time.Second
 )
 
+// createSessionWith is createSession with a runner that has the options, as ProcessTargets makes it.
+func createSessionWith(fs afero.Fs, testSuiteFile string, options *testexecutionOptions.Options) (sessionInterface, error) {
+	return createSession(fs, testSuiteFile, options, testexecutionRunner.NewRunner(options))
+}
+
 // emptySession is a sessionInterface for testing a file without test cases: what finishFunc returns is what the scheduler
 // gets from the end of the file, which is where the test cases of the real runner report their failures.
 // A file with test cases is a timelineSession, further down.
@@ -188,7 +193,7 @@ func setupTimelineSessions(t *testing.T, files map[string]string, configure func
 
 	t.Cleanup(func() { newSessionFunc = original })
 
-	newSessionFunc = func(_ *testexecutionRunner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
+	newSessionFunc = func(_ *testexecutionOptions.Options, _ *testexecutionRunner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
 		name := filepath.Base(testSuite.File)
 		tl.addf("new %s", name)
 
@@ -221,7 +226,7 @@ func TestProcessTargets_GivesTheRunnerTheTestSuite(t *testing.T) {
 
 	var given *testsuite.TestSuite
 
-	newSessionFunc = func(_ *testexecutionRunner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
+	newSessionFunc = func(_ *testexecutionOptions.Options, _ *testexecutionRunner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
 		given = testSuite
 
 		return &emptySession{}
@@ -243,9 +248,7 @@ func TestProcessTargets(t *testing.T) {
 	}()
 
 	t.Run("non-existent path", func(t *testing.T) {
-		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
-			options := r.Options
-
+		newSessionFunc = func(options *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return &emptySession{options: options}
 		}
 
@@ -258,9 +261,7 @@ func TestProcessTargets(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll("/testdir", 0o755))
 
-		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
-			options := r.Options
-
+		newSessionFunc = func(options *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return &emptySession{options: options}
 		}
 
@@ -279,9 +280,7 @@ func TestProcessTargets(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
-		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
-			options := r.Options
-
+		newSessionFunc = func(options *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return &emptySession{options: options}
 		}
 
@@ -298,9 +297,7 @@ func TestProcessTargets(t *testing.T) {
 	})
 
 	t.Run("recursive path with error", func(t *testing.T) {
-		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
-			options := r.Options
-
+		newSessionFunc = func(options *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return &emptySession{options: options}
 		}
 
@@ -322,9 +319,7 @@ func TestProcessTargets(t *testing.T) {
 		testFile := "/test_xprin.yaml"
 		require.NoError(t, afero.WriteFile(fs, testFile, []byte("invalid: yaml: : content}"), 0o644))
 
-		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
-			options := r.Options
-
+		newSessionFunc = func(options *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return &emptySession{options: options}
 		}
 
@@ -358,7 +353,7 @@ func TestProcessTargets(t *testing.T) {
 			},
 		}
 
-		newSessionFunc = func(_ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+		newSessionFunc = func(_ *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return runner
 		}
 
@@ -375,9 +370,7 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
 		// Create mock runner
-		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
-			options := r.Options
-
+		newSessionFunc = func(options *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return &emptySession{
 				options: options,
 			}
@@ -405,9 +398,7 @@ func TestProcessTargets(t *testing.T) {
 		require.NoError(t, fs.MkdirAll("/base/subdir", 0o755))
 
 		// Create mock runner
-		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
-			options := r.Options
-
+		newSessionFunc = func(options *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return &emptySession{
 				options: options,
 			}
@@ -464,7 +455,7 @@ func TestProcessTargets(t *testing.T) {
 
 		defer func() { newSessionFunc = origNewSessionFunc }()
 
-		newSessionFunc = func(_ *testexecutionRunner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
+		newSessionFunc = func(_ *testexecutionOptions.Options, _ *testexecutionRunner.Runner, testSuite *testsuite.TestSuite) sessionInterface {
 			// Create runner with output capture, capturing the test suite in closure
 			runner := &emptySession{
 				output:  &buf,
@@ -511,7 +502,7 @@ func TestCreateSession(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			_, err = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{}))
+			_, err = createSessionWith(fs, testFile, &testexecutionOptions.Options{})
 		})
 		if !strings.Contains(out, "?   \t/suite.yaml\t[no test cases found]") {
 			t.Errorf("expected no test cases found output, got: %q", out)
@@ -530,7 +521,7 @@ func TestCreateSession(t *testing.T) {
 		var err error
 
 		out := unittestsUtils.CaptureStderr(func() {
-			_, err = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{Quiet: true}))
+			_, err = createSessionWith(fs, testFile, &testexecutionOptions.Options{Quiet: true})
 		})
 
 		require.NoError(t, err)
@@ -546,12 +537,12 @@ func TestCreateSession(t *testing.T) {
 		var err error
 
 		runner := &emptySession{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
-		newSessionFunc = func(_ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+		newSessionFunc = func(_ *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			_, err = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{}))
+			_, err = createSessionWith(fs, testFile, &testexecutionOptions.Options{})
 		})
 
 		// Should have an error returned
@@ -578,12 +569,12 @@ func TestCreateSession(t *testing.T) {
 		var err error
 
 		runner := &emptySession{output: bytes.NewBuffer(nil), options: &testexecutionOptions.Options{}}
-		newSessionFunc = func(_ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+		newSessionFunc = func(_ *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return runner
 		}
 
 		stderrOutput := unittestsUtils.CaptureStderr(func() {
-			_, err = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{}))
+			_, err = createSessionWith(fs, testFile, &testexecutionOptions.Options{})
 		})
 
 		if !strings.Contains(stderrOutput, "?   \t/suite.yaml\t[no test cases found]") {
@@ -670,12 +661,12 @@ func TestCreateSession(t *testing.T) {
 				runner.finishFunc = func() error {
 					return nil
 				}
-				newSessionFunc = func(_ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
+				newSessionFunc = func(_ *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 					return runner
 				}
 
 				stderrOutput := unittestsUtils.CaptureStderr(func() {
-					_, processErr = createSession(fs, testFile, testexecutionRunner.NewRunner(&testexecutionOptions.Options{}))
+					_, processErr = createSessionWith(fs, testFile, &testexecutionOptions.Options{})
 				})
 
 				if len(tt.expectedErrors) > 0 {
@@ -776,9 +767,7 @@ spec:
   package: xpkg.crossplane.io/crossplane-contrib/function-b:v1.0.0
 `), 0o644))
 
-		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
-			opts := r.Options
-
+		newSessionFunc = func(opts *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			options = opts
 
 			return &emptySession{
@@ -826,9 +815,7 @@ spec:
 
 		var containersSeenByRunner *containers.Coordinator
 
-		newSessionFunc = func(r *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
-			opts := r.Options
-
+		newSessionFunc = func(opts *testexecutionOptions.Options, _ *testexecutionRunner.Runner, _ *testsuite.TestSuite) sessionInterface {
 			return &emptySession{
 				finishFunc: func() error {
 					containersSeenByRunner = opts.Containers
