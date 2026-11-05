@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
@@ -45,6 +46,7 @@ type Runner struct {
 	fs        afero.Fs
 	testSuite *testsuite.TestSuite // the test suite that is run: its file, its spec and its dependency graph
 	output    io.Writer
+	debug     *debugLog // where the --debug lines go: stderr, or the buffer of the test case that this copy of the runner runs
 	mode      runnerMode
 	env       *testSuiteEnv
 	// Mockable function fields
@@ -77,6 +79,7 @@ func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestS
 	r := &Runner{
 		fs:        afero.NewOsFs(),
 		output:    os.Stdout, // Default output to stdout
+		debug:     &debugLog{w: os.Stderr},
 		Options:   options,
 		testSuite: testSuite,
 		// Initialize mockable function fields with default implementations
@@ -136,11 +139,11 @@ func (r *Runner) SetupTestSuite() (err error) {
 	}()
 
 	if r.Debug {
-		utils.DebugPrintf("Created internal artifacts directory: %s\n", savedOutputsDir)
+		r.debug.printf("Created internal artifacts directory: %s\n", savedOutputsDir)
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Using testsuite file directory for relative path resolution: %s\n", r.testSuite.GetDir())
+		r.debug.printf("Using testsuite file directory for relative path resolution: %s\n", r.testSuite.GetDir())
 
 		// We do not expand or verify common fields here. They will be expanded and verified by the individual test cases that do not override them.
 		if r.testSuite.Spec.HasCommon() {
@@ -148,7 +151,7 @@ func (r *Runner) SetupTestSuite() (err error) {
 		}
 
 		plural := pluralize.NewClient()
-		utils.DebugPrintf("Found %s\n", plural.Pluralize("test case", len(r.testSuite.Spec.Tests), true))
+		r.debug.printf("Found %s\n", plural.Pluralize("test case", len(r.testSuite.Spec.Tests), true))
 	}
 
 	// Create test suite result
@@ -181,9 +184,31 @@ func (r *Runner) runAndStoreTestCase(positionInTestSuite int) {
 }
 
 // runTestCase executes a single test case and returns a complete TestCaseResult.
+//
+// With --debug, the lines of the test case are printed as they happen when only one test case runs at a time. With
+// --parallel they would be mixed with those of the others, so they are kept in the DebugLog of the result, and
+// printTestCaseResult prints them with the result.
 func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
+	if !r.Debug || r.Parallel <= 1 {
+		return r.executeTestCase(testCase, index, testSuiteResult)
+	}
+
+	// This copy of the runner is the one of this test case: it has its own debug log, and the mode that refers to it
+	var log strings.Builder
+
+	own := *r
+	own.debug = &debugLog{w: &log}
+	own.mode = newRunnerMode(&own)
+
+	result := own.executeTestCase(testCase, index, testSuiteResult)
+	result.DebugLog = log.String()
+
+	return result
+}
+
+func (r *Runner) executeTestCase(testCase api.TestCase, index int, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
 	if r.Debug {
-		utils.DebugPrintf("Starting test case '%s'\n", testCase.Name)
+		r.debug.printf("Starting test case '%s'\n", testCase.Name)
 	}
 
 	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, r.Verbose, r.ShowRender, r.ShowValidate, r.ShowHooks, r.ShowAssertions)
@@ -236,9 +261,9 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Created temporary directory for test case: %s\n", env.tmpDir)
-		utils.DebugPrintf("- Inputs: %s\n", env.inputsDir)
-		utils.DebugPrintf("- Outputs: %s\n", env.outputsDir)
+		r.debug.printf("Created temporary directory for test case: %s\n", env.tmpDir)
+		r.debug.printf("- Inputs: %s\n", env.inputsDir)
+		r.debug.printf("- Outputs: %s\n", env.outputsDir)
 	}
 
 	if r.testSuite.Spec.HasCommon() {
@@ -281,7 +306,12 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 // positionInTestSuite is the position of the test case in the tests of the file.
 // Not at the same time as another one: the output has the order of the calls.
 func (r *Runner) printTestCaseResult(positionInTestSuite int) {
-	r.env.testCaseResults[positionInTestSuite].Print(r.output)
+	result := r.env.testCaseResults[positionInTestSuite]
+
+	// The --debug lines of a test case that ran at the same time as others come with its result, not mixed with theirs
+	fmt.Fprint(r.debug.w, result.DebugLog) //nolint:errcheck // output function, error handling not practical
+
+	result.Print(r.output)
 }
 
 // completeTestSuite prints the summary of the file, and returns an error if any test case failed.

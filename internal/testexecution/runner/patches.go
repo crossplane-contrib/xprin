@@ -24,7 +24,6 @@ import (
 	"github.com/crossplane-contrib/xprin/cmd/xprin-helpers/claimtoxr"
 	"github.com/crossplane-contrib/xprin/cmd/xprin-helpers/patchxr"
 	"github.com/crossplane-contrib/xprin/internal/api"
-	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/crossplane/cli/v2/cmd/crossplane/render"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -48,7 +47,7 @@ func (r *Runner) copyInput(env *testCaseEnv, src, inputType string) (string, err
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Copied %s to: %s\n", inputType, dest)
+		r.debug.printf("Copied %s to: %s\n", inputType, dest)
 	}
 
 	return dest, nil
@@ -67,7 +66,7 @@ func (r *Runner) copyToPath(src, dest, inputType string) (string, error) {
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Copied %s to: %s\n", inputType, dest)
+		r.debug.printf("Copied %s to: %s\n", inputType, dest)
 	}
 
 	return dest, nil
@@ -139,7 +138,7 @@ func (r *Runner) convertClaimToXR(claimPath, xrdPath, goldenPath, outputPath str
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Converting Claim to XR\n")
+		r.debug.printf("Converting Claim to XR\n")
 	}
 
 	var xrd *apiextensionsv1.CompositeResourceDefinition
@@ -165,7 +164,7 @@ func (r *Runner) convertClaimToXR(claimPath, xrdPath, goldenPath, outputPath str
 			opts.Name = name
 
 			if r.Debug {
-				utils.DebugPrintf("Reusing XR name %q from golden file %s\n", name, goldenPath)
+				r.debug.printf("Reusing XR name %q from golden file %s\n", name, goldenPath)
 			}
 		}
 	}
@@ -188,7 +187,7 @@ func (r *Runner) convertClaimToXR(claimPath, xrdPath, goldenPath, outputPath str
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Wrote converted XR to temporary file: %s\n", xrPath)
+		r.debug.printf("Wrote converted XR to temporary file: %s\n", xrPath)
 	}
 
 	return xrPath, nil
@@ -214,7 +213,7 @@ func (r *Runner) patchXR(xrPath, outputPath string, patches api.Patches) (string
 	// Apply XRD defaults if XRD file is provided
 	if patches.XRD != "" {
 		if r.Debug {
-			utils.DebugPrintf("Patching XR: Applying XRD defaults\n")
+			r.debug.printf("Patching XR: Applying XRD defaults\n")
 		}
 
 		xrd, err := render.LoadXRD(r.fs, patches.XRD)
@@ -231,7 +230,7 @@ func (r *Runner) patchXR(xrPath, outputPath string, patches api.Patches) (string
 	// Add connection secret if requested
 	if patches.HasConnectionSecret() {
 		if r.Debug {
-			utils.DebugPrintf("Patching XR: Adding connection secret\n")
+			r.debug.printf("Patching XR: Adding connection secret\n")
 		}
 
 		if err := patchxr.AddConnectionSecret(xr, patches.ConnectionSecretName, patches.ConnectionSecretNamespace); err != nil {

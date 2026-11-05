@@ -72,7 +72,7 @@ func TestExecuteHooks(t *testing.T) {
 	}
 
 	// Execute hooks (pre-test hooks with outputs=nil)
-	hookExecutor := newHookExecutor(repositories, false, runCommand, renderTemplate)
+	hookExecutor := newHookExecutor(repositories, nil, runCommand, renderTemplate)
 	results, err := hookExecutor.executeHooks(hooks, "test", inputs, nil, map[string]*engine.TestCaseResult{})
 	require.NoError(t, err)
 	assert.Len(t, results, 2)
@@ -110,7 +110,7 @@ func TestExecuteHooks_Order(t *testing.T) {
 	}
 
 	// Execute hooks
-	hookExecutor := newHookExecutor(nil, false, runCommand, renderTemplate)
+	hookExecutor := newHookExecutor(nil, nil, runCommand, renderTemplate)
 	_, err := hookExecutor.executeHooks(hooks, "test", api.Inputs{}, nil, map[string]*engine.TestCaseResult{})
 	require.NoError(t, err)
 
@@ -147,7 +147,7 @@ func TestExecuteHooks_HookFailure(t *testing.T) {
 		}
 
 		// Execute hooks - should fail
-		hookExecutor := newHookExecutor(nil, false, runCommand, renderTemplate)
+		hookExecutor := newHookExecutor(nil, nil, runCommand, renderTemplate)
 		_, err := hookExecutor.executeHooks(hooks, "test", api.Inputs{}, nil, map[string]*engine.TestCaseResult{})
 		require.Error(t, err)
 
@@ -172,7 +172,7 @@ func TestExecuteHooks_HookFailure(t *testing.T) {
 		}
 
 		// Execute hooks - should fail
-		hookExecutor := newHookExecutor(nil, false, runCommand, renderTemplate)
+		hookExecutor := newHookExecutor(nil, nil, runCommand, renderTemplate)
 		_, err := hookExecutor.executeHooks(hooks, "pre-test", api.Inputs{}, nil, map[string]*engine.TestCaseResult{})
 		require.Error(t, err)
 
@@ -233,7 +233,7 @@ func TestExecuteHooks_PostTestHooks(t *testing.T) {
 	}
 
 	// Execute hooks (post-test hooks with outputs != nil)
-	hookExecutor := newHookExecutor(repositories, false, runCommand, renderTemplate)
+	hookExecutor := newHookExecutor(repositories, nil, runCommand, renderTemplate)
 	results, err := hookExecutor.executeHooks(hooks, "post-test", inputs, outputs, map[string]*engine.TestCaseResult{})
 	require.NoError(t, err)
 	assert.Len(t, results, 2)
@@ -291,7 +291,7 @@ func TestExecuteHooks_PreTestHooks_InputsTemplateVariables(t *testing.T) {
 	}
 
 	// Execute hooks (pre-test hooks with outputs=nil, inputs available)
-	hookExecutor := newHookExecutor(repositories, false, runCommand, renderTemplate)
+	hookExecutor := newHookExecutor(repositories, nil, runCommand, renderTemplate)
 	results, err := hookExecutor.executeHooks(hooks, "pre-test", inputs, nil, map[string]*engine.TestCaseResult{})
 	require.NoError(t, err)
 	assert.Len(t, results, 3)
@@ -331,7 +331,7 @@ func TestExecuteHooks_PreTestHooks_WithoutTemplateVariables(t *testing.T) {
 		return content, nil
 	}
 
-	hookExecutor := newHookExecutor(nil, false, runCommand, renderTemplate)
+	hookExecutor := newHookExecutor(nil, nil, runCommand, renderTemplate)
 	results, err := hookExecutor.executeHooks(hooks, "pre-test", inputs, nil, map[string]*engine.TestCaseResult{})
 	require.NoError(t, err)
 	assert.Len(t, results, 2)
@@ -374,7 +374,7 @@ func TestExecuteHooks_PreTestHooks_OutputsTemplateVariables(t *testing.T) {
 
 	// Execute hooks with outputs=nil (pre-test scenario)
 	// This should fail because Outputs template variables cannot be resolved when outputs is nil
-	hookExecutor := newHookExecutor(repositories, false, runCommand, renderTemplate)
+	hookExecutor := newHookExecutor(repositories, nil, runCommand, renderTemplate)
 	results, err := hookExecutor.executeHooks(hooks, "pre-test", inputs, nil, map[string]*engine.TestCaseResult{})
 	require.Error(t, err)
 	// Results should contain the HookResult for the template rendering failure
@@ -445,7 +445,7 @@ func TestExecuteHooks_PostTestHooks_InputsAndOutputsTemplateVariables(t *testing
 	}
 
 	// Execute hooks (post-test hooks with outputs != nil - this enables template processing)
-	hookExecutor := newHookExecutor(repositories, false, runCommand, renderTemplate)
+	hookExecutor := newHookExecutor(repositories, nil, runCommand, renderTemplate)
 	results, err := hookExecutor.executeHooks(hooks, "post-test", inputs, outputs, map[string]*engine.TestCaseResult{})
 	require.NoError(t, err)
 	assert.Len(t, results, 3)
@@ -501,7 +501,7 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 	}
 
 	// Execute hooks
-	hookExecutor := newHookExecutor(nil, false, runner.runCommand, runner.renderTemplate)
+	hookExecutor := newHookExecutor(nil, nil, runner.runCommand, runner.renderTemplate)
 	results, err := hookExecutor.executeHooks(hooks, "pre-test", api.Inputs{}, nil, map[string]*engine.TestCaseResult{})
 
 	require.NoError(t, err)
@@ -515,7 +515,7 @@ func TestProcessHookTemplateVariables(t *testing.T) {
 	renderTemplate := func(content string, _ *templateContext, _ string) (string, error) {
 		return content, nil
 	}
-	exec := newHookExecutor(nil, false, nil, renderTemplate)
+	exec := newHookExecutor(nil, nil, nil, renderTemplate)
 
 	t.Run("no placeholders returns command as-is", func(t *testing.T) {
 		hook := api.Hook{Name: "h", Run: "echo hello"}
@@ -532,7 +532,7 @@ func TestProcessHookTemplateVariables(t *testing.T) {
 			rendered = content
 			return "echo /path", nil
 		}
-		exec := newHookExecutor(map[string]string{"r": "/path"}, false, nil, renderTemplate)
+		exec := newHookExecutor(map[string]string{"r": "/path"}, nil, nil, renderTemplate)
 		hook := api.Hook{Run: placeholder.Create(".Repositories.r")}
 		final, cmdVars, err := exec.processHookTemplateVariables(hook, api.Inputs{}, nil, nil)
 		require.NoError(t, err)
@@ -545,7 +545,7 @@ func TestProcessHookTemplateVariables(t *testing.T) {
 		renderTemplate := func(string, *templateContext, string) (string, error) {
 			return "", fmt.Errorf("render failed")
 		}
-		exec := newHookExecutor(nil, false, nil, renderTemplate)
+		exec := newHookExecutor(nil, nil, nil, renderTemplate)
 		hook := api.Hook{Run: placeholder.Create(".X")}
 		_, _, err := exec.processHookTemplateVariables(hook, api.Inputs{}, nil, nil)
 		require.Error(t, err)
