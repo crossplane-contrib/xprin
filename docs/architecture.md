@@ -15,8 +15,11 @@ This document describes what xprin does under the hood: how a `xprin test` run g
 | `internal/testsuite` | A loaded testsuite file: its path, its spec and its dependency graph |
 | `internal/graph` | The dependency graph of the test cases of a file |
 | `internal/testexecution/options` | The options of a run: configuration, flags, the Crossplane CLI tier, and the container coordinator |
-| `internal/testexecution/processor` | Ties the pieces of a run together: containers, discovery, loading and the runner |
-| `internal/testexecution/runner` | Runs the test cases of one file: phases, hooks, assertions, artifacts, and the mode of the command |
+| `internal/testexecution/processor` | Ties the pieces of a run together: containers, discovery, loading and a session for each file |
+| `internal/testexecution/session` | The run of one testsuite file: its results so far, the directory of the internal artifacts, the order of the output and the summary line. It is a job of the scheduler, and it gives each test case to the runner |
+| `internal/testexecution/runner` | Runs one test case: phases, hooks, assertions, and the mode of the command. There is one for the whole invocation, and it keeps nothing of the file |
+| `internal/testexecution/artifacts` | Where the external artifacts of a run go (`--artifacts-dir`): the directory of the run, and the ones of the files and of the test cases in it |
+| `internal/testexecution/debuglog` | Prints, for `--debug`, the patches, the inputs and the hooks of a test case and of the common configuration, to the logger it is given. Used by the runner and the session |
 | `internal/testexecution/containers` | Reuse of the function containers across a run |
 | `internal/templates` | Go templates, and the placeholders that let a testsuite file with templates be valid YAML |
 | `internal/engine` | Results (test case, testsuite file), statuses and their output |
@@ -29,7 +32,7 @@ A run goes through these steps, in this order:
 2. **The processor** (`processor.ProcessTargets`) first sets up the container reuse for the whole invocation (unless `--no-container-reuse`, see [Container Reuse](#container-reuse)), and removes the containers when it exits. It then hands the targets to discovery.
 3. **Discovery** (`discovery.Walk`) resolves each target: a file (used only when it is named `xprin.yaml` or `*_xprin.yaml`), a directory (the files in it), or `dir/...` (every directory below). A target that doesn't exist is skipped, and no files at all prints `[no testsuite files]`. It calls the processor back for each file, and goes on when one fails. It prints no `FAIL`: the processor prints it once, at the very end, with exit code 1, if any file or test case failed.
 4. **Loading** (`discovery.Load`) reads and checks each file: the `{{ ... }}` of templates are replaced by placeholders so that a file with unquoted templates is valid YAML (see [Templates](#templates)), the YAML is parsed into the spec, and a file without test cases prints `[no test cases found]` and ends there. `testsuite.New` then builds the [dependency graph](#the-dependency-graph), and the file is checked: empty names, duplicate IDs, a `needs` to an ID that doesn't exist, and cycles. All the problems of a file are reported together, and the file is `[invalid testsuite file]`.
-5. **The runner** is made for the loaded file, and set up: `SetupTestSuite` makes the directory of the [internal artifacts](#artifacts), and creates the directory of the external ones once per invocation (with `--artifacts-dir`). The processor does this for all the files before the first test case runs. Then the scheduler runs the test cases in the order of the graph, prints the result of each as soon as it ends, and prints the line of the file.
+5. **The session** is made for the loaded file, with the runner of the invocation, and set up: `Setup` makes the directory of the [internal artifacts](#artifacts), and creates the directory of the external ones once per invocation (with `--artifacts-dir`). The processor does this for all the files before the first test case runs. Then the scheduler runs the test cases in the order of the graph, the runner runs each of them, and the session prints the result of each as soon as it ends, and the line of the file.
 6. **The exit code** is 1 when any file failed to load or any test case failed.
 
 The other commands share the first steps: `xprin update-goldens` is the same flow with another mode of the runner (see [Modes](#modes)), and `xprin graph` stops after loading and prints the graph.
@@ -58,7 +61,7 @@ flowchart TD
     E --> F["Load<br/>• Read and parse<br/>• Check names, IDs, needs, cycles<br/>• Build the dependency graph"]
     F -->|"no test cases"| G["[no test cases found]"]
     F -->|"invalid"| H["FAIL<br/>invalid testsuite file"]
-    F -->|"valid"| I["Run the testsuite file<br/>Runner"]
+    F -->|"valid"| I["Run the testsuite file<br/>Session"]
     I --> J["Run each test case,<br/>in the order of the graph"]
     J --> K["File result<br/>ok or FAIL"]
     G --> L{"More files?"}
@@ -172,7 +175,7 @@ flowchart TD
 
 ### Modes
 
-What differs between the commands that run the test cases is the `runnerMode` of the runner, set once per file; everything from the temp directory to the render is shared.
+What differs between the commands that run the test cases is the `runnerMode` of the runner, set once per invocation; everything from the temp directory to the render is shared.
 
 - `testMode` (`xprin test`) skips nothing. After the render it validates, runs the assertions and the post-test hooks, saves the outputs, and completes the result.
 - `updateGoldensMode` (`xprin update-goldens`) skips a test case that has no golden-file assertions and that no test case with them needs (`NeededForGoldens`). After the render it writes the golden files, and saves the outputs for the test cases that need this one. A golden file that can't be written fails the test case, and the entries after it are not tried.
@@ -181,7 +184,7 @@ What differs between the commands that run the test cases is the `runnerMode` of
 
 A test case ends as `PASS`, `FAIL`, `SKIP` or `ERROR` (`internal/engine`, `Status`), with the phases and the sections it collected: hooks, render, validate, assertions, and any other, such as `Golden Files`. Each result is printed as soon as the test case ends, and the testsuite result prints the line of the file (`ok` or `FAIL`) at the end.
 
-The results are kept in memory, in the `TestSuiteResult` of the file, and the runner uses them while the file runs: they are looked up by ID, for the `needs` check and to fill `.Tests`. Nothing persists them, so a report in another format would be a new output of `internal/engine`.
+The results are kept in memory, in the `TestSuiteResult` of the file, which is the session's, and the runner is given the ones of the test cases that already ran while the file runs: they are looked up by ID, for the `needs` check and to fill `.Tests`. Nothing persists them, so a report in another format would be a new output of `internal/engine`.
 
 The engine also formats them for the terminal. The render output is the tree of the rendered resources (`Kind/name`) when it succeeded, and the raw output, indented, when it failed; the hooks, the validation and the assertions each get a section with the mark of the status of each item. The engine also decides what is shown: without `-v` it hides the passes and the skips that have no reason.
 
@@ -193,8 +196,8 @@ The runner runs the three kinds of assertions of a test case in this order: `xpr
 
 There are two kinds, and they are not the same files:
 
-- **Internal artifacts** are the outputs of a test case that has an `id`, kept for the test cases that need it. `SetupTestSuite` makes a temp directory for the testsuite file (`xprin-internal-artifacts-*`) and removes it when the file ends. The runner copies the `outputs/` of the test case to `<directory>/<test-id>/`, and points its `Outputs` there, so that `.Tests.<id>.Outputs.*` still works after the temp directory of the test case is removed.
-- **External artifacts** are the inputs and the outputs of every test case, for you to inspect (`--artifacts-dir`, `xprin test` only). The runner makes `<dir>/xprin-artifacts-<timestamp>/` once per invocation, shared by the runners of all the files, and copies the `inputs/` and `outputs/` of a test case to `<run>/<directory of the file relative to the working directory>/<file name without extension>/<NN_name>/` (with the segments sanitized; a file outside the working directory falls back to its absolute path); it is deferred, so it also runs when a phase failed, and its errors are warnings on stderr. After each testsuite file, the path is printed to stderr (`artifacts: <path>`).
+- **Internal artifacts** are the outputs of a test case that has an `id`, kept for the test cases that need it. The session makes a temp directory for the testsuite file (`xprin-internal-artifacts-*`) when it is set up, and removes it when the file ends. The runner copies the `outputs/` of the test case to `<directory>/<test-id>/`, and points its `Outputs` there, so that `.Tests.<id>.Outputs.*` still works after the temp directory of the test case is removed.
+- **External artifacts** are the inputs and the outputs of every test case, for you to inspect (`--artifacts-dir`, `xprin test` only). The first session that is set up makes `<dir>/xprin-artifacts-<timestamp>/` once per invocation, shared by the sessions of all the files, and the runner copies the `inputs/` and `outputs/` of a test case to `<run>/<directory of the file relative to the working directory>/<file name without extension>/<NN_name>/` (with the segments sanitized; a file outside the working directory falls back to its absolute path); it is deferred, so it also runs when a phase failed, and its errors are warnings on stderr. After each testsuite file, the session prints the path to stderr (`artifacts: <path>`).
 
 ## External Tools
 
