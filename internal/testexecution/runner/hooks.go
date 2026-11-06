@@ -25,13 +25,12 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
-	"github.com/crossplane-contrib/xprin/internal/utils"
 )
 
 // hookExecutor handles execution of hooks.
 type hookExecutor struct {
 	repositories   map[string]string
-	debug          bool
+	debugf         func(format string, args ...any) // prints a --debug line, nil without --debug
 	runCommand     func(name string, args ...string) ([]byte, error)
 	renderTemplate func(content string, templateContext *templateContext, templateName string) (string, error)
 }
@@ -39,13 +38,13 @@ type hookExecutor struct {
 // newHookExecutor creates a new hook executor.
 func newHookExecutor(
 	repositories map[string]string,
-	debug bool,
+	debugf func(format string, args ...any),
 	runCommand func(name string, args ...string) ([]byte, error),
 	renderTemplate func(content string, templateContext *templateContext, templateName string) (string, error),
 ) *hookExecutor {
 	return &hookExecutor{
 		repositories:   repositories,
-		debug:          debug,
+		debugf:         debugf,
 		runCommand:     runCommand,
 		renderTemplate: renderTemplate,
 	}
@@ -119,11 +118,11 @@ func (e *hookExecutor) executeHook(hook api.Hook, hookType string, inputs api.In
 		return hookResult, errors.New(errorMsg)
 	}
 
-	if e.debug {
+	if e.debugf != nil {
 		if hook.Name != "" {
-			utils.DebugPrintf("Executing %s hook '%s': %s\n", hookType, hook.Name, finalCommand)
+			e.debugf("Executing %s hook '%s': %s\n", hookType, hook.Name, finalCommand)
 		} else {
-			utils.DebugPrintf("Executing %s hook '%s'\n", hookType, finalCommand)
+			e.debugf("Executing %s hook '%s'\n", hookType, finalCommand)
 		}
 	}
 

@@ -23,7 +23,6 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/yaml"
 )
@@ -300,7 +299,7 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 // fails, to end the run of the test case, and nil to go on.
 func (r *Runner) runPreTestHooks(testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
 	if testCase.HasPreTestHooks() {
-		hookExecutor := newHookExecutor(r.Repositories, r.Debug, r.runCommand, r.renderTemplate)
+		hookExecutor := newHookExecutor(r.Repositories, r.debugf(), r.runCommand, r.renderTemplate)
 
 		var err error
 
@@ -329,7 +328,7 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 		// Use provided XR file directly
 		inputXR = testCase.Inputs.XR
 		if r.Debug {
-			utils.DebugPrintf("Using provided XR file: %s\n", inputXR)
+			r.debug.printf("Using provided XR file: %s\n", inputXR)
 		}
 	} else {
 		// Convert Claim to XR, reusing a previously-generated XR name from an existing full-render
@@ -430,7 +429,7 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 
 	// Run crossplane render command
 	if r.Debug {
-		utils.DebugPrintf("Running render command: %s %s\n", r.Dependencies["crossplane"], strings.Join(renderArgs, " "))
+		r.debug.printf("Running render command: %s %s\n", r.Dependencies["crossplane"], strings.Join(renderArgs, " "))
 	}
 
 	result.RawRenderOutput, err = r.runCommand(r.Dependencies["crossplane"], renderArgs...)
@@ -448,7 +447,7 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Wrote rendered output to: %s\n", result.Outputs.Render)
+		r.debug.printf("Wrote rendered output to: %s\n", result.Outputs.Render)
 	}
 
 	// Process render output - this sets RenderedResources and FormattedRenderOutput
@@ -516,7 +515,7 @@ func (r *Runner) validateTestCase(env *testCaseEnv, testCase api.TestCase, resul
 		validateArgs = append(validateArgs, filepath.Join(env.inputsDir, "crds"), result.Outputs.Render)
 		// Run crossplane beta validate command
 		if r.Debug {
-			utils.DebugPrintf("Running validate command: %s %s\n", r.Dependencies["crossplane"], strings.Join(validateArgs, " "))
+			r.debug.printf("Running validate command: %s %s\n", r.Dependencies["crossplane"], strings.Join(validateArgs, " "))
 		}
 
 		result.RawValidateOutput, err = r.runCommand(r.Dependencies["crossplane"], validateArgs...)
@@ -535,11 +534,11 @@ func (r *Runner) validateTestCase(env *testCaseEnv, testCase api.TestCase, resul
 		result.Outputs.Validate = &validateOutputFile
 
 		if r.Debug {
-			utils.DebugPrintf("Wrote validation output to: %s\n", validateOutputFile)
+			r.debug.printf("Wrote validation output to: %s\n", validateOutputFile)
 		}
 	} else { //nolint:gocritic // keep the else block for visibility
 		if r.Debug {
-			utils.DebugPrintf("Skipped validate command \"%s %s\" because no CRDs were specified\n", r.Dependencies["crossplane"], strings.Join(r.Validate, " "))
+			r.debug.printf("Skipped validate command \"%s %s\" because no CRDs were specified\n", r.Dependencies["crossplane"], strings.Join(r.Validate, " "))
 		}
 	}
 
@@ -565,7 +564,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 
 		if testCase.HasAssertionsXprin() {
 			if r.Debug {
-				utils.DebugPrintf("Executing %d xprin assertions for test case '%s'\n", len(testCase.Assertions.Xprin), testCase.Name)
+				r.debug.printf("Executing %d xprin assertions for test case '%s'\n", len(testCase.Assertions.Xprin), testCase.Name)
 			}
 
 			result.AssertionsResults = append(result.AssertionsResults, exec.executeAssertionsXprin(testCase.Assertions.Xprin)...)
@@ -573,7 +572,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 
 		if testCase.HasAssertionsDiff() {
 			if r.Debug {
-				utils.DebugPrintf("Executing %d diff assertions for test case '%s'\n", len(testCase.Assertions.Diff), testCase.Name)
+				r.debug.printf("Executing %d diff assertions for test case '%s'\n", len(testCase.Assertions.Diff), testCase.Name)
 			}
 
 			result.AssertionsResults = append(result.AssertionsResults, exec.executeAssertionsDiff(testCase.Assertions.Diff)...)
@@ -581,7 +580,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 
 		if testCase.HasAssertionsDyff() {
 			if r.Debug {
-				utils.DebugPrintf("Executing %d dyff assertions for test case '%s'\n", len(testCase.Assertions.Dyff), testCase.Name)
+				r.debug.printf("Executing %d dyff assertions for test case '%s'\n", len(testCase.Assertions.Dyff), testCase.Name)
 			}
 
 			result.AssertionsResults = append(result.AssertionsResults, exec.executeAssertionsDyff(testCase.Assertions.Dyff)...)
@@ -595,7 +594,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 		}
 
 		if r.Debug {
-			utils.DebugPrintf("Assertions executed\n")
+			r.debug.printf("Assertions executed\n")
 		}
 
 		// Write raw assertion results to assertions.txt (raw == all assertions, regardless of the Verbose or ShowAssertions flags)
@@ -607,7 +606,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 		result.Outputs.Assertions = &assertionsFile
 
 		if r.Debug {
-			utils.DebugPrintf("Wrote assertions output to: %s\n", assertionsFile)
+			r.debug.printf("Wrote assertions output to: %s\n", assertionsFile)
 		}
 	}
 
@@ -618,7 +617,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 // does not end the run of the test case: it is in the result.
 func (r *Runner) runPostTestHooks(testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) {
 	if testCase.HasPostTestHooks() {
-		hookExecutor := newHookExecutor(r.Repositories, r.Debug, r.runCommand, r.renderTemplate)
+		hookExecutor := newHookExecutor(r.Repositories, r.debugf(), r.runCommand, r.renderTemplate)
 
 		result.PostTestHooksResults, _ = hookExecutor.executeHooks(testCase.Hooks.PostTest, "post-test", testCase.Inputs, &result.Outputs, needsResults)
 		result.ProcessPostTestHooksOutput()
@@ -640,7 +639,7 @@ func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *en
 	}
 
 	if r.Debug {
-		utils.DebugPrintf("Saved outputs as internal artifacts: %s\n", testCaseDir)
+		r.debug.printf("Saved outputs as internal artifacts: %s\n", testCaseDir)
 	}
 
 	// Update Outputs paths to point to the internal artifacts for cross-test references

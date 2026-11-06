@@ -19,7 +19,6 @@ package runner
 import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
-	"github.com/crossplane-contrib/xprin/internal/utils"
 )
 
 // runnerMode is what differs between the commands that run the test cases of a testsuite file: `xprin test` runs
@@ -78,7 +77,7 @@ func (m testMode) runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, 
 
 	// Complete the test case result
 	if r.Debug {
-		utils.DebugPrintf("Test case '%s' completed with status: %s\n", testCase.Name, result.Status.String())
+		m.r.debug.printf("Test case '%s' completed with status: %s\n", testCase.Name, result.Status.String())
 	}
 
 	return result.Complete()

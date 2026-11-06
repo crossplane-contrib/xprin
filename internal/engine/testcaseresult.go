@@ -56,6 +56,10 @@ type TestCaseResult struct {
 	Status    Status
 	StartTime time.Time
 
+	// DebugLog is the --debug lines of the test case, when they are kept to be printed with its result, in its place in
+	// the output, because it ran at the same time as others. It is empty when they were printed as they happened.
+	DebugLog string
+
 	// Raw outputs (stored by runner)
 	RawRenderOutput     []byte
 	RawValidateOutput   []byte
