@@ -112,11 +112,28 @@ func makeOptions(cfg *config.Config, render, validate []string, overrides ...fun
 	return opt
 }
 
+// runTestsSerial sets the runner up and runs the test cases of its file through the scheduler with one worker, which is the
+// order of a serial run. It fails the test if the set-up or the scheduler fail, and returns what the end of the file
+// returned: nil, or ErrTestsFailed.
+func runTestsSerial(t *testing.T, r *Runner) error {
+	t.Helper()
+
+	require.NoError(t, r.SetupTestSuite())
+
+	// completeTestSuite removes it too: this is for a run that ends without it
+	defer r.removeSavedOutputsDir()
+
+	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 1)
+	require.NoError(t, err)
+
+	return finishErrs[0]
+}
+
 // timings are what differs between two runs of the same test cases.
 var timings = regexp.MustCompile(`\d+\.\d+s`)
 
 // runWithFakeResults runs the test cases of the spec with fake results: the ones in failing fail, and the others pass.
-// With 0 workers it runs them with RunTests. With more, the steps of the runner are run by the scheduler, with that
+// With 0 workers it runs them with runTestsSerial. With more, the steps of the runner are run by the scheduler, with that
 // many workers. The test cases take a little time, different for each, so that they don't finish in the order they
 // started.
 // It returns what was printed and the IDs of the ones that ran.
@@ -148,12 +165,12 @@ func runWithFakeResults(t *testing.T, spec *api.TestSuiteSpec, workers int, fail
 	}
 
 	if workers == 0 {
-		_ = r.RunTests() // it fails when a test case does: what matters is what ran, and what was printed
+		_ = runTestsSerial(t, r) // it fails when a test case does: what matters is what ran, and what was printed
 
 		return out.String(), ran
 	}
 
-	require.NoError(t, r.setupTestSuite())
+	require.NoError(t, r.SetupTestSuite())
 
 	_, err := scheduler.Run([]scheduler.Job{r.Job()}, workers)
 	require.NoError(t, err)
@@ -189,7 +206,6 @@ func TestNewRunner(t *testing.T) {
 	assert.True(t, runner.ShowHooks)
 	assert.True(t, runner.Verbose)
 	assert.True(t, runner.Debug)
-	// runTestsFunc is nil by default and uses the default runTests implementation
 	assert.Equal(t, cfg.Dependencies, runner.Dependencies)
 	assert.Equal(t, strings.Fields(cfg.Subcommands.Render), runner.Render)
 	assert.Equal(t, strings.Fields(cfg.Subcommands.Validate), runner.Validate)
@@ -254,7 +270,7 @@ func TestNewRunner_SetsWorkingDirectory(t *testing.T) {
 	assert.Equal(t, expectedDir2, runner2.testSuite.GetDir(), "the directory should be computed from the file of the test suite")
 }
 
-func TestRunTests(t *testing.T) {
+func TestFileRun_Result(t *testing.T) {
 	options := &testexecutionOptions.Options{
 		ShowRender:   false,
 		ShowValidate: false,
@@ -325,7 +341,7 @@ func TestRunTests(t *testing.T) {
 				return createTestCaseResult(testCase.Name, false, err)
 			}
 
-			err := runner.RunTests()
+			err := runTestsSerial(t, runner)
 			if tc.wantFails > 0 {
 				require.Error(t, err)
 			} else {
@@ -343,7 +359,7 @@ func TestRunTests(t *testing.T) {
 	}
 }
 
-func TestRunTestsIntegration(t *testing.T) {
+func TestFileRun_Output(t *testing.T) {
 	options := &testexecutionOptions.Options{
 		ShowRender:   false,
 		ShowValidate: false,
@@ -411,11 +427,6 @@ func TestRunTestsIntegration(t *testing.T) {
 			verbose:   false,
 		},
 		{
-			name:      "nil TestSuiteSpec",
-			wantError: true,
-			verbose:   false,
-		},
-		{
 			name: "verbose output includes RUN and hierarchy",
 			runFunc: func(tc api.TestCase) *engine.TestCaseResult {
 				return createTestCaseResult(tc.Name, true, nil)
@@ -476,7 +487,7 @@ func TestRunTestsIntegration(t *testing.T) {
 			runner.runTestCaseFunc = tc.runFunc
 			runner.Verbose = tc.verbose // set per-test verbosity
 
-			err := runner.RunTests()
+			err := runTestsSerial(t, runner)
 			if tc.wantError {
 				require.Error(t, err)
 			} else {
@@ -541,7 +552,7 @@ func TestRunTestsIntegration(t *testing.T) {
 
 			return createTestCaseResult(tc.Name, runner.Verbose, err)
 		}
-		err := runner.RunTests()
+		err := runTestsSerial(t, runner)
 		require.Error(t, err)
 
 		out := buf.String()
@@ -591,7 +602,7 @@ func TestRunTestsIntegration(t *testing.T) {
 
 			return createTestCaseResult(tc.Name, false, err)
 		}
-		err := runner.RunTests()
+		err := runTestsSerial(t, runner)
 		require.Error(t, err)
 
 		out := buf.String()
@@ -1209,7 +1220,7 @@ func TestRunTestCase_MergesTheCommonInputs(t *testing.T) {
 }
 
 // The internal artifacts directory, where the test cases of a run keep their outputs for the ones that need them, is
-// created by setupTestSuite and removed by completeTestSuite.
+// created by SetupTestSuite and removed by completeTestSuite.
 func TestSetupTestSuite_CreatesTheInternalArtifactsDirectory(t *testing.T) {
 	r := NewRunner(&testexecutionOptions.Options{}, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "test1"}}}))
 	r.fs = afero.NewMemMapFs()
@@ -1217,11 +1228,11 @@ func TestSetupTestSuite_CreatesTheInternalArtifactsDirectory(t *testing.T) {
 
 	assert.Nil(t, r.env, "there is no env before the run is set up")
 
-	require.NoError(t, r.setupTestSuite())
+	require.NoError(t, r.SetupTestSuite())
 
 	exists, err := afero.DirExists(r.fs, r.env.savedOutputsDir)
 	require.NoError(t, err)
-	assert.True(t, exists, "setupTestSuite should create the directory")
+	assert.True(t, exists, "SetupTestSuite should create the directory")
 
 	dir := r.env.savedOutputsDir
 
@@ -1230,6 +1241,39 @@ func TestSetupTestSuite_CreatesTheInternalArtifactsDirectory(t *testing.T) {
 	exists, err = afero.DirExists(r.fs, dir)
 	require.NoError(t, err)
 	assert.False(t, exists, "completeTestSuite should remove the directory")
+}
+
+func TestSetupTestSuite_RequiresTheFileAndTheSpec(t *testing.T) {
+	for name, tt := range map[string]struct {
+		file string
+		spec *api.TestSuiteSpec
+		want string
+	}{
+		"no path":          {file: "", spec: &api.TestSuiteSpec{}, want: "testsuite file path is required"},
+		"no specification": {file: testSuiteFile, spec: nil, want: "testsuite specification is required"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := NewRunner(&testexecutionOptions.Options{}, testsuite.New(tt.file, tt.spec))
+
+			require.EqualError(t, r.SetupTestSuite(), tt.want)
+			assert.Nil(t, r.env, "nothing is made for a file that is not set up")
+		})
+	}
+}
+
+// A test case that the mode has no use for is skipped, whatever it needs, and none of its phases runs.
+func TestRunTestCase_ASkippedByTheMode(t *testing.T) {
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "plain", ID: "plain"}}}
+	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New(testSuiteFile, spec))
+	r.runTestCaseFunc = func(api.TestCase) *engine.TestCaseResult {
+		t.Fatal("a test case that the mode skips must not run")
+
+		return nil
+	}
+
+	result := r.runTestCase(spec.Tests[0], 1, engine.NewTestSuiteResult(testSuiteFile, false))
+
+	assert.Equal(t, engine.StatusSkip(), result.Status)
 }
 
 func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
@@ -1273,86 +1317,7 @@ func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
 	assert.False(t, result.StartTime.IsZero(), "TestCaseResult should have StartTime set")
 }
 
-func TestRunTestsFileResults(t *testing.T) {
-	options := &testexecutionOptions.Options{
-		ShowRender:   false,
-		ShowValidate: false,
-		Debug:        false,
-	}
-
-	cases := []struct {
-		name       string
-		verbose    bool
-		withError  bool
-		wantStatus string
-	}{
-		{
-			name:       "passing result",
-			verbose:    false,
-			withError:  false,
-			wantStatus: "ok",
-		},
-		{
-			name:       "passing result, verbose",
-			verbose:    true,
-			withError:  false,
-			wantStatus: "PASS",
-		},
-		{
-			name:       "failing result",
-			verbose:    false,
-			withError:  true,
-			wantStatus: "FAIL",
-		},
-		{
-			name:       "failing result, verbose",
-			verbose:    true,
-			withError:  true,
-			wantStatus: "FAIL",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var buf bytes.Buffer
-
-			runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
-			runner.output = &buf
-			runner.Verbose = tc.verbose
-
-			// Create a test suite result to test file-level reporting
-			testSuiteFile := "test-suite.yaml"
-			testSuiteResult := engine.NewTestSuiteResult(testSuiteFile, tc.verbose)
-
-			// Create a test case result
-			testCaseResult := engine.NewTestCaseResult("test1", "", tc.verbose, false, false, false, false)
-
-			if tc.withError {
-				testCaseResult.Fail(errors.New("test failure"))
-			} else {
-				testCaseResult.Complete()
-			}
-
-			// Add the test case result to the suite
-			testSuiteResult.AddResult(testCaseResult)
-			testSuiteResult.Complete()
-
-			// Print the test suite result (file-level reporting)
-			testSuiteResult.Print(&buf)
-
-			// Verify results
-			output := buf.String()
-
-			// Check if the expected status is in the output
-			assert.Contains(t, output, tc.wantStatus, "output should contain expected status")
-
-			// Check that the file path appears in the output
-			assert.Contains(t, output, testSuiteFile, "Output should contain the test file path")
-		})
-	}
-}
-
-func TestRunTests_Needs(t *testing.T) {
+func TestFileRun_Needs(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
 		{Name: "A", ID: "a"},
 		{Name: "B", ID: "b", Needs: []string{"a"}},
@@ -1384,7 +1349,7 @@ func TestRunTests_Needs(t *testing.T) {
 	})
 }
 
-func TestRunTests_Order(t *testing.T) {
+func TestFileRun_Order(t *testing.T) {
 	// "a" is listed first, but needs "c" and "b", which are listed after it
 	tests := []api.TestCase{
 		{Name: "A", ID: "a", Needs: []string{"c", "b"}},

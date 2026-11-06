@@ -26,7 +26,7 @@ import (
 )
 
 // Job returns the runner as the scheduler sees it: the steps of the runner, and the dependency graph of its file.
-// setupTestSuite has to be called before the scheduler runs it.
+// SetupTestSuite has to be called before the scheduler runs it.
 func (r *Runner) Job() scheduler.Job {
 	return &schedulerJob{r: r}
 }

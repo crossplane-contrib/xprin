@@ -106,7 +106,7 @@ func updateGoldensRan(t *testing.T, spec *api.TestSuiteSpec, failing ...string) 
 		return result
 	}
 
-	_ = r.RunTests() // it fails when a test case does: what matters is what ran, and what was printed
+	_ = runTestsSerial(t, r) // it fails when a test case does: what matters is what ran, and what was printed
 
 	return out.String(), ran
 }
@@ -303,7 +303,7 @@ func TestRunUpdateGoldens_AFileThatCantBeWritten(t *testing.T) {
 	assert.Empty(t, writtenGoldenFiles(out))
 }
 
-func TestRunTests_UpdateGoldensRunsTheOnesThatWriteAndWhatTheyNeed(t *testing.T) {
+func TestFileRun_UpdateGoldensRunsTheOnesThatWriteAndWhatTheyNeed(t *testing.T) {
 	tests := []struct {
 		name    string
 		tests   []api.TestCase
@@ -402,7 +402,7 @@ func TestRunTests_UpdateGoldensRunsTheOnesThatWriteAndWhatTheyNeed(t *testing.T)
 	}
 }
 
-func TestRunTests_Needs_UpdateGoldens(t *testing.T) {
+func TestFileRun_Needs_UpdateGoldens(t *testing.T) {
 	golden := api.Assertions{Dyff: []api.AssertionGoldenFile{{Name: "g"}}}
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{
 		{Name: "A", ID: "a", Assertions: golden},
@@ -419,7 +419,7 @@ func TestRunTests_Needs_UpdateGoldens(t *testing.T) {
 		return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false).Fail(errors.New("boom"))
 	}
 
-	_ = r.RunTests()
+	_ = runTestsSerial(t, r)
 
 	assert.NotContains(t, out.String(), "B", "no golden files to write: nothing to say about it, whatever happened to its needs")
 	assert.Contains(t, out.String(), "--- SKIP: C")

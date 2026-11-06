@@ -37,6 +37,7 @@ type Options struct {
 	Debug             bool
 	Color             bool // When true, diff output is colorized (resolved from --color on|off|auto in the CLI).
 	Quiet             bool // When true, suppress "[no testsuite files]" and "[no test cases found]" messages. Independent of Verbose.
+	Parallel          int  // How many test cases run at the same time: 1 or more. 0, when it is not set, is the same as 1.
 	Render            []string
 	Validate          []string
 	XPCLI             xpcli.XPCLI

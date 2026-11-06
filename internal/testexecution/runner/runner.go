@@ -28,7 +28,6 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
-	"github.com/crossplane-contrib/xprin/internal/testexecution/scheduler"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/gertd/go-pluralize"
@@ -49,7 +48,6 @@ type Runner struct {
 	mode      runnerMode
 	env       *testSuiteEnv
 	// Mockable function fields
-	runTestsFunc                      func() error
 	runTestCaseFunc                   func(api.TestCase) *engine.TestCaseResult
 	expandPathRelativeToTestSuiteFile func(base, path string) (string, error)
 	verifyPathExists                  func(path string) error
@@ -59,7 +57,7 @@ type Runner struct {
 	patchXRFunc                       func(r *Runner, xrPath, outputPath string, patches api.Patches) (string, error)
 }
 
-// testSuiteEnv is the state of one run of a testsuite file, set by setupTestSuite.
+// testSuiteEnv is the state of one run of a testsuite file, set by SetupTestSuite.
 type testSuiteEnv struct {
 	savedOutputsDir string                   // the internal artifacts, the outputs that test cases share
 	testSuiteResult *engine.TestSuiteResult  // the result of the file, which the result of each test case is added to
@@ -106,29 +104,13 @@ func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestS
 	return r
 }
 
-// RunTests runs all tests in a test suite, one after the other, in the order of their dependencies.
-func (r *Runner) RunTests() error {
-	if r.runTestsFunc != nil {
-		return r.runTestsFunc()
-	}
-
-	if err := r.setupTestSuite(); err != nil {
-		return err
-	}
-
-	// completeTestSuite removes it too: this is for a run that ends without it
-	defer r.removeSavedOutputsDir()
-
-	finishErrs, err := scheduler.Run([]scheduler.Job{r.Job()}, 1)
-	if err != nil {
-		return err
-	}
-
-	return finishErrs[0]
+// GetTestSuiteFilePath returns the path of the testsuite file that the runner runs.
+func (r *Runner) GetTestSuiteFilePath() string {
+	return r.testSuite.File
 }
 
-// setupTestSuite checks the testsuite file and makes the directories that the test cases use.
-func (r *Runner) setupTestSuite() (err error) {
+// SetupTestSuite checks the testsuite file and makes the directories that the test cases use.
+func (r *Runner) SetupTestSuite() (err error) {
 	// Validate that testSuiteFile and testSuiteSpec are set (they should be set in NewRunner)
 	if r.testSuite.File == "" {
 		return fmt.Errorf("testsuite file path is required")
