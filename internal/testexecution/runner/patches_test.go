@@ -72,7 +72,7 @@ spec:
 	options := &testexecutionOptions.Options{
 		Debug: false,
 	}
-	runner := NewRunner(options)
+	runner := New(options)
 	runner.fs = fs // Use in-memory filesystem
 
 	tests := []struct {
@@ -240,7 +240,7 @@ metadata:
 			require.NoError(t, fs.MkdirAll(outputDir, 0o755))
 
 			options := &testexecutionOptions.Options{Debug: false}
-			runner := NewRunner(options)
+			runner := New(options)
 			runner.fs = fs
 
 			xrPath, err := runner.convertClaimToXR(claimFile, tt.xrdPath, tt.goldenPath, outputDir)
@@ -268,7 +268,7 @@ func TestConvertClaimToXR_FailsWhenTheClaimCannotBeRead(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	require.NoError(t, fs.MkdirAll("/output", 0o755))
 
-	runner := NewRunner(&testexecutionOptions.Options{})
+	runner := New(&testexecutionOptions.Options{})
 	runner.fs = fs
 
 	_, err := runner.convertClaimToXR("/missing-claim.yaml", "", "", "/output")

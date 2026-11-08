@@ -29,13 +29,13 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
-func TestNewRunnerSetsTheMode(t *testing.T) {
+func TestNewSetsTheMode(t *testing.T) {
 	t.Run("xprin test", func(t *testing.T) {
-		assert.IsType(t, testMode{}, NewRunner(&testexecutionOptions.Options{}).mode)
+		assert.IsType(t, testMode{}, New(&testexecutionOptions.Options{}).mode)
 	})
 
 	t.Run("xprin update-goldens", func(t *testing.T) {
-		assert.IsType(t, updateGoldensMode{}, NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}).mode)
+		assert.IsType(t, updateGoldensMode{}, New(&testexecutionOptions.Options{UpdateGoldens: true}).mode)
 	})
 }
 
@@ -90,7 +90,7 @@ func TestUpdateGoldensModeSkips(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true})
+			r := New(&testexecutionOptions.Options{UpdateGoldens: true})
 			suite := testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: tt.tests})
 			got := make([]bool, len(tt.tests))
 

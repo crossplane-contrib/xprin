@@ -91,7 +91,7 @@ func (s *Session) GetTestSuiteFilePath() string {
 
 // Setup checks the testsuite file and makes the directories that the test cases use.
 func (s *Session) Setup() (err error) {
-	// Validate that testSuiteFile and testSuiteSpec are set (they should be set in NewSession)
+	// Validate that testSuiteFile and testSuiteSpec are set (they should be set in New)
 	if s.testSuite.File == "" {
 		return fmt.Errorf("testsuite file path is required")
 	}

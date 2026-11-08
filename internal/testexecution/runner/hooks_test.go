@@ -478,7 +478,7 @@ func TestExecuteHooks_WorkingDirectory(t *testing.T) {
 
 	// Create a runner, and the env of a test case of the testsuite file
 	options := &testexecutionOptions.Options{}
-	runner := NewRunner(options)
+	runner := New(options)
 	env := testEnv(testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
 
 	// Verify that the directory that the hooks get is the one of the testsuite file, by capturing it

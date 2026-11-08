@@ -51,7 +51,7 @@ const (
 
 // createSessionWith is createSession with a runner that has the options, as ProcessTargets makes it.
 func createSessionWith(fs afero.Fs, testSuiteFile string, options *testexecutionOptions.Options) (sessionInterface, error) {
-	return createSession(fs, testSuiteFile, options, testexecutionRunner.NewRunner(options))
+	return createSession(fs, testSuiteFile, options, testexecutionRunner.New(options))
 }
 
 // emptySession is a sessionInterface for testing a file without test cases: what finishFunc returns is what the scheduler

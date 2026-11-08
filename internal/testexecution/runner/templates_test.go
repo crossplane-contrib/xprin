@@ -33,7 +33,7 @@ import (
 
 func TestRenderTemplate_MissingNeed(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}, {ID: "b"}, {ID: "c", Needs: []string{"b"}}}}
-	r := NewRunner(&testexecutionOptions.Options{})
+	r := New(&testexecutionOptions.Options{})
 	env := testEnv(testsuite.New("/tests/a_xprin.yaml", spec))
 	ctx := newTemplateContext(nil, api.Inputs{}, nil, map[string]*engine.TestCaseResult{"b": {}})
 
@@ -80,7 +80,7 @@ func TestRenderTemplate_MissingNeed(t *testing.T) {
 	})
 
 	t.Run("a file without any needs: nothing is found from the templates", func(t *testing.T) {
-		noNeeds := NewRunner(&testexecutionOptions.Options{})
+		noNeeds := New(&testexecutionOptions.Options{})
 		noNeedsEnv := testEnv(testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}, {ID: "b"}}}))
 		_, err := noNeeds.renderTemplate(noNeedsEnv, "{{ .Tests.a.Outputs.XR }}", newTemplateContext(nil, api.Inputs{}, nil, map[string]*engine.TestCaseResult{}), "test")
 

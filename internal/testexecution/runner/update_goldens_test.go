@@ -34,7 +34,7 @@ import (
 
 func newUpdateGoldensRunner(fs afero.Fs) (*Runner, *testCaseEnv) {
 	options := &testexecutionOptions.Options{UpdateGoldens: true}
-	r := NewRunner(options)
+	r := New(options)
 	r.fs = fs
 	r.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) { return path, nil }
 
@@ -91,7 +91,7 @@ func plainCase(id string, needs ...string) api.TestCase {
 func updateGoldensRan(t *testing.T, spec *api.TestSuiteSpec, failing ...string) (output string, ran []string) {
 	t.Helper()
 
-	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true})
+	r := New(&testexecutionOptions.Options{UpdateGoldens: true})
 
 	var out bytes.Buffer
 
@@ -424,7 +424,7 @@ func TestRunTestCase_Needs_UpdateGoldens(t *testing.T) {
 		{Name: "C", ID: "c", Needs: []string{"a"}, Assertions: golden},
 	}}
 
-	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true})
+	r := New(&testexecutionOptions.Options{UpdateGoldens: true})
 	r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
 		return engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false).Fail(errors.New("boom"))
 	}

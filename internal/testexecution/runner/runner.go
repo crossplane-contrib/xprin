@@ -67,9 +67,9 @@ type TestSuiteContext struct {
 	SavedOutputsDir string               // where the outputs of the test cases that others use are saved
 }
 
-// NewRunner creates the runner of test cases, for one invocation. It keeps nothing of the test cases that it runs:
+// New creates the runner of test cases, for one invocation. It keeps nothing of the test cases that it runs:
 // what they share with their testsuite file is in the testCaseEnv that each one is run with.
-func NewRunner(options *testexecutionOptions.Options) *Runner {
+func New(options *testexecutionOptions.Options) *Runner {
 	r := &Runner{
 		fs:      afero.NewOsFs(),
 		Options: options,

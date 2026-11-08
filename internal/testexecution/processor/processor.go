@@ -86,7 +86,7 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 
 	// One runner for all the files: it is stateless, it runs a test case and gives its result back to the session.
 	// Each file gets its own session, which holds the state of the file (the results so far, the shared outputs).
-	testRunner := runner.NewRunner(options)
+	testRunner := runner.New(options)
 
 	// A file that can't be loaded or set up is reported, left out, and makes the run fail
 	walkErr := discovery.Walk(fs, targets, discoveryOptions(options), func(testSuiteFile string) error {

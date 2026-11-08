@@ -44,7 +44,7 @@ const testSuiteFile = "/suite_xprin.yaml"
 func newMockRunner(options *testexecutionOptions.Options, mocks ...func(*Runner)) *Runner {
 	options.DebugLog = noDebug
 
-	r := NewRunner(options)
+	r := New(options)
 
 	// Set up default mock functions for testing
 	r.expandPathRelativeToTestSuiteFile = func(_, path string) (string, error) { return path, nil }
@@ -96,7 +96,7 @@ func makeOptions(cfg *config.Config, render, validate []string, overrides ...fun
 	return opt
 }
 
-func TestNewRunner(t *testing.T) {
+func TestNew(t *testing.T) {
 	// Integration-style: take Render/Validate from config
 	cfg := &config.Config{
 		Dependencies: map[string]string{
@@ -114,7 +114,7 @@ func TestNewRunner(t *testing.T) {
 	options := makeOptions(cfg, nil, nil, func(o *testexecutionOptions.Options) {
 		o.Debug = true
 	})
-	runner := NewRunner(options)
+	runner := New(options)
 
 	// Check the runner was created with the right settings
 	assert.Equal(t, options, runner.Options)
@@ -128,7 +128,7 @@ func TestNewRunner(t *testing.T) {
 	assert.Equal(t, strings.Fields(cfg.Subcommands.Validate), runner.Validate)
 }
 
-func TestNewRunner_DefaultsIfNotSpecified(t *testing.T) {
+func TestNew_DefaultsIfNotSpecified(t *testing.T) {
 	// If Render/Validate are not set in config, runner should get the defaults
 	cfg := &config.Config{
 		Dependencies: map[string]string{
@@ -141,7 +141,7 @@ func TestNewRunner_DefaultsIfNotSpecified(t *testing.T) {
 	}
 	// Simulate config-to-options conversion (empty means use defaults)
 	options := makeOptions(cfg, nil, nil)
-	runner := NewRunner(options)
+	runner := New(options)
 
 	// The runner should have the default Render/Validate commands (from runner or config loader)
 	assert.NotEmpty(t, runner.Render)
@@ -151,13 +151,13 @@ func TestNewRunner_DefaultsIfNotSpecified(t *testing.T) {
 	assert.Equal(t, strings.Fields(config.ValidateSubcommand+" "+config.ValidateFlags), runner.Validate)
 }
 
-func TestNewRunner_RunsCommandsInTheGivenDirectory(t *testing.T) {
+func TestNew_RunsCommandsInTheGivenDirectory(t *testing.T) {
 	// The runner is for the whole invocation, so the directory is the one of the testsuite file of each call
 	dir := t.TempDir()
 	want, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 
-	out, err := NewRunner(&testexecutionOptions.Options{}).runCommand(dir, "pwd")
+	out, err := New(&testexecutionOptions.Options{}).runCommand(dir, "pwd")
 
 	require.NoError(t, err)
 
@@ -774,7 +774,7 @@ func TestRunTestCase_MergesTheCommonInputs(t *testing.T) {
 // A test case that the mode has no use for is skipped, whatever it needs, and none of its phases runs.
 func TestRunTestCase_ASkippedByTheMode(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "plain", ID: "plain"}}}
-	r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true})
+	r := New(&testexecutionOptions.Options{UpdateGoldens: true})
 	r.runTestCaseFunc = func(api.TestCase) *engine.TestCaseResult {
 		t.Fatal("a test case that the mode skips must not run")
 

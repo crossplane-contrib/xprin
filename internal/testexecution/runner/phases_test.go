@@ -82,7 +82,7 @@ func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (fa
 
 func TestSaveOutputs(t *testing.T) {
 	newRunner := func() (*Runner, *[]string) {
-		r := NewRunner(&testexecutionOptions.Options{})
+		r := New(&testexecutionOptions.Options{})
 
 		var copied []string
 
