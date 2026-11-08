@@ -102,11 +102,11 @@ func (c *Cmd) Run(_ *kong.Context) error {
 
 	if c.Debug {
 		if c.Config.XPCLI.Tier == xpcli.TierV1 {
-			utils.DebugPrintf("Crossplane CLI v1 detected; patches.xrd will not be passed as --xrd to render\n")
+			options.DebugLog.Printf("Crossplane CLI v1 detected; patches.xrd will not be passed as --xrd to render\n")
 		}
 
 		if c.CrossplaneVersion != "" && !c.Config.XPCLI.SupportsRenderVersion() {
-			utils.DebugPrintf("--crossplane-version is not supported by the legacy Crossplane CLI (< v2.3.0); skipping for render, but --crossplane-image will still be passed to validate\n")
+			options.DebugLog.Printf("--crossplane-version is not supported by the legacy Crossplane CLI (< v2.3.0); skipping for render, but --crossplane-image will still be passed to validate\n")
 		}
 	}
 
@@ -123,7 +123,7 @@ func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionOptions.Options 
 	opts.ShowAssertions = c.ShowAll || c.ShowAssertions
 	opts.Verbose = c.Verbose
 	opts.Quiet = c.Quiet
-	opts.Debug = c.Debug
+	opts.SetDebug(c.Debug)
 	opts.Color = bunt.UseColors()
 	opts.CrossplaneVersion = c.CrossplaneVersion
 	opts.NoContainerReuse = c.NoContainerReuse

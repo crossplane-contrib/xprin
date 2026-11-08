@@ -21,15 +21,6 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 )
 
-// debugf is the function that the hooks print their --debug lines with: nil without --debug.
-func (r *Runner) debugf() func(format string, args ...any) {
-	if !r.Debug {
-		return nil
-	}
-
-	return r.debug.Printf
-}
-
 // debugPrintPatches prints patches in a consistent format.
 func (r *Runner) debugPrintPatches(patches api.Patches) {
 	if patches.HasPatches() {

@@ -125,7 +125,7 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 
 // discoveryOptions returns what the discovery package needs to know from the options.
 func discoveryOptions(options *testexecutionOptions.Options) discovery.Options {
-	return discovery.Options{Quiet: options.Quiet, Debug: options.Debug}
+	return discovery.Options{Quiet: options.Quiet, Debug: options.Debug, DebugLog: options.DebugLog}
 }
 
 // createRunner loads the testsuite file, and creates its runner, which is not set up yet. It returns no runner, and

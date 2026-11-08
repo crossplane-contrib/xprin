@@ -299,7 +299,7 @@ func (r *Runner) copyInputs(env *testCaseEnv, testCase *api.TestCase, result *en
 // fails, to end the run of the test case, and nil to go on.
 func (r *Runner) runPreTestHooks(testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
 	if testCase.HasPreTestHooks() {
-		hookExecutor := newHookExecutor(r.Repositories, r.debugf(), r.runCommand, r.renderTemplate)
+		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommand, r.renderTemplate)
 
 		var err error
 
@@ -617,7 +617,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 // does not end the run of the test case: it is in the result.
 func (r *Runner) runPostTestHooks(testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) {
 	if testCase.HasPostTestHooks() {
-		hookExecutor := newHookExecutor(r.Repositories, r.debugf(), r.runCommand, r.renderTemplate)
+		hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommand, r.renderTemplate)
 
 		result.PostTestHooksResults, _ = hookExecutor.executeHooks(testCase.Hooks.PostTest, "post-test", testCase.Inputs, &result.Outputs, needsResults)
 		result.ProcessPostTestHooksOutput()

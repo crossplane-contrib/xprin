@@ -76,7 +76,7 @@ func (c *Cmd) newOptions(cfg *internalcfg.Config) *testexecutionOptions.Options 
 	opts := testexecutionOptions.FromConfig(cfg)
 	opts.Verbose = c.Verbose
 	opts.Quiet = c.Quiet
-	opts.Debug = c.Debug
+	opts.SetDebug(c.Debug)
 	opts.Color = bunt.UseColors()
 	opts.CrossplaneVersion = c.CrossplaneVersion
 	opts.NoContainerReuse = c.NoContainerReuse

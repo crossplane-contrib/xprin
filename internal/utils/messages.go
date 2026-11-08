@@ -19,15 +19,8 @@ package utils
 
 import (
 	"fmt"
-	"log"
 	"os"
 )
-
-// DebugPrintf prints a debug message to stderr with "DEBUG: " prefix.
-// It uses the same formatting as fmt.Printf but writes to stderr instead of stdout.
-func DebugPrintf(format string, args ...any) {
-	log.New(os.Stderr, "DEBUG: ", 0).Printf(format, args...)
-}
 
 // WarningPrintf prints a warning message to stderr with "WARNING: " prefix.
 // It uses the same formatting as fmt.Printf but writes to stderr instead of stdout.

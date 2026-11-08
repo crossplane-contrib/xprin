@@ -80,7 +80,7 @@ func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestS
 	r := &Runner{
 		fs:        afero.NewOsFs(),
 		output:    os.Stdout, // Default output to stdout
-		debug:     log.New(os.Stderr, "DEBUG: ", 0),
+		debug:     options.DebugLog,
 		Options:   options,
 		testSuite: testSuite,
 		// Initialize mockable function fields with default implementations
@@ -198,7 +198,7 @@ func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *
 	var lines strings.Builder
 
 	own := *r
-	own.debug = log.New(&lines, "DEBUG: ", 0)
+	own.debug = log.New(&lines, r.debug.Prefix(), r.debug.Flags())
 	own.mode = newRunnerMode(&own)
 
 	result := own.executeTestCase(testCase, index, testSuiteResult)
@@ -310,7 +310,9 @@ func (r *Runner) printTestCaseResult(positionInTestSuite int) {
 	result := r.env.testCaseResults[positionInTestSuite]
 
 	// The --debug lines of a test case that ran at the same time as others come with its result, not mixed with theirs
-	fmt.Fprint(r.debug.Writer(), result.DebugLog) //nolint:errcheck // output function, error handling not practical
+	if result.DebugLog != "" {
+		fmt.Fprint(r.debug.Writer(), result.DebugLog) //nolint:errcheck // output function, error handling not practical
+	}
 
 	result.Print(r.output)
 }
