@@ -77,7 +77,7 @@ func (m testMode) runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, 
 
 	// Complete the test case result
 	if r.Debug {
-		m.r.debug.printf("Test case '%s' completed with status: %s\n", testCase.Name, result.Status.String())
+		m.r.debug.Printf("Test case '%s' completed with status: %s\n", testCase.Name, result.Status.String())
 	}
 
 	return result.Complete()

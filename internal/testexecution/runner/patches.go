@@ -47,7 +47,7 @@ func (r *Runner) copyInput(env *testCaseEnv, src, inputType string) (string, err
 	}
 
 	if r.Debug {
-		r.debug.printf("Copied %s to: %s\n", inputType, dest)
+		r.debug.Printf("Copied %s to: %s\n", inputType, dest)
 	}
 
 	return dest, nil
@@ -66,7 +66,7 @@ func (r *Runner) copyToPath(src, dest, inputType string) (string, error) {
 	}
 
 	if r.Debug {
-		r.debug.printf("Copied %s to: %s\n", inputType, dest)
+		r.debug.Printf("Copied %s to: %s\n", inputType, dest)
 	}
 
 	return dest, nil
@@ -138,7 +138,7 @@ func (r *Runner) convertClaimToXR(claimPath, xrdPath, goldenPath, outputPath str
 	}
 
 	if r.Debug {
-		r.debug.printf("Converting Claim to XR\n")
+		r.debug.Printf("Converting Claim to XR\n")
 	}
 
 	var xrd *apiextensionsv1.CompositeResourceDefinition
@@ -164,7 +164,7 @@ func (r *Runner) convertClaimToXR(claimPath, xrdPath, goldenPath, outputPath str
 			opts.Name = name
 
 			if r.Debug {
-				r.debug.printf("Reusing XR name %q from golden file %s\n", name, goldenPath)
+				r.debug.Printf("Reusing XR name %q from golden file %s\n", name, goldenPath)
 			}
 		}
 	}
@@ -187,7 +187,7 @@ func (r *Runner) convertClaimToXR(claimPath, xrdPath, goldenPath, outputPath str
 	}
 
 	if r.Debug {
-		r.debug.printf("Wrote converted XR to temporary file: %s\n", xrPath)
+		r.debug.Printf("Wrote converted XR to temporary file: %s\n", xrPath)
 	}
 
 	return xrPath, nil
@@ -213,7 +213,7 @@ func (r *Runner) patchXR(xrPath, outputPath string, patches api.Patches) (string
 	// Apply XRD defaults if XRD file is provided
 	if patches.XRD != "" {
 		if r.Debug {
-			r.debug.printf("Patching XR: Applying XRD defaults\n")
+			r.debug.Printf("Patching XR: Applying XRD defaults\n")
 		}
 
 		xrd, err := render.LoadXRD(r.fs, patches.XRD)
@@ -230,7 +230,7 @@ func (r *Runner) patchXR(xrPath, outputPath string, patches api.Patches) (string
 	// Add connection secret if requested
 	if patches.HasConnectionSecret() {
 		if r.Debug {
-			r.debug.printf("Patching XR: Adding connection secret\n")
+			r.debug.Printf("Patching XR: Adding connection secret\n")
 		}
 
 		if err := patchxr.AddConnectionSecret(xr, patches.ConnectionSecretName, patches.ConnectionSecretNamespace); err != nil {

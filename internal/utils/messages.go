@@ -19,20 +19,14 @@ package utils
 
 import (
 	"fmt"
-	"io"
+	"log"
 	"os"
 )
-
-// DebugFprintf prints a debug message to w with "DEBUG: " prefix.
-// It uses the same formatting as fmt.Fprintf.
-func DebugFprintf(w io.Writer, format string, args ...any) {
-	fmt.Fprintf(w, "DEBUG: "+format, args...) //nolint:errcheck // output function, error handling not practical
-}
 
 // DebugPrintf prints a debug message to stderr with "DEBUG: " prefix.
 // It uses the same formatting as fmt.Printf but writes to stderr instead of stdout.
 func DebugPrintf(format string, args ...any) {
-	DebugFprintf(os.Stderr, format, args...)
+	log.New(os.Stderr, "DEBUG: ", 0).Printf(format, args...)
 }
 
 // WarningPrintf prints a warning message to stderr with "WARNING: " prefix.

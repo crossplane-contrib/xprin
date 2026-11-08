@@ -48,13 +48,3 @@ func TestDebugPrintf(t *testing.T) {
 		t.Errorf("WarningPrintf output did not start with 'DEBUG: ', got: %q", out)
 	}
 }
-
-func TestDebugFprintf(t *testing.T) {
-	var out strings.Builder
-
-	DebugFprintf(&out, "always: %d %s\n", 7, "baz")
-
-	if out.String() != "DEBUG: always: 7 baz\n" {
-		t.Errorf("DebugFprintf did not print the expected output, got: %q", out.String())
-	}
-}
