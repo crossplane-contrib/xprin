@@ -106,21 +106,32 @@ func New(options *testexecutionOptions.Options) *Runner {
 // --parallel they would be mixed with those of the others, so they are kept in the DebugLog of the result, and its
 // session prints them with the result.
 func (r *Runner) RunTestCase(testSuiteContext TestSuiteContext, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult {
-	if !r.Debug || r.Parallel <= 1 {
-		return r.executeTestCase(testSuiteContext, testCase, completed)
+	// Its lines go to the log of the runner, live, unless several test cases run at the same time: then they are kept
+	debug := r.debug
+
+	var lines *strings.Builder
+
+	if r.Debug && r.Parallel > 1 {
+		lines = &strings.Builder{}
+		debug = log.New(lines, r.debug.Prefix(), r.debug.Flags())
 	}
 
-	// This copy of the runner is the one of this test case: it has its own debug log, and the mode that refers to it
-	var lines strings.Builder
-
-	own := *r
-	own.debug = log.New(&lines, r.debug.Prefix(), r.debug.Flags())
-	own.mode = newRunnerMode(&own)
-
-	result := own.executeTestCase(testSuiteContext, testCase, completed)
-	result.DebugLog = lines.String()
+	result := r.forTestCase(debug).executeTestCase(testSuiteContext, testCase, completed)
+	if lines != nil {
+		result.DebugLog = lines.String()
+	}
 
 	return result
+}
+
+// forTestCase returns the runner of one test case: a copy of r, with debug as its log and the mode that refers to the
+// copy. What a test case does to its runner is not seen by the ones that run at the same time.
+func (r *Runner) forTestCase(debug *log.Logger) *Runner {
+	own := *r
+	own.debug = debug
+	own.mode = newRunnerMode(&own)
+
+	return &own
 }
 
 func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult {
