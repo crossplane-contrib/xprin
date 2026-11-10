@@ -32,15 +32,15 @@ type updateGoldensMode struct {
 // skips tells that update-goldens has nothing to do with a test case that writes no golden file, and that no golden
 // file depends on: the graph knows which those are. One without an ID is not in the graph by it, but no test case
 // can need it, so only its own golden-file assertions matter.
-func (m updateGoldensMode) skips(testCase api.TestCase) bool {
-	return !testCase.HasAssertionsGoldenFiles() && !m.r.testSuite.Graph.NodeByID(testCase.ID).NeededForGoldens
+func (m updateGoldensMode) skips(env *testCaseEnv, testCase api.TestCase) bool {
+	return !testCase.HasAssertionsGoldenFiles() && !env.TestSuite.Graph.NodeByID(testCase.ID).NeededForGoldens
 }
 
 // runPhasesAfterRender is the one phase of update-goldens that follows the render: it writes the golden files of the
 // test case from what was rendered. Validate, the assertions and the post-test hooks are not run. The outputs are
 // saved as internal artifacts, as in xprin test, for the test cases that need this one.
 func (m updateGoldensMode) runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, _ map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
-	result = m.r.runUpdateGoldens(testCase, result)
+	result = m.r.runUpdateGoldens(env, testCase, result)
 	if result.Status == engine.StatusFail() {
 		return result
 	}
@@ -59,11 +59,11 @@ const goldenFilesHeader = "Golden Files"
 
 // runUpdateGoldens writes render output to the `expected:` paths of assertions.diff/dyff entries.
 // Called instead of validate/assertions/post-test hooks when UpdateGoldens is set.
-func (r *Runner) runUpdateGoldens(testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
+func (r *Runner) runUpdateGoldens(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
 	allAssertions := append(testCase.Assertions.Diff, testCase.Assertions.Dyff...) //nolint:gocritic // intentional append to new slice
 
 	for _, a := range allAssertions {
-		path, err := r.writeGoldenFile(a, &result.Outputs)
+		path, err := r.writeGoldenFile(env, a, &result.Outputs)
 		if err != nil {
 			// It stops at the first one that fails. The failure is a line of the section, after the files that were
 			// written, so there is no other error to show.
@@ -82,8 +82,8 @@ func (r *Runner) runUpdateGoldens(testCase api.TestCase, result *engine.TestCase
 // then writes the actual content to the expected path (creating or overwriting).
 // Returns the path of the golden file, also when it fails, to say which one it was: the absolute path that was
 // written, or the one of the assertion when it can't be resolved.
-func (r *Runner) writeGoldenFile(a api.AssertionGoldenFile, outputs *engine.Outputs) (string, error) {
-	expectedPath, err := r.expandPathRelativeToTestSuiteFile(r.testSuite.File, a.Expected)
+func (r *Runner) writeGoldenFile(env *testCaseEnv, a api.AssertionGoldenFile, outputs *engine.Outputs) (string, error) {
+	expectedPath, err := r.expandPathRelativeToTestSuiteFile(env.TestSuite.File, a.Expected)
 	if err != nil {
 		return a.Expected, fmt.Errorf("invalid expected path: %w", err)
 	}

@@ -18,78 +18,69 @@ package runner
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/debuglog"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
-	"github.com/gertd/go-pluralize"
 	cp "github.com/otiai10/copy"
 	"github.com/spf13/afero"
 )
 
-// ErrTestsFailed is what completeTestSuite wraps when some test cases failed.
-var ErrTestsFailed = errors.New("tests failed")
-
-// Runner handles test execution.
+// Runner runs test cases. It is created once for an invocation, and keeps nothing of the test cases that it runs.
 type Runner struct {
 	*testexecutionOptions.Options
 
-	fs        afero.Fs
-	testSuite *testsuite.TestSuite // the test suite that is run: its file, its spec and its dependency graph
-	output    io.Writer
-	debug     *log.Logger
-	mode      runnerMode
-	env       *testSuiteEnv
+	fs    afero.Fs
+	mode  runnerMode
+	debug *log.Logger
 	// Mockable function fields
 	runTestCaseFunc                   func(api.TestCase) *engine.TestCaseResult
 	expandPathRelativeToTestSuiteFile func(base, path string) (string, error)
 	verifyPathExists                  func(path string) error
-	runCommand                        func(name string, args ...string) ([]byte, error)
+	runCommand                        func(dir, name string, args ...string) ([]byte, error)
 	copy                              func(src, dest string, opts ...cp.Options) error
 	convertClaimToXRFunc              func(r *Runner, claimPath, xrdPath, goldenPath, outputPath string) (string, error)
 	patchXRFunc                       func(r *Runner, xrPath, outputPath string, patches api.Patches) (string, error)
 }
 
-// testSuiteEnv is the state of one run of a testsuite file, set by SetupTestSuite.
-type testSuiteEnv struct {
-	savedOutputsDir string                   // the internal artifacts, the outputs that test cases share
-	testSuiteResult *engine.TestSuiteResult  // the result of the file, which the result of each test case is added to
-	testCaseResults []*engine.TestCaseResult // the result of each test case, by its positionInTestSuite, once it ran
-}
-
-// testCaseEnv is the state of one test case run.
+// testCaseEnv is what one test case run works with: the directories that are its own, and what it takes from the
+// testsuite file that it is a part of. The phases of a test case read the file only from here.
 type testCaseEnv struct {
+	TestSuiteContext
+
 	tmpDir     string
 	inputsDir  string
 	outputsDir string
-	index      int
 }
 
-// NewRunner creates a new test runner.
-func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestSuite) *Runner {
+// TestSuiteContext is what a test case is run with, from the testsuite file that it is a part of.
+type TestSuiteContext struct {
+	Index           int                  // the number of the test case in the order that they run, which starts at 1
+	TestSuite       *testsuite.TestSuite // the file: where its paths are relative to, its spec and its dependency graph
+	SavedOutputsDir string               // where the outputs of the test cases that others use are saved
+}
+
+// New creates the runner of test cases, for one invocation. It keeps nothing of the test cases that it runs:
+// what they share with their testsuite file is in the testCaseEnv that each one is run with.
+func New(options *testexecutionOptions.Options) *Runner {
 	r := &Runner{
-		fs:        afero.NewOsFs(),
-		output:    os.Stdout, // Default output to stdout
-		debug:     options.DebugLog,
-		Options:   options,
-		testSuite: testSuite,
+		fs:      afero.NewOsFs(),
+		Options: options,
+		debug:   options.DebugLog,
 		// Initialize mockable function fields with default implementations
-		runTestCaseFunc:                   nil, // will set default below
 		expandPathRelativeToTestSuiteFile: testsuite.ExpandPath,
 		verifyPathExists:                  utils.VerifyPathExists,
-		runCommand: func(name string, args ...string) ([]byte, error) {
+		runCommand: func(dir, name string, args ...string) ([]byte, error) {
 			cmd := exec.Command(name, args...) //nolint:gosec // G204 - Used for Crossplane CLI and hooks, caller is trusted
-			cmd.Dir = testSuite.GetDir()
+			cmd.Dir = dir
 
 			var combined bytes.Buffer
 
@@ -108,121 +99,60 @@ func NewRunner(options *testexecutionOptions.Options, testSuite *testsuite.TestS
 	return r
 }
 
-// GetTestSuiteFilePath returns the path of the testsuite file that the runner runs.
-func (r *Runner) GetTestSuiteFilePath() string {
-	return r.testSuite.File
-}
-
-// SetupTestSuite checks the testsuite file and makes the directories that the test cases use.
-func (r *Runner) SetupTestSuite() (err error) {
-	// Validate that testSuiteFile and testSuiteSpec are set (they should be set in NewRunner)
-	if r.testSuite.File == "" {
-		return fmt.Errorf("testsuite file path is required")
-	}
-
-	if r.testSuite.Spec == nil {
-		return fmt.Errorf("testsuite specification is required")
-	}
-
-	// Create the directory of the internal artifacts, the outputs that test cases share (always created, cleaned up when testsuite finishes)
-	savedOutputsDir, err := afero.TempDir(r.fs, "", "xprin-internal-artifacts-")
-	if err != nil {
-		return fmt.Errorf("failed to create internal artifacts directory: %w", err)
-	}
-
-	r.env = &testSuiteEnv{savedOutputsDir: savedOutputsDir}
-
-	// If it can't go on, nothing will call completeTestSuite to remove it
-	defer func() {
-		if err != nil {
-			r.removeSavedOutputsDir()
-		}
-	}()
-
-	if r.Debug {
-		r.debug.Printf("Created internal artifacts directory: %s\n", savedOutputsDir)
-	}
-
-	if r.Debug {
-		r.debug.Printf("Using testsuite file directory for relative path resolution: %s\n", r.testSuite.GetDir())
-
-		// We do not expand or verify common fields here. They will be expanded and verified by the individual test cases that do not override them.
-		if r.testSuite.Spec.HasCommon() {
-			r.debugPrintCommon(r.testSuite.Spec.Common, "Found common configuration:")
-		}
-
-		plural := pluralize.NewClient()
-		r.debug.Printf("Found %s\n", plural.Pluralize("test case", len(r.testSuite.Spec.Tests), true))
-	}
-
-	// Create test suite result
-	r.env.testSuiteResult = engine.NewTestSuiteResult(r.testSuite.File, r.Verbose)
-	r.env.testSuiteResult.SetWorkingDir(r.WorkingDir)
-
-	totalTestCases := len(r.testSuite.Spec.Tests)
-	r.env.testCaseResults = make([]*engine.TestCaseResult, totalTestCases)
-
-	if r.ArtifactsBaseDir != "" && totalTestCases > 0 {
-		if err := r.initArtifactsRunDir(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// runAndStoreTestCase runs the test case at positionInTestSuite and stores its result.
-// positionInTestSuite is the position of the test case in the tests of the file.
-// Different test cases can run at the same time, once the ones that each needs are done.
-func (r *Runner) runAndStoreTestCase(positionInTestSuite int) {
-	testCase := r.testSuite.Spec.Tests[positionInTestSuite]
-
-	// Run the test and let the engine handle everything. The test cases are numbered, from 1, in the order they run in.
-	result := r.runTestCase(testCase, r.testSuite.Graph.PositionInOrder(positionInTestSuite)+1, r.env.testSuiteResult)
-
-	r.env.testCaseResults[positionInTestSuite] = result
-	r.env.testSuiteResult.AddResult(result)
-}
-
-// runTestCase executes a single test case and returns a complete TestCaseResult.
+// RunTestCase runs a single test case, with what its session gives it in testSuiteContext, and returns a complete TestCaseResult.
+// completed are the results of the test cases that already ran, which the ones that this one needs are found in: it is
+// skipped if one of them failed or was skipped, or if the mode has no use for it.
 //
 // With --debug, the lines of the test case are printed as they happen when only one test case runs at a time. With
-// --parallel they would be mixed with those of the others, so they are kept in the DebugLog of the result, and
-// printTestCaseResult prints them with the result.
-func (r *Runner) runTestCase(testCase api.TestCase, index int, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
-	if !r.Debug || r.Parallel <= 1 {
-		return r.executeTestCase(testCase, index, testSuiteResult)
+// --parallel they would be mixed with those of the others, so they are kept in the DebugLog of the result, and its
+// session prints them with the result.
+func (r *Runner) RunTestCase(testSuiteContext TestSuiteContext, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult {
+	// Its lines go to the log of the runner, live, unless several test cases run at the same time: then they are kept
+	debug := r.debug
+
+	var lines *strings.Builder
+
+	if r.Debug && r.Parallel > 1 {
+		lines = &strings.Builder{}
+		debug = log.New(lines, r.debug.Prefix(), r.debug.Flags())
 	}
 
-	// This copy of the runner is the one of this test case: it has its own debug log, and the mode that refers to it
-	var lines strings.Builder
-
-	own := *r
-	own.debug = log.New(&lines, r.debug.Prefix(), r.debug.Flags())
-	own.mode = newRunnerMode(&own)
-
-	result := own.executeTestCase(testCase, index, testSuiteResult)
-	result.DebugLog = lines.String()
+	result := r.forTestCase(debug).executeTestCase(testSuiteContext, testCase, completed)
+	if lines != nil {
+		result.DebugLog = lines.String()
+	}
 
 	return result
 }
 
-func (r *Runner) executeTestCase(testCase api.TestCase, index int, testSuiteResult *engine.TestSuiteResult) *engine.TestCaseResult {
+// forTestCase returns the runner of one test case: a copy of r, with debug as its log and the mode that refers to the
+// copy. What a test case does to its runner is not seen by the ones that run at the same time.
+func (r *Runner) forTestCase(debug *log.Logger) *Runner {
+	own := *r
+	own.debug = debug
+	own.mode = newRunnerMode(&own)
+
+	return &own
+}
+
+func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult {
 	if r.Debug {
 		r.debug.Printf("Starting test case '%s'\n", testCase.Name)
 	}
+
+	env := &testCaseEnv{TestSuiteContext: testSuiteContext}
 
 	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, r.Verbose, r.ShowRender, r.ShowValidate, r.ShowHooks, r.ShowAssertions)
 
 	// Skip immediately a test case that the mode has no use for, whatever it needs (the modes are in mode.go and
 	// update_goldens.go)
-	if r.mode.skips(testCase) {
+	if r.mode.skips(env, testCase) {
 		return result.Skip()
 	}
 
 	// Skip the test case if one of the test cases it needs failed or was skipped. Otherwise, the results of
 	// the test cases it lists in `needs` are the only ones it can use with `.Tests`.
-	needsResults, skipReasons := engine.GetNeedsResults(testCase.Needs, testSuiteResult.GetCompletedTests())
+	needsResults, skipReasons := engine.GetNeedsResults(testCase.Needs, completed)
 	if len(skipReasons) > 0 {
 		return result.Skip(skipReasons...)
 	}
@@ -230,8 +160,6 @@ func (r *Runner) executeTestCase(testCase api.TestCase, index int, testSuiteResu
 	if r.runTestCaseFunc != nil {
 		return r.runTestCaseFunc(testCase)
 	}
-
-	env := &testCaseEnv{index: index}
 
 	// Create a temporary directory for the test case (with inputs and outputs subdirectories)
 	var err error
@@ -267,12 +195,12 @@ func (r *Runner) executeTestCase(testCase api.TestCase, index int, testSuiteResu
 		r.debug.Printf("- Outputs: %s\n", env.outputsDir)
 	}
 
-	if r.testSuite.Spec.HasCommon() {
-		testCase.MergeCommon(r.testSuite.Spec.Common)
+	if env.TestSuite.Spec.HasCommon() {
+		testCase.MergeCommon(env.TestSuite.Spec.Common)
 	}
 
 	// Process template variables for this test case
-	if err := r.processTemplateVariables(&testCase, needsResults); err != nil {
+	if err := r.processTemplateVariables(env, &testCase, needsResults); err != nil {
 		return result.Fail(fmt.Errorf("failed to process template variables: %w", err))
 	}
 
@@ -281,10 +209,10 @@ func (r *Runner) executeTestCase(testCase api.TestCase, index int, testSuiteResu
 	}
 
 	if r.Debug {
-		r.debugPrintTestCase(testCase, "Test specification:")
+		debuglog.PrintTestCase(r.debug, testCase, "Test specification:")
 	}
 
-	if failed := r.expandInputPaths(&testCase, result); failed != nil {
+	if failed := r.expandInputPaths(env, &testCase, result); failed != nil {
 		return failed
 	}
 
@@ -292,7 +220,7 @@ func (r *Runner) executeTestCase(testCase api.TestCase, index int, testSuiteResu
 		return failed
 	}
 
-	if failed := r.runPreTestHooks(testCase, needsResults, result); failed != nil {
+	if failed := r.runPreTestHooks(env, testCase, needsResults, result); failed != nil {
 		return failed
 	}
 
@@ -301,49 +229,4 @@ func (r *Runner) executeTestCase(testCase api.TestCase, index int, testSuiteResu
 	}
 
 	return r.mode.runPhasesAfterRender(testCase, env, needsResults, result)
-}
-
-// printTestCaseResult prints the stored result of the test case at positionInTestSuite.
-// positionInTestSuite is the position of the test case in the tests of the file.
-// Not at the same time as another one: the output has the order of the calls.
-func (r *Runner) printTestCaseResult(positionInTestSuite int) {
-	result := r.env.testCaseResults[positionInTestSuite]
-
-	// The --debug lines of a test case that ran at the same time as others come with its result, not mixed with theirs
-	if result.DebugLog != "" {
-		fmt.Fprint(r.debug.Writer(), result.DebugLog) //nolint:errcheck // output function, error handling not practical
-	}
-
-	result.Print(r.output)
-}
-
-// completeTestSuite prints the summary of the file, and returns an error if any test case failed.
-func (r *Runner) completeTestSuite() error {
-	defer r.removeSavedOutputsDir()
-
-	// Complete the test suite result
-	r.env.testSuiteResult.Complete()
-
-	// Print only the file summary (not individual test results)
-	r.env.testSuiteResult.Print(r.output)
-
-	if r.ArtifactsRunDir != "" {
-		suiteArtifactsPath := filepath.Join(r.ArtifactsRunDir, artifactsRelPath(r.testSuite.File, r.WorkingDir))
-		fmt.Fprintf(os.Stderr, "artifacts: %s\n", suiteArtifactsPath)
-	}
-
-	// Return error if any tests failed
-	if r.env.testSuiteResult.HasFailures() {
-		return fmt.Errorf("%w in testsuite %s", ErrTestsFailed, filepath.Base(r.testSuite.File))
-	}
-
-	return nil
-}
-
-// removeSavedOutputsDir removes the directory of the internal artifacts.
-// It is safe to call it more than once.
-func (r *Runner) removeSavedOutputsDir() {
-	if r.env != nil && r.env.savedOutputsDir != "" {
-		_ = r.fs.RemoveAll(r.env.savedOutputsDir)
-	}
 }

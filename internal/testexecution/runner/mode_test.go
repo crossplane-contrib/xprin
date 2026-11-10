@@ -29,21 +29,19 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 )
 
-func TestNewRunnerSetsTheMode(t *testing.T) {
-	suite := testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{})
-
+func TestNewSetsTheMode(t *testing.T) {
 	t.Run("xprin test", func(t *testing.T) {
-		assert.IsType(t, testMode{}, NewRunner(&testexecutionOptions.Options{}, suite).mode)
+		assert.IsType(t, testMode{}, New(&testexecutionOptions.Options{}).mode)
 	})
 
 	t.Run("xprin update-goldens", func(t *testing.T) {
-		assert.IsType(t, updateGoldensMode{}, NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, suite).mode)
+		assert.IsType(t, updateGoldensMode{}, New(&testexecutionOptions.Options{UpdateGoldens: true}).mode)
 	})
 }
 
 func TestTestModeSkipsNothing(t *testing.T) {
-	assert.False(t, testMode{}.skips(api.TestCase{}))
-	assert.False(t, testMode{}.skips(goldenCase("a")))
+	assert.False(t, testMode{}.skips(nil, api.TestCase{}))
+	assert.False(t, testMode{}.skips(nil, goldenCase("a")))
 }
 
 func TestUpdateGoldensModeSkips(t *testing.T) {
@@ -92,11 +90,12 @@ func TestUpdateGoldensModeSkips(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRunner(&testexecutionOptions.Options{UpdateGoldens: true}, testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: tt.tests}))
+			r := New(&testexecutionOptions.Options{UpdateGoldens: true})
+			suite := testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: tt.tests})
 			got := make([]bool, len(tt.tests))
 
 			for i, testCase := range tt.tests {
-				got[i] = updateGoldensMode{r}.skips(testCase)
+				got[i] = updateGoldensMode{r}.skips(testEnv(suite), testCase)
 			}
 
 			assert.Equal(t, tt.want, got)
@@ -105,9 +104,8 @@ func TestUpdateGoldensModeSkips(t *testing.T) {
 }
 
 func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
-	newRunner := func() (*Runner, *[]string) {
-		r := newUpdateGoldensRunner(afero.NewMemMapFs())
-		r.env = &testSuiteEnv{savedOutputsDir: "/saved-outputs"}
+	newRunner := func() (*Runner, *testCaseEnv, *[]string) {
+		r, env := newUpdateGoldensRunner(afero.NewMemMapFs())
 
 		var copied []string
 
@@ -117,18 +115,18 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 			return nil
 		}
 
-		return r, &copied
+		return r, env, &copied
 	}
 
 	t.Run("it writes the golden files, and saves the outputs for the ones that need this one", func(t *testing.T) {
-		r, copied := newRunner()
+		r, env, copied := newRunner()
 		require.NoError(t, afero.WriteFile(r.fs, "/tmp/outputs/rendered.yaml", []byte("kind: X\n"), 0o600))
 
 		testCase := goldenCase("a")
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
 		result.Outputs.Render = "/tmp/outputs/rendered.yaml"
 
-		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
+		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{TestSuiteContext: TestSuiteContext{TestSuite: env.TestSuite, SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusPass(), got.Status)
 		assert.Equal(t, []string{"g: a.yaml"}, writtenGoldenFiles(got))
@@ -141,23 +139,23 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 	})
 
 	t.Run("a test case that writes nothing and has no ID saves nothing", func(t *testing.T) {
-		r, copied := newRunner()
+		r, env, copied := newRunner()
 		result := engine.NewTestCaseResult("n", "", false, false, false, false, false)
 
-		got := updateGoldensMode{r}.runPhasesAfterRender(api.TestCase{Name: "n"}, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
+		got := updateGoldensMode{r}.runPhasesAfterRender(api.TestCase{Name: "n"}, &testCaseEnv{TestSuiteContext: TestSuiteContext{TestSuite: env.TestSuite, SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusPass(), got.Status)
 		assert.Empty(t, *copied)
 	})
 
 	t.Run("a failure to write a golden file is the result, and nothing is saved", func(t *testing.T) {
-		r, copied := newRunner()
+		r, env, copied := newRunner()
 
 		testCase := goldenCase("a")
 		testCase.Assertions.Diff[0].Resource = "Kind/missing"
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
 
-		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{outputsDir: "/tmp/outputs"}, nil, result)
+		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{TestSuiteContext: TestSuiteContext{TestSuite: env.TestSuite, SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusFail(), got.Status)
 		assert.Empty(t, *copied)

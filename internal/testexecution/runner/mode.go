@@ -27,7 +27,7 @@ import (
 // The one of `xprin test` is testMode, below, and the one of `xprin update-goldens` is updateGoldensMode, in update_goldens.go.
 type runnerMode interface {
 	// skips tells if the test case is skipped without a word, whatever the test cases it needs did.
-	skips(testCase api.TestCase) bool
+	skips(env *testCaseEnv, testCase api.TestCase) bool
 	// runPhasesAfterRender runs the phases that follow the render of a test case, and returns its result.
 	runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult
 }
@@ -47,7 +47,7 @@ type testMode struct {
 }
 
 // skips tells that xprin test runs every test case.
-func (testMode) skips(api.TestCase) bool {
+func (testMode) skips(*testCaseEnv, api.TestCase) bool {
 	return false
 }
 
@@ -64,7 +64,7 @@ func (m testMode) runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, 
 		return failed
 	}
 
-	r.runPostTestHooks(testCase, needsResults, result)
+	r.runPostTestHooks(env, testCase, needsResults, result)
 
 	if err := r.saveOutputs(testCase, env, result); err != nil {
 		return result.Fail(err)

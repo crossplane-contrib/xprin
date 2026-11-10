@@ -22,7 +22,6 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
-	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"  //nolint:depguard // testify is widely used for testing
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
@@ -73,7 +72,7 @@ spec:
 	options := &testexecutionOptions.Options{
 		Debug: false,
 	}
-	runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
+	runner := New(options)
 	runner.fs = fs // Use in-memory filesystem
 
 	tests := []struct {
@@ -241,7 +240,7 @@ metadata:
 			require.NoError(t, fs.MkdirAll(outputDir, 0o755))
 
 			options := &testexecutionOptions.Options{Debug: false}
-			runner := NewRunner(options, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
+			runner := New(options)
 			runner.fs = fs
 
 			xrPath, err := runner.convertClaimToXR(claimFile, tt.xrdPath, tt.goldenPath, outputDir)
@@ -269,7 +268,7 @@ func TestConvertClaimToXR_FailsWhenTheClaimCannotBeRead(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	require.NoError(t, fs.MkdirAll("/output", 0o755))
 
-	runner := NewRunner(&testexecutionOptions.Options{}, testsuite.New(testSuiteFile, &api.TestSuiteSpec{Tests: []api.TestCase{}}))
+	runner := New(&testexecutionOptions.Options{})
 	runner.fs = fs
 
 	_, err := runner.convertClaimToXR("/missing-claim.yaml", "", "", "/output")

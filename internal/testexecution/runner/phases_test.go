@@ -52,7 +52,7 @@ func newRenderRunner(t *testing.T, modify func(r *Runner)) (r *Runner, env *test
 	})
 	r.fs = afero.NewMemMapFs()
 	renderArgs = new([]string)
-	r.runCommand = func(_ string, args ...string) ([]byte, error) {
+	r.runCommand = func(_, _ string, args ...string) ([]byte, error) {
 		*renderArgs = args
 
 		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n"), nil
@@ -62,7 +62,8 @@ func newRenderRunner(t *testing.T, modify func(r *Runner)) (r *Runner, env *test
 		modify(r)
 	}
 
-	env = &testCaseEnv{inputsDir: "/inputs", outputsDir: "/outputs"}
+	env = newTestEnv()
+	env.inputsDir, env.outputsDir = "/inputs", "/outputs"
 	require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
 
 	return r, env, renderArgs
@@ -81,8 +82,7 @@ func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (fa
 
 func TestSaveOutputs(t *testing.T) {
 	newRunner := func() (*Runner, *[]string) {
-		r := NewRunner(&testexecutionOptions.Options{}, testsuite.New("/suite_xprin.yaml", &api.TestSuiteSpec{}))
-		r.env = &testSuiteEnv{savedOutputsDir: "/saved-outputs"}
+		r := New(&testexecutionOptions.Options{})
 
 		var copied []string
 
@@ -107,7 +107,7 @@ func TestSaveOutputs(t *testing.T) {
 			Rendered:   map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"},
 		}
 
-		require.NoError(t, r.saveOutputs(api.TestCase{ID: "a"}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
+		require.NoError(t, r.saveOutputs(api.TestCase{ID: "a"}, &testCaseEnv{TestSuiteContext: TestSuiteContext{SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, result))
 
 		assert.Equal(t, []string{"/tmp/outputs -> /saved-outputs/a"}, *copied)
 		assert.Equal(t, "/saved-outputs/a/rendered.yaml", result.Outputs.Render)
@@ -122,7 +122,7 @@ func TestSaveOutputs(t *testing.T) {
 		result := engine.NewTestCaseResult("a", "", false, false, false, false, false)
 		result.Outputs.XR = "/tmp/outputs/xr.yaml"
 
-		require.NoError(t, r.saveOutputs(api.TestCase{}, &testCaseEnv{outputsDir: "/tmp/outputs"}, result))
+		require.NoError(t, r.saveOutputs(api.TestCase{}, &testCaseEnv{TestSuiteContext: TestSuiteContext{SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, result))
 
 		assert.Empty(t, *copied)
 		assert.Equal(t, "/tmp/outputs/xr.yaml", result.Outputs.XR)
@@ -149,7 +149,7 @@ spec:
 
 	var annotations map[string]string
 
-	r.runCommand = func(string, ...string) ([]byte, error) {
+	r.runCommand = func(string, string, ...string) ([]byte, error) {
 		data, err := afero.ReadFile(fs, functionsPath)
 		require.NoError(t, err)
 
@@ -162,7 +162,7 @@ spec:
 	}
 
 	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: functionsPath}}
-	r.renderTestCase(&testCaseEnv{}, testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+	r.renderTestCase(newTestEnv(), testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 
 	assert.Equal(t, coord.ContainerName("xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.5.0"), annotations["render.crossplane.io/runtime-docker-name"])
 	assert.Equal(t, "Orphan", annotations["render.crossplane.io/runtime-docker-cleanup"])
@@ -183,12 +183,12 @@ spec:
 
 	coord := containers.NewCoordinator(&unittestsUtils.MockDocker{})
 	r := newMockRunner(&testexecutionOptions.Options{Containers: coord}, func(r *Runner) { r.fs = fs })
-	r.runCommand = func(string, ...string) ([]byte, error) { panic("boom") }
+	r.runCommand = func(string, string, ...string) ([]byte, error) { panic("boom") }
 
 	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: functionsPath}}
 
 	assert.PanicsWithValue(t, "boom", func() {
-		r.renderTestCase(&testCaseEnv{}, testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+		r.renderTestCase(newTestEnv(), testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 	})
 
 	// The test cases after it that use the container don't wait for a render that is not running any more
@@ -258,7 +258,7 @@ func TestExpandInputPaths_ReportsTheInputThatFails(t *testing.T) {
 					want = in.verifyErr + ": not found"
 				}
 
-				result := r.expandInputPaths(&testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+				result := r.expandInputPaths(newTestEnv(), &testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 
 				require.NotNil(t, result, "the test case should fail")
 				assert.Equal(t, engine.StatusFail(), result.Status)
@@ -286,7 +286,7 @@ func TestExpandInputPaths_ReportsEveryInputThatFails(t *testing.T) {
 		CRDs:        []string{"crd.yaml", "missing_crd.yaml"},
 	}}
 
-	result := r.expandInputPaths(&testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+	result := r.expandInputPaths(newTestEnv(), &testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 
 	require.NotNil(t, result)
 	require.Error(t, result.Error)
@@ -310,7 +310,7 @@ func TestExpandInputPaths_ExpandsRelativePathsAndKeepsTheAbsoluteOnes(t *testing
 		FunctionCredentials: "credentials.yaml",
 	}, Patches: api.Patches{XRD: "xrd.yaml"}}
 
-	result := r.expandInputPaths(&testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+	result := r.expandInputPaths(newTestEnv(), &testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 
 	assert.Nil(t, result, "nothing should fail")
 	assert.Equal(t, "/xr.yaml", testCase.Inputs.XR)
@@ -560,7 +560,7 @@ metadata:
   name: test-configmap`
 
 	r, env, _ := newRenderRunner(t, func(r *Runner) {
-		r.runCommand = func(string, ...string) ([]byte, error) { return []byte(rendered), nil }
+		r.runCommand = func(string, string, ...string) ([]byte, error) { return []byte(rendered), nil }
 	})
 	result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
 
@@ -590,7 +590,9 @@ func TestRenderTestCase_FailsWithTheOutputWhenTheRenderFails(t *testing.T) {
 	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
 
 	failed, _ := renderWith(t, xr, func(r *Runner) {
-		r.runCommand = func(string, ...string) ([]byte, error) { return []byte("render fail"), errors.New("exit status 1") }
+		r.runCommand = func(string, string, ...string) ([]byte, error) {
+			return []byte("render fail"), errors.New("exit status 1")
+		}
 	})
 
 	require.NotNil(t, failed)
@@ -628,13 +630,14 @@ func TestValidateTestCase_PassesTheCrossplaneVersionAsTheImage(t *testing.T) {
 
 			var gotArgs []string
 
-			r.runCommand = func(_ string, args ...string) ([]byte, error) {
+			r.runCommand = func(_, _ string, args ...string) ([]byte, error) {
 				gotArgs = args
 
 				return []byte("validate ok"), nil
 			}
 
-			env := &testCaseEnv{inputsDir: "/inputs", outputsDir: "/outputs"}
+			env := newTestEnv()
+			env.inputsDir, env.outputsDir = "/inputs", "/outputs"
 			require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
 
 			result := engine.NewTestCaseResult("test", "", false, false, false, false, false)

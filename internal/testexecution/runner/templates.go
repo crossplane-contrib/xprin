@@ -56,7 +56,7 @@ func newTemplateContext(repositories map[string]string, inputs api.Inputs, outpu
 }
 
 // processTemplateVariables processes template variables for a test case.
-func (r *Runner) processTemplateVariables(testCase *api.TestCase, needsResults map[string]*engine.TestCaseResult) error {
+func (r *Runner) processTemplateVariables(env *testCaseEnv, testCase *api.TestCase, needsResults map[string]*engine.TestCaseResult) error {
 	// Check if there are any template variables by converting to YAML temporarily
 	yamlData, err := yaml.Marshal(testCase)
 	if err != nil {
@@ -83,7 +83,7 @@ func (r *Runner) processTemplateVariables(testCase *api.TestCase, needsResults m
 	// Render template
 	templateContext := newTemplateContext(r.Repositories, testCase.Inputs, nil, needsResults)
 
-	content, err = r.renderTemplate(content, templateContext, "testcase")
+	content, err = r.renderTemplate(env, content, templateContext, "testcase")
 	if err != nil {
 		return fmt.Errorf("failed to render template: %w", err)
 	}
@@ -96,8 +96,22 @@ func (r *Runner) processTemplateVariables(testCase *api.TestCase, needsResults m
 	return nil
 }
 
+// runCommandIn is runCommand in the directory of the testsuite file of env, as the hooks take it.
+func (r *Runner) runCommandIn(env *testCaseEnv) func(string, ...string) ([]byte, error) {
+	return func(name string, args ...string) ([]byte, error) {
+		return r.runCommand(env.TestSuite.GetDir(), name, args...)
+	}
+}
+
+// renderTemplateOf is renderTemplate for the test case of env, as the hooks take it.
+func (r *Runner) renderTemplateOf(env *testCaseEnv) func(string, *templateContext, string) (string, error) {
+	return func(content string, templateContext *templateContext, templateName string) (string, error) {
+		return r.renderTemplate(env, content, templateContext, templateName)
+	}
+}
+
 // renderTemplate renders Go template syntax with the given context.
-func (r *Runner) renderTemplate(content string, templateContext *templateContext, templateName string) (string, error) {
+func (r *Runner) renderTemplate(env *testCaseEnv, content string, templateContext *templateContext, templateName string) (string, error) {
 	// Parse and execute template
 	tmpl, err := templates.Parse(templateName, content)
 	if err != nil {
@@ -106,7 +120,7 @@ func (r *Runner) renderTemplate(content string, templateContext *templateContext
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, templateContext); err != nil {
-		return "", fmt.Errorf("failed to execute template: %w", r.explainMissingNeeds(err))
+		return "", fmt.Errorf("failed to execute template: %w", r.explainMissingNeeds(env, err))
 	}
 
 	return buf.String(), nil
@@ -119,7 +133,7 @@ var missingKey = regexp.MustCompile(`<[^>]*\.Tests[^>]*>: map has no entry for k
 
 // explainMissingNeeds replaces the error of a template that uses `.Tests` for a test case of the file that
 // is not in `needs` (the usual reason for it not being there) with one that says so. Any other error is returned as it is.
-func (r *Runner) explainMissingNeeds(err error) error {
+func (r *Runner) explainMissingNeeds(env *testCaseEnv, err error) error {
 	match := missingKey.FindStringSubmatch(err.Error())
 	if match == nil {
 		return err
@@ -127,7 +141,7 @@ func (r *Runner) explainMissingNeeds(err error) error {
 
 	id := match[1] + match[2] // one of them is set, depending on how the test case is used
 
-	if r.testSuite.Spec.HasID(id) {
+	if env.TestSuite.Spec.HasID(id) {
 		return errors.New("one or more test cases are used but are not listed in needs")
 	}
 
