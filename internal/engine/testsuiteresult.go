@@ -28,21 +28,24 @@ import (
 
 // TestSuiteResult is the result of running a testsuite file: its test case results, overall status and duration.
 // Its methods are safe for concurrent use, so test cases running at the same time can add their results.
-// What is set before the test cases run (the file, the start time, the formatting flag and the working directory) is
+// What is set before the test cases run (the file, when it was created, the formatting flag and the working directory) is
 // not guarded, and not changed after that.
 type TestSuiteResult struct {
-	// What the constructor sets, and what the methods keep, so that nothing else changes it: the file, when the work
-	// on it started, the formatting flag, the test case results in the order they were added, the overall status
-	// (StatusPass() or StatusFail()), and the duration that Complete sets.
+	// What the constructor sets, and what the methods keep, so that nothing else changes it: the file, when the result
+	// was created, the formatting flag, the test case results in the order they were added, the overall status
+	// (StatusPass() or StatusFail()), when the first test case started and the last one ended, and the duration that
+	// Complete or CompleteSinceCreated sets.
 	filePath  string
-	startTime time.Time
+	createdAt time.Time
 	verbose   bool
 
-	// mu guards results, status and duration.
-	mu       sync.Mutex
-	results  []TestCaseResult
-	status   Status
-	duration time.Duration
+	// mu guards results, status, firstStart, lastEnd and duration.
+	mu         sync.Mutex
+	results    []TestCaseResult
+	status     Status
+	firstStart time.Time // when the first test case of the file started
+	lastEnd    time.Time // when the last test case of the file ended
+	duration   time.Duration
 
 	workingDir string // Set by SetWorkingDir; used to relativise the file path for display.
 }
@@ -52,7 +55,7 @@ func NewTestSuiteResult(filePath string, verbose bool) *TestSuiteResult {
 	return &TestSuiteResult{
 		filePath:  filePath,
 		status:    StatusPass(), // Default to pass
-		startTime: time.Now(),
+		createdAt: time.Now(),
 		verbose:   verbose,
 	}
 }
@@ -69,6 +72,17 @@ func (tsr *TestSuiteResult) AddResult(result *TestCaseResult) {
 
 	tsr.results = append(tsr.results, *result)
 
+	// The file takes from when its first test case started to when its last one ended
+	if !result.StartTime.IsZero() {
+		if tsr.firstStart.IsZero() || result.StartTime.Before(tsr.firstStart) {
+			tsr.firstStart = result.StartTime
+		}
+
+		if end := result.StartTime.Add(result.Duration); end.After(tsr.lastEnd) {
+			tsr.lastEnd = end
+		}
+	}
+
 	// Update overall status if any test failed
 	if result.Status == StatusFail() {
 		tsr.status = StatusFail()
@@ -80,7 +94,21 @@ func (tsr *TestSuiteResult) Complete() *TestSuiteResult {
 	tsr.mu.Lock()
 	defer tsr.mu.Unlock()
 
-	tsr.duration = time.Since(tsr.startTime)
+	tsr.duration = 0
+	if !tsr.firstStart.IsZero() {
+		tsr.duration = tsr.lastEnd.Sub(tsr.firstStart)
+	}
+
+	return tsr
+}
+
+// CompleteSinceCreated finalizes the test suite result like Complete, with the time since the result was created as its
+// duration, whatever the test cases took.
+func (tsr *TestSuiteResult) CompleteSinceCreated() *TestSuiteResult {
+	tsr.mu.Lock()
+	defer tsr.mu.Unlock()
+
+	tsr.duration = time.Since(tsr.createdAt)
 
 	return tsr
 }

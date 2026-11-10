@@ -36,7 +36,7 @@ func TestNewTestSuiteResult(t *testing.T) {
 		assert.Equal(t, "/path/to/test.yaml", result.filePath)
 		assert.Equal(t, StatusPass(), result.status)
 		assert.True(t, result.verbose)
-		assert.False(t, result.startTime.IsZero())
+		assert.False(t, result.createdAt.IsZero())
 		assert.Equal(t, time.Duration(0), result.duration)
 		assert.Empty(t, result.results)
 	})
@@ -88,15 +88,47 @@ func TestTestSuiteResult_AddResult(t *testing.T) {
 }
 
 func TestTestSuiteResult_Complete(t *testing.T) {
-	t.Run("sets duration and returns self", func(t *testing.T) {
+	// testCaseResult is the result of a test case that started at start (seconds since the epoch) and took d.
+	testCaseResult := func(start int64, d time.Duration) *TestCaseResult {
+		r := NewTestCaseResult("test", "", false, false, false, false, false)
+		r.StartTime = time.Unix(start, 0)
+		r.Duration = d
+
+		return r
+	}
+
+	t.Run("returns self", func(t *testing.T) {
 		suite := NewTestSuiteResult("test.yaml", false)
-		// Add a small delay to ensure non-zero duration
-		time.Sleep(1 * time.Millisecond)
 
-		returned := suite.Complete()
+		assert.Equal(t, suite, suite.Complete()) // Should return self for chaining
+	})
 
-		assert.Equal(t, suite, returned) // Should return self for chaining
-		assert.Positive(t, suite.duration)
+	t.Run("is 0 without test cases", func(t *testing.T) {
+		suite := NewTestSuiteResult("test.yaml", false)
+
+		time.Sleep(1 * time.Millisecond) // the time since the result was made is not the duration
+
+		assert.Equal(t, time.Duration(0), suite.Complete().duration)
+	})
+
+	t.Run("is from the start of the first test case to the end of the last", func(t *testing.T) {
+		suite := NewTestSuiteResult("test.yaml", false)
+		suite.AddResult(testCaseResult(110, 5*time.Second)) // ends at 115
+		suite.AddResult(testCaseResult(100, 3*time.Second)) // starts first, ends at 103
+		suite.AddResult(testCaseResult(112, 6*time.Second)) // ends last, at 118
+
+		assert.Equal(t, 18*time.Second, suite.Complete().duration)
+	})
+
+	t.Run("does not include the time before the first test case or after the last", func(t *testing.T) {
+		// A file that is set up before, and finished after, other files have run
+		suite := NewTestSuiteResult("test.yaml", false)
+
+		time.Sleep(20 * time.Millisecond)
+		suite.AddResult(testCaseResult(100, 2*time.Second))
+		time.Sleep(20 * time.Millisecond)
+
+		assert.Equal(t, 2*time.Second, suite.Complete().duration)
 	})
 }
 
@@ -337,4 +369,21 @@ func TestTestSuiteResult_ConcurrentUse(t *testing.T) {
 	assert.Len(t, tsr.results, testCases)
 	assert.Len(t, tsr.GetCompletedTests(), testCases)
 	assert.True(t, tsr.HasFailures(), "one test case failed")
+}
+
+func TestTestSuiteResult_CompleteSinceCreated(t *testing.T) {
+	t.Run("is the time since the result was created, whatever the test cases took", func(t *testing.T) {
+		suite := NewTestSuiteResult("test.yaml", false)
+		r := NewTestCaseResult("test", "", false, false, false, false, false)
+		r.StartTime = time.Unix(100, 0)
+		r.Duration = time.Millisecond
+		suite.AddResult(r)
+
+		time.Sleep(20 * time.Millisecond)
+
+		returned := suite.CompleteSinceCreated()
+
+		assert.Equal(t, suite, returned) // Should return self for chaining
+		assert.GreaterOrEqual(t, suite.duration, 20*time.Millisecond)
+	})
 }

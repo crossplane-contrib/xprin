@@ -36,7 +36,7 @@ func report(out io.Writer, testSuiteResult *engine.TestSuiteResult, res testSuit
 		testSuiteResult.AddResult(testCaseResult)
 	}
 
-	testSuiteResult.Complete().Print(out)
+	testSuiteResult.CompleteSinceCreated().Print(out)
 }
 
 // newTestCaseResult returns the result of a test case, with the needs that it misses in a section.
