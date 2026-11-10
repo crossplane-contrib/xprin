@@ -19,6 +19,7 @@ package runner
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
 
@@ -30,7 +31,7 @@ import (
 // hookExecutor handles execution of hooks.
 type hookExecutor struct {
 	repositories   map[string]string
-	debugf         func(format string, args ...any) // prints a --debug line, nil without --debug
+	debug          *log.Logger
 	runCommand     func(name string, args ...string) ([]byte, error)
 	renderTemplate func(content string, templateContext *templateContext, templateName string) (string, error)
 }
@@ -38,13 +39,13 @@ type hookExecutor struct {
 // newHookExecutor creates a new hook executor.
 func newHookExecutor(
 	repositories map[string]string,
-	debugf func(format string, args ...any),
+	debug *log.Logger,
 	runCommand func(name string, args ...string) ([]byte, error),
 	renderTemplate func(content string, templateContext *templateContext, templateName string) (string, error),
 ) *hookExecutor {
 	return &hookExecutor{
 		repositories:   repositories,
-		debugf:         debugf,
+		debug:          debug,
 		runCommand:     runCommand,
 		renderTemplate: renderTemplate,
 	}
@@ -118,12 +119,10 @@ func (e *hookExecutor) executeHook(hook api.Hook, hookType string, inputs api.In
 		return hookResult, errors.New(errorMsg)
 	}
 
-	if e.debugf != nil {
-		if hook.Name != "" {
-			e.debugf("Executing %s hook '%s': %s\n", hookType, hook.Name, finalCommand)
-		} else {
-			e.debugf("Executing %s hook '%s'\n", hookType, finalCommand)
-		}
+	if hook.Name != "" {
+		e.debug.Printf("Executing %s hook '%s': %s\n", hookType, hook.Name, finalCommand)
+	} else {
+		e.debug.Printf("Executing %s hook '%s'\n", hookType, finalCommand)
 	}
 
 	output, err := e.runCommand("sh", "-c", finalCommand)

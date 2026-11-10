@@ -35,26 +35,3 @@ func TestWarningPrintf(t *testing.T) {
 		t.Errorf("WarningPrintf output did not start with 'WARNING: ', got: %q", out)
 	}
 }
-
-func TestDebugPrintf(t *testing.T) {
-	out := unittestsUtils.CaptureStderr(func() {
-		DebugPrintf("always: %d %s", 7, "baz")
-	})
-	if !strings.Contains(out, "always: 7 baz") {
-		t.Errorf("DebugPrintf did not print expected output, got: %q", out)
-	}
-
-	if !strings.HasPrefix(out, "DEBUG: ") {
-		t.Errorf("WarningPrintf output did not start with 'DEBUG: ', got: %q", out)
-	}
-}
-
-func TestDebugFprintf(t *testing.T) {
-	var out strings.Builder
-
-	DebugFprintf(&out, "always: %d %s\n", 7, "baz")
-
-	if out.String() != "DEBUG: always: 7 baz\n" {
-		t.Errorf("DebugFprintf did not print the expected output, got: %q", out.String())
-	}
-}

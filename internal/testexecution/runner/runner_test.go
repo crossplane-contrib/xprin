@@ -60,6 +60,7 @@ func createTestCaseResult(name string, verbose bool, err error) *engine.TestCase
 func newMockRunner(options *testexecutionOptions.Options, mocks ...func(*Runner)) *Runner {
 	// Use default test suite file and spec for tests that don't need specific values
 	testSuiteSpec := &api.TestSuiteSpec{Tests: []api.TestCase{}}
+	options.DebugLog = noDebug
 	r := NewRunner(options, testsuite.New(testSuiteFile, testSuiteSpec))
 
 	// Set up default mock functions for testing

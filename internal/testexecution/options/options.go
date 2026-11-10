@@ -18,6 +18,9 @@ limitations under the License.
 package options
 
 import (
+	"io"
+	"log"
+	"os"
 	"strings"
 
 	"github.com/crossplane-contrib/xprin/internal/config"
@@ -35,6 +38,7 @@ type Options struct {
 	ShowAssertions    bool
 	Verbose           bool
 	Debug             bool
+	DebugLog          *log.Logger
 	Color             bool // When true, diff output is colorized (resolved from --color on|off|auto in the CLI).
 	Quiet             bool // When true, suppress "[no testsuite files]" and "[no test cases found]" messages. Independent of Verbose.
 	Parallel          int  // How many test cases run at the same time: 1 or more. 0, when it is not set, is the same as 1.
@@ -83,4 +87,15 @@ func FromConfig(cfg *config.Config) *Options {
 		Validate:     validate,
 		XPCLI:        cfg.XPCLI,
 	}
+}
+
+// SetDebug turns --debug on or off. DebugLog is where its lines go: stderr with it, nowhere without it.
+func (o *Options) SetDebug(debug bool) {
+	w := io.Discard
+	if debug {
+		w = os.Stderr
+	}
+
+	o.Debug = debug
+	o.DebugLog = log.New(w, "DEBUG: ", 0)
 }

@@ -24,7 +24,6 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
-	"github.com/crossplane-contrib/xprin/internal/utils"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/yaml"
 )
@@ -36,7 +35,7 @@ const failureInvalid = "invalid testsuite file"
 // file has no test cases (which is reported, unless quiet). Other problems are reported and returned.
 func Load(fs afero.Fs, testSuiteFile string, options Options) (*testsuite.TestSuite, error) {
 	if options.Debug {
-		utils.DebugPrintf("Processing testsuite file %s\n", testSuiteFile)
+		options.DebugLog.Printf("Processing testsuite file %s\n", testSuiteFile)
 	}
 
 	data, err := afero.ReadFile(fs, testSuiteFile)

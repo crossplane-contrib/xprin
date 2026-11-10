@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	iofs "io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,8 +35,9 @@ import (
 type Options struct {
 	// Quiet suppresses the "[no testsuite files]" and "[no test cases found]" messages.
 	Quiet bool
-	// Debug prints how targets and files are processed.
-	Debug bool
+	// Debug prints how targets and files are processed, with DebugLog.
+	Debug    bool
+	DebugLog *log.Logger
 }
 
 // ErrFailed is the error of a Walk that found problems, or whose visits failed.
@@ -92,7 +94,7 @@ func Walk(fs afero.Fs, targets []string, options Options, visit Visitor) error {
 		info, err := fs.Stat(path)
 		if errors.Is(err, iofs.ErrNotExist) {
 			if options.Debug {
-				utils.DebugPrintf("Skipping test path %s because it does not exist\n", path)
+				options.DebugLog.Printf("Skipping test path %s because it does not exist\n", path)
 			}
 
 			continue
@@ -116,7 +118,7 @@ func Walk(fs afero.Fs, targets []string, options Options, visit Visitor) error {
 		// Direct file - check if it's a valid test file
 		if !isValidTestSuiteFileName(path) {
 			if options.Debug {
-				utils.DebugPrintf("Skipping file %s because it is not a valid test file. It should be named 'xprin.yaml' or end with '_xprin.yaml' with at least one character before the underscore\n", path)
+				options.DebugLog.Printf("Skipping file %s because it is not a valid test file. It should be named 'xprin.yaml' or end with '_xprin.yaml' with at least one character before the underscore\n", path)
 			}
 
 			continue
@@ -138,7 +140,7 @@ func Walk(fs afero.Fs, targets []string, options Options, visit Visitor) error {
 // and calls visit for each of them.
 func walkDirectory(fs afero.Fs, dir string, options Options, visit Visitor) error {
 	if options.Debug {
-		utils.DebugPrintf("Processing directory %s\n", dir)
+		options.DebugLog.Printf("Processing directory %s\n", dir)
 	}
 
 	files, err := findTestSuiteFiles(fs, dir)
@@ -159,7 +161,7 @@ func walkDirectory(fs afero.Fs, dir string, options Options, visit Visitor) erro
 	// 2. If we get here, we already know there's no error, so files must be non-empty
 	if options.Debug {
 		plural := pluralize.NewClient()
-		utils.DebugPrintf("Found %s in directory %s\n", plural.Pluralize("testsuite file", len(files), true), dir)
+		options.DebugLog.Printf("Found %s in directory %s\n", plural.Pluralize("testsuite file", len(files), true), dir)
 	}
 
 	var hasErrors bool
