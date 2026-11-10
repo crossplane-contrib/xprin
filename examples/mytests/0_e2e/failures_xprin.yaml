@@ -215,32 +215,34 @@ tests:
       value: "wrong-value"
     diff:
     - name: "Full render matches golden (using diff)"
-      expected: golden_full_render.yaml
+      expected: golden_full_render_broken.yaml
     - name: "SecurityGroup resource matches golden (using diff)"
-      expected: golden_single_resource.yaml
+      expected: golden_single_resource_broken.yaml
       resource: "SecurityGroup/platform-aws-sg"
     - name: "Failed to get golden file"
       expected: doesnotexist.yaml
     - name: "Wrong resource name"
-      expected: golden_single_resource.yaml
+      expected: golden_single_resource_broken.yaml
       resource: "SecurityGroup/doesnotexist"
     dyff:
     - name: "Full render matches golden (using dyff)"
-      expected: golden_full_render.yaml
+      expected: golden_full_render_broken.yaml
     - name: "SecurityGroup resource matches golden (using dyff)"
-      expected: golden_single_resource.yaml
+      expected: golden_single_resource_broken.yaml
       resource: "SecurityGroup/platform-aws-sg"
     - name: "Failed to get golden file"
       expected: doesnotexist.yaml
     - name: "Wrong resource name"
-      expected: golden_single_resource.yaml
+      expected: golden_single_resource_broken.yaml
       resource: "SecurityGroup/doesnotexist"
   hooks:
     pre-test:
     - name: "Break golden files for diff/dyff failure tests"
       run: |
-        [ -f golden_full_render.yaml ] && sed -i -e "s/team: devops/team: doesnotexist/" golden_full_render.yaml
-        [ -f golden_single_resource.yaml ] && sed -i -e "s/region: us-west-2/region: eu-central-1/" golden_single_resource.yaml
+        # Only this test case uses these golden files (update-goldens writes them, and this breaks them), so that the
+        # other testsuite files, which use golden_full_render.yaml of this directory, can run at the same time
+        [ -f golden_full_render_broken.yaml ] && sed -i -e "s/team: devops/team: doesnotexist/" golden_full_render_broken.yaml
+        [ -f golden_single_resource_broken.yaml ] && sed -i -e "s/region: us-west-2/region: eu-central-1/" golden_single_resource_broken.yaml
         rm -f doesnotexist.yaml
     post-test:
     - run: echo "bye"

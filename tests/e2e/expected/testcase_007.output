@@ -21,10 +21,10 @@
 === RUN   Assertion failure
 --- FAIL: Assertion failure (X.XXXs)
     Golden Files:
-        [✓] Full render matches golden (using diff): examples/mytests/0_e2e/golden_full_render.yaml
-        [✓] SecurityGroup resource matches golden (using diff): examples/mytests/0_e2e/golden_single_resource.yaml
+        [✓] Full render matches golden (using diff): examples/mytests/0_e2e/golden_full_render_broken.yaml
+        [✓] SecurityGroup resource matches golden (using diff): examples/mytests/0_e2e/golden_single_resource_broken.yaml
         [✓] Failed to get golden file: examples/mytests/0_e2e/doesnotexist.yaml
-        [!] Wrong resource name: examples/mytests/0_e2e/golden_single_resource.yaml: resource "SecurityGroup/doesnotexist" not found in render output
+        [!] Wrong resource name: examples/mytests/0_e2e/golden_single_resource_broken.yaml: resource "SecurityGroup/doesnotexist" not found in render output
 === RUN   Failed validation and assertion
 --- SKIP: Failed validation and assertion (X.XXXs)
 === RUN   Failed validation, assertion, and post-test hook
@@ -180,7 +180,7 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
         [x] FieldType should fail - wrong type: field metadata.name has type string, expected number on resource SecurityGroup/platform-aws-sg
         [x] FieldValue should fail - wrong value: field metadata.name is platform-aws-sg, expected == wrong-value on resource SecurityGroup/platform-aws-sg
         [x] Full render matches golden (using diff)
-            --- golden_full_render.yaml
+            --- golden_full_render_broken.yaml
             +++ rendered.yaml
             @@ -16,7 +16,7 @@
                optionalNote: null
@@ -192,7 +192,7 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
              status:
                conditions:
         [x] SecurityGroup resource matches golden (using diff)
-            --- golden_single_resource.yaml
+            --- golden_single_resource_broken.yaml
             +++ rendered-securitygroup-platform-aws-sg.yaml
             @@ -16,5 +16,5 @@
              spec:
@@ -205,7 +205,7 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
         [!] Wrong resource name: resource "SecurityGroup/doesnotexist" not found in render output
         [x] Full render matches golden (using dyff)
                  _        __  __
-               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_full_render.yaml, two documents
+               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_full_render_broken.yaml, two documents
              / _' | | | | |_| |_       and /tmp/xprin-testcase-XXXX/outputs/rendered.yaml, two documents
             | (_| | |_| |  _|  _|
              \__,_|\__, |_| |_|   returned one difference
@@ -218,7 +218,7 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
 
         [x] SecurityGroup resource matches golden (using dyff)
                  _        __  __
-               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_single_resource.yaml
+               _| |_   _ / _|/ _|  between /examples/mytests/0_e2e/golden_single_resource_broken.yaml
              / _' | | | | |_| |_       and /tmp/xprin-testcase-XXXX/outputs/rendered-securitygroup-platform-aws-sg.yaml
             | (_| | |_| |  _|  _|
              \__,_|\__, |_| |_|   returned one difference
