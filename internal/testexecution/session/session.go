@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/engine"
 	"github.com/crossplane-contrib/xprin/internal/graph"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/artifacts"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/debuglog"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/runner"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
@@ -124,7 +125,7 @@ func (s *Session) Setup() (err error) {
 
 		// We do not expand or verify common fields here. They will be expanded and verified by the individual test cases that do not override them.
 		if s.testSuite.Spec.HasCommon() {
-			s.debugPrintCommon(s.testSuite.Spec.Common, "Found common configuration:")
+			debuglog.PrintCommon(s.debug, s.testSuite.Spec.Common, "Found common configuration:")
 		}
 
 		plural := pluralize.NewClient()

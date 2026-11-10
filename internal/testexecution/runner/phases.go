@@ -23,6 +23,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/debuglog"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/yaml"
 )
@@ -210,7 +211,7 @@ func (r *Runner) expandInputPaths(env *testCaseEnv, testCase *api.TestCase, resu
 	}
 
 	if r.Debug && anyPathExpanded {
-		r.debugPrintTestCase(*testCase, "Test specification with expanded input paths:")
+		debuglog.PrintTestCase(r.debug, *testCase, "Test specification with expanded input paths:")
 	}
 
 	return nil

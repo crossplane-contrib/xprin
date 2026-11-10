@@ -26,6 +26,7 @@ import (
 
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/debuglog"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
 	"github.com/crossplane-contrib/xprin/internal/utils"
@@ -208,7 +209,7 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 	}
 
 	if r.Debug {
-		r.debugPrintTestCase(testCase, "Test specification:")
+		debuglog.PrintTestCase(r.debug, testCase, "Test specification:")
 	}
 
 	if failed := r.expandInputPaths(env, &testCase, result); failed != nil {
