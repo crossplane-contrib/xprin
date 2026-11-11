@@ -28,6 +28,8 @@ earthly -P +e2e
 earthly -P +e2e-run --CROSSPLANE_VERSION=$XP_VER
 ```
 
+The e2e tests run `xprin test --parallel`, so as many test cases at the same time as there are CPUs. To change it, run `earthly -P +e2e --E2E_PARALLEL=X`: `1` is serial, and any other number sets it. See [Parallel Execution](docs/how-it-works.md#parallel-execution).
+
 If you change example files that affect e2e test output, regenerate the expected files and commit them:
 
 ```shell

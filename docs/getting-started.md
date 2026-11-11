@@ -99,6 +99,12 @@ xprin test tests/advanced_xprin.yaml -v --show-all
 # Debug mode (shows detailed execution information)
 xprin test tests/basic_xprin.yaml --debug
 
+# Run test cases at the same time, as many as there are CPUs
+xprin test tests/... -p
+
+# Run up to 4 at the same time
+xprin test tests/... -p 4
+
 # Select the version of the Crossplane controller image.
 # It is passed to validate (as --crossplane-image, with any CLI version), and to render (as --crossplane-version, only with Crossplane CLI v2.3.0+: older CLIs ignore it there).
 xprin test tests/basic_xprin.yaml --crossplane-version v2.4.0

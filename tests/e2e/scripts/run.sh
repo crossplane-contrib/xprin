@@ -14,6 +14,8 @@ E2E_TESTS_DIR="${PROJECT_ROOT}/examples/mytests/0_e2e"
 XPRIN_BIN="${XPRIN_BIN:-${PROJECT_ROOT}/xprin}"
 CROSSPLANE_VERSION="${CROSSPLANE_VERSION:-}"
 DEFAULT_TIERS="${DEFAULT_TIERS:-v2}"
+# xprin test runs with --parallel (the CPUs); E2E_PARALLEL=N is --parallel=N, and 1 is no flag (serial)
+E2E_PARALLEL="${E2E_PARALLEL:-}"
 STATUS=0
 
 cd "${PROJECT_ROOT}"
@@ -145,7 +147,14 @@ for test_var in "${TEST_CASES[@]}"; do
         echo "Command: xprin update-goldens ${XPRIN_ARGS[*]:+${XPRIN_ARGS[*]} }${ug_file_args[*]}"
     fi
 
-    echo "Command: xprin test ${XPRIN_ARGS[*]:+${XPRIN_ARGS[*]} }${cmd_args[*]}"
+    test_flags=(--parallel)
+    if [ "${E2E_PARALLEL}" = "1" ]; then
+        test_flags=()
+    elif [ -n "${E2E_PARALLEL}" ]; then
+        test_flags=(--parallel="${E2E_PARALLEL}")
+    fi
+
+    echo "Command: xprin test ${XPRIN_ARGS[*]:+${XPRIN_ARGS[*]} }${test_flags[*]:+${test_flags[*]} }${cmd_args[*]}"
 
     TMPDIR="$(mktemp -d)"
     TMPDIRS+=("${TMPDIR}")
@@ -179,7 +188,7 @@ for test_var in "${TEST_CASES[@]}"; do
         # the full failure-mode output.
         "${XPRIN_BIN}" update-goldens "${XPRIN_ARGS[@]}" "${ug_file_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
     fi
-    "${XPRIN_BIN}" test "${XPRIN_ARGS[@]}" "${cmd_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
+    "${XPRIN_BIN}" test "${XPRIN_ARGS[@]}" ${test_flags[@]+"${test_flags[@]}"} "${cmd_args[@]}" >> "${ACTUAL_OUTPUT}" 2>&1
     EXIT_CODE=$?
     set -e
 

@@ -18,6 +18,7 @@ A Crossplane testing framework that leverages `crossplane render` and `crossplan
 - **Hooks Support**: Pre-test and post-test shell command execution
 - **Assertions**: Validate rendered resources with declarative assertions (count, existence, field checks)
 - **Test Chaining**: Use the outputs of a test case in the follow-up test cases that need it, to better emulate the reconciliation process
+- **Fast**: Reuses the function containers, and can run the test cases in parallel. Together, the time of a run stays low, and adding test cases adds little to it
 - **CI/CD Ready**: Easy integration into any system or pipeline
 
 ## FAQ
@@ -186,6 +187,9 @@ xprin check
 
 # Test Compositions
 xprin test <targets>
+
+# Test Compositions, running up to 4 test cases at the same time (without a number: as many as there are CPUs)
+xprin test <targets> --parallel=4
 
 # Regenerate golden files for assertions.diff and assertions.dyff
 xprin update-goldens <targets>

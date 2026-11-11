@@ -9,6 +9,7 @@ This directory contains step-by-step examples to help you learn how to use `xpri
 - [Check Your Setup](#check-your-setup)
 - [Basic Examples](#basic-examples)
 - [Multiple Test Cases](#multiple-test-cases)
+- [Parallel Execution](#parallel-execution)
 - [Patching XRs](#patching-xrs)
 - [Hooks](#hooks)
 - [Chained Tests](#chained-tests)
@@ -535,6 +536,22 @@ ok	examples/mytests/2_multiple_testcases/example2_multiple-reconciliation-loops-
 Note: This produces identical output to Example 1, demonstrating that `common.inputs` is purely a convenience feature for reducing repetition. Note that if an input is defined in both `common.inputs` and at the test case level, the test case value takes precedence.
 
 </details>
+
+---
+
+## Parallel Execution
+
+`-p N` (or `--parallel=N`) runs up to N test cases at the same time, across all the testsuite files, and `-p` without a number runs as many as there are CPUs. The output is the one of a run without it, so you can add the flag to any of the examples in this directory without changing what you read:
+
+```bash
+# Every example below, up to 4 test cases at a time
+xprin test examples/mytests/... -p 4
+
+# As many as there are CPUs
+xprin test examples/mytests/... --parallel
+```
+
+The [chained tests](#chained-tests) run in the same order as without the flag, and the test cases that don't need each other run together. With `--debug`, the lines of each test case are printed with its result. See [Parallel Execution](../docs/how-it-works.md#parallel-execution) for what runs together and what to keep in mind, and [Speed](../docs/how-it-works.md#speed) for how it works with function container reuse.
 
 ---
 

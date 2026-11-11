@@ -11,6 +11,9 @@ ARG --global E2E_CROSSPLANE_V2=2.4.3
 ARG --global E2E_CROSSPLANE_V1=1.20.14
 ARG --global E2E_CROSSPLANE_V2_LEGACY=2.2.6
 
+# E2E_PARALLEL is the --parallel of xprin test in the e2e tests: empty is the number of CPUs, 1 is serial, a number sets it
+ARG --global E2E_PARALLEL=
+
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
 reviewable:
@@ -196,6 +199,7 @@ crossplane-cli-setup:
 # e2e-run runs e2e tests using a specific Crossplane CLI and controller version.
 # CROSSPLANE_CLI_VERSION and CROSSPLANE_VERSION are optional.
 # EXPECTED_XP_TIER (v1/v2legacy/v2) is optional. When set by tier targets, run.sh verifies the installed Crossplane matches.
+# E2E_PARALLEL is the level of parallelism of xprin test (see the top of this file).
 e2e-run:
   ARG TARGETARCH
   ARG TARGETOS
@@ -207,6 +211,7 @@ e2e-run:
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   ENV EXPECTED_XP_TIER=$EXPECTED_XP_TIER
   ENV CROSSPLANE_VERSION=$CROSSPLANE_VERSION
+  ENV E2E_PARALLEL=$E2E_PARALLEL
   RUN apk add --no-cache bash
   COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$CROSSPLANE_CLI_VERSION) /usr/local/bin/crossplane
   COPY +go-build/xprin .
@@ -218,6 +223,7 @@ e2e-run:
 
 # e2e-legacy-run runs e2e tests using a specific legacy Crossplane CLI version (no separate controller version).
 # Used for v1 and v2-legacy tiers where CLI and controller are the same package.
+# E2E_PARALLEL is the level of parallelism of xprin test (see the top of this file).
 e2e-legacy-run:
   ARG TARGETARCH
   ARG TARGETOS
@@ -227,6 +233,7 @@ e2e-legacy-run:
   ARG EXPECTED_XP_TIER=""
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   ENV EXPECTED_XP_TIER=$EXPECTED_XP_TIER
+  ENV E2E_PARALLEL=$E2E_PARALLEL
   RUN apk add --no-cache bash
   COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$CROSSPLANE_CLI_VERSION) /usr/local/bin/crossplane
   COPY +go-build/xprin .

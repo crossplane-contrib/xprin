@@ -18,6 +18,7 @@ This document describes what xprin does under the hood: how a `xprin test` run g
 | `internal/testexecution/processor` | Ties the pieces of a run together: containers, discovery, loading and a session for each file |
 | `internal/testexecution/session` | The run of one testsuite file: its results so far, the directory of the internal artifacts, the order of the output and the summary line. It is a job of the scheduler, and it gives each test case to the runner |
 | `internal/testexecution/runner` | Runs one test case: phases, hooks, assertions, and the mode of the command. There is one for the whole invocation, and it keeps nothing of the file |
+| `internal/testexecution/scheduler` | Runs the test cases of all the files, up to a number at the same time, each after the ones it needs, and reports the results in a fixed order |
 | `internal/testexecution/artifacts` | Where the external artifacts of a run go (`--artifacts-dir`): the directory of the run, and the ones of the files and of the test cases in it |
 | `internal/testexecution/debuglog` | Prints, for `--debug`, the patches, the inputs and the hooks of a test case and of the common configuration, to the logger it is given. Used by the runner and the session |
 | `internal/testexecution/containers` | Reuse of the function containers across a run |
@@ -32,15 +33,16 @@ A run goes through these steps, in this order:
 2. **The processor** (`processor.ProcessTargets`) first sets up the container reuse for the whole invocation (unless `--no-container-reuse`, see [Container Reuse](#container-reuse)), and removes the containers when it exits. It then hands the targets to discovery.
 3. **Discovery** (`discovery.Walk`) resolves each target: a file (used only when it is named `xprin.yaml` or `*_xprin.yaml`), a directory (the files in it), or `dir/...` (every directory below). A target that doesn't exist is skipped, and no files at all prints `[no testsuite files]`. It calls the processor back for each file, and goes on when one fails. It prints no `FAIL`: the processor prints it once, at the very end, with exit code 1, if any file or test case failed.
 4. **Loading** (`discovery.Load`) reads and checks each file: the `{{ ... }}` of templates are replaced by placeholders so that a file with unquoted templates is valid YAML (see [Templates](#templates)), the YAML is parsed into the spec, and a file without test cases prints `[no test cases found]` and ends there. `testsuite.New` then builds the [dependency graph](#the-dependency-graph), and the file is checked: empty names, duplicate IDs, a `needs` to an ID that doesn't exist, and cycles. All the problems of a file are reported together, and the file is `[invalid testsuite file]`.
-5. **The session** is made for the loaded file, with the runner of the invocation, and set up: `Setup` makes the directory of the [internal artifacts](#artifacts), and creates the directory of the external ones once per invocation (with `--artifacts-dir`). The processor does this for all the files before the first test case runs. Then the scheduler runs the test cases in the order of the graph, the runner runs each of them, and the session prints the result of each as soon as it ends, and the line of the file.
-6. **The exit code** is 1 when any file failed to load or any test case failed.
+5. **The session** is made for the loaded file, with the runner of the invocation, and set up: `Setup` makes the directory of the [internal artifacts](#artifacts), and creates the directory of the external ones once per invocation (with `--artifacts-dir`). The processor does this for all the files before the first test case runs. A file that can't be set up is reported and left out.
+6. **The scheduler** (`scheduler.Run`) runs the test cases of all the loaded files, with up to `--parallel` workers at the same time (one by default), in the order of the [dependency graph](#the-dependency-graph): each test case after the ones it needs, and the one listed first when several are ready. It calls the session of the file for each of them (`Run`), and the session gives it to the runner. The session prints the result of each as soon as everything before it was printed, and the line of the file after its last test case (see [Scheduling](#scheduling)).
+7. **The exit code** is 1 when any file failed to load or be set up, or any test case failed.
 
 The other commands share the first steps: `xprin update-goldens` is the same flow with another mode of the runner (see [Modes](#modes)), and `xprin graph` stops after loading and prints the graph.
 
 ```mermaid
 flowchart LR
     A["Discover<br/>testsuite files"] --> B["Load<br/>and check"]
-    B --> C["Run the test cases<br/>in the order of the graph"]
+    B --> C["Run the test cases<br/>in the order of the graph<br/>(up to N at a time)"]
     C --> D["Result<br/>of the file"]
     D --> E["Exit code"]
 
@@ -61,14 +63,14 @@ flowchart TD
     E --> F["Load<br/>• Read and parse<br/>• Check names, IDs, needs, cycles<br/>• Build the dependency graph"]
     F -->|"no test cases"| G["[no test cases found]"]
     F -->|"invalid"| H["FAIL<br/>invalid testsuite file"]
-    F -->|"valid"| I["Run the testsuite file<br/>Session"]
-    I --> J["Run each test case,<br/>in the order of the graph"]
-    J --> K["File result<br/>ok or FAIL"]
+    F -->|"valid"| I["Set up the testsuite file<br/>Session"]
     G --> L{"More files?"}
     H --> L
-    K --> L
+    I --> L
     L -->|Yes| E
-    L -->|No| M["Remove the containers<br/>FAIL and exit code 1<br/>if any file failed"]
+    L -->|No| J["Run the test cases of all the files<br/>Scheduler: up to N at a time,<br/>in the order of the dependency graph"]
+    J --> K["Results in the order of a serial run<br/>File result: ok or FAIL"]
+    K --> M["Remove the containers<br/>FAIL and exit code 1<br/>if any file failed"]
 
     classDef xprin fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
     classDef neutral fill:#6b7280,stroke:#374151,stroke-width:2px,color:#fff
@@ -182,7 +184,7 @@ What differs between the commands that run the test cases is the `runnerMode` of
 
 ### Results
 
-A test case ends as `PASS`, `FAIL`, `SKIP` or `ERROR` (`internal/engine`, `Status`), with the phases and the sections it collected: hooks, render, validate, assertions, and any other, such as `Golden Files`. Each result is printed as soon as the test case ends, and the testsuite result prints the line of the file (`ok` or `FAIL`) at the end.
+A test case ends as `PASS`, `FAIL`, `SKIP` or `ERROR` (`internal/engine`, `Status`), with the phases and the sections it collected: hooks, render, validate, assertions, and any other, such as `Golden Files`. Each result is printed as soon as everything before it, in the order of a serial run, was printed, and the testsuite result prints the line of the file (`ok` or `FAIL`) after its last test case.
 
 The results are kept in memory, in the `TestSuiteResult` of the file, which is the session's, and the runner is given the ones of the test cases that already ran while the file runs: they are looked up by ID, for the `needs` check and to fill `.Tests`. Nothing persists them, so a report in another format would be a new output of `internal/engine`.
 
@@ -191,6 +193,18 @@ The engine also formats them for the terminal. The render output is the tree of 
 ### Assertions
 
 The runner runs the three kinds of assertions of a test case in this order: `xprin`, `diff`, then `dyff`. They all read the files that the render wrote to `outputs/`: the `xprin` assertions index the rendered resources by `Kind/name`, and the golden-file ones compare the file in `expected` with the full render, or with the rendered file of `resource`. Their results are aggregated and formatted together, and the raw output is written to `outputs/assertions.txt` (which is what `.Outputs.Assertions` points to). An assertion that can't be evaluated, for example a `resource` that is not in the render, is an `ERROR` (`[!]`) and the others still run.
+
+## Scheduling
+
+`scheduler.Run(jobs, workers)` runs all the test cases of a run. A **Job** is a set of tasks that depend on each other (a testsuite file), and a **task** is the smallest unit that runs (one of its test cases). The scheduler knows nothing else about a test case or a result: a Job gives its dependency graph (`internal/graph`, the only part of xprin that the scheduler imports), which says what each task needs and the order of a serial run, and it runs, reports and finishes its tasks, and keeps their results. The session of a file is that Job: the scheduler calls it through the `Job` interface, and it does not import the scheduler.
+
+- There are as many worker goroutines as `workers`, for the whole run: not one for each task. A worker is not a CPU: the Go runtime puts the goroutines on the CPUs it has, and a worker spends most of its time waiting for the `crossplane render` process.
+- The tasks that can start (all the ones they need are done) wait in a queue, ordered by file and by their place in the order of the graph. Each of the `workers` goroutines takes the first one, runs it, and marks it done, which makes ready the ones that waited only for it. The first task of the next file starts as soon as a worker is free, so files overlap.
+- With one worker the tasks run exactly in the order of the graph, file after file, so the run without `--parallel` is the same code with one worker, not another path.
+- A task is done when it passed, failed or was skipped: what to do when a need didn't pass is the Job's to decide, and the runner skips the test case.
+- The results are reported in a fixed order, from whichever worker finished something: `Report` for each task in the order of a serial run, only after all the ones before it (of its file and of the files before it) were reported, and `Finish` after the last task of a file, which prints the line of the file. A lock keeps two of them from running at the same time, so the output of two test cases never mixes.
+- A panic in a task is recovered by the session and fails that test case only, so that the others, which run at the same time, finish.
+- What the scheduler can't see, such as a file that two hooks write, is not a dependency: the test cases are assumed independent, apart from `needs`.
 
 ## Artifacts
 

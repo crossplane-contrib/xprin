@@ -25,5 +25,8 @@ Zone.Identifier
 /xprin-helpers
 
 # testdata
-golden_full_render.yaml
-golden_single_resource.yaml
+doesnotexist.yaml
+golden_full_render.yaml*
+golden_single_resource.yaml*
+golden_full_render_broken.yaml*
+golden_single_resource_broken.yaml*
