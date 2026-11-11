@@ -734,3 +734,45 @@ func createTestCaseResult(name string, verbose bool, err error) *engine.TestCase
 
 	return result.Complete()
 }
+
+// interruptedRunOutput runs a file of three test cases, where the first ends as given and the other two did not run
+// because the run was stopped, and returns what was printed.
+func interruptedRunOutput(t *testing.T, first func(*engine.TestCaseResult) *engine.TestCaseResult) string {
+	t.Helper()
+
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "A", ID: "a"}, {Name: "B", ID: "b"}, {Name: "C", ID: "c"}}}
+	r, tcRunner := newTestSession(&testexecutionOptions.Options{}, testsuite.New("/tests/a_xprin.yaml", spec))
+
+	var out bytes.Buffer
+
+	r.output = &out
+	tcRunner.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+		result := engine.NewTestCaseResult(testCase.Name, testCase.ID, false, false, false, false, false)
+		if testCase.ID == "a" {
+			return first(result)
+		}
+
+		return result.Skip(runner.ErrInterrupted)
+	}
+
+	_ = runTestsSerial(t, r)
+
+	return timings.ReplaceAllString(out.String(), "Xs")
+}
+
+func TestFileRun_Interrupted(t *testing.T) {
+	t.Run("the test cases that did not run are not printed one by one, and the file is not a pass", func(t *testing.T) {
+		out := interruptedRunOutput(t, func(r *engine.TestCaseResult) *engine.TestCaseResult { return r })
+
+		assert.NotContains(t, out, "interrupted\n", "the test cases that did not run are not printed one by one")
+		assert.Contains(t, out, "FAIL\t/tests/a_xprin.yaml\t[interrupted]\n")
+		assert.NotContains(t, out, "ok\t")
+	})
+
+	t.Run("a file with a failure is printed as it is without the interrupt", func(t *testing.T) {
+		out := interruptedRunOutput(t, func(r *engine.TestCaseResult) *engine.TestCaseResult { return r.Fail(errors.New("boom")) })
+
+		assert.Contains(t, out, "FAIL\t/tests/a_xprin.yaml\tXs\n")
+		assert.NotContains(t, out, "[interrupted]")
+	})
+}

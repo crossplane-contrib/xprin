@@ -18,6 +18,7 @@ limitations under the License.
 package options
 
 import (
+	"context"
 	"io"
 	"log"
 	"os"
@@ -30,18 +31,20 @@ import (
 
 // Options groups all test runner options for easier passing to ProcessTargets and related functions.
 type Options struct {
-	Dependencies      map[string]string
-	Repositories      map[string]string
-	ShowRender        bool
-	ShowValidate      bool
-	ShowHooks         bool
-	ShowAssertions    bool
-	Verbose           bool
-	Debug             bool
-	DebugLog          *log.Logger
-	Color             bool // When true, diff output is colorized (resolved from --color on|off|auto in the CLI).
-	Quiet             bool // When true, suppress "[no testsuite files]" and "[no test cases found]" messages. Independent of Verbose.
-	Parallel          int  // How many test cases run at the same time: 1 or more. 0, when it is not set, is the same as 1.
+	Dependencies   map[string]string
+	Repositories   map[string]string
+	ShowRender     bool
+	ShowValidate   bool
+	ShowHooks      bool
+	ShowAssertions bool
+	Verbose        bool
+	Debug          bool
+	DebugLog       *log.Logger
+	Color          bool // When true, diff output is colorized (resolved from --color on|off|auto in the CLI).
+	Quiet          bool // When true, suppress "[no testsuite files]" and "[no test cases found]" messages. Independent of Verbose.
+
+	Context           context.Context //nolint:containedctx // canceled when the run is interrupted, nil if it can't be
+	Parallel          int             // How many test cases run at the same time: 1 or more. 0, when it is not set, is the same as 1.
 	Render            []string
 	Validate          []string
 	XPCLI             xpcli.XPCLI
@@ -87,6 +90,11 @@ func FromConfig(cfg *config.Config) *Options {
 		Validate:     validate,
 		XPCLI:        cfg.XPCLI,
 	}
+}
+
+// Interrupted tells whether the run was interrupted.
+func (o *Options) Interrupted() bool {
+	return o.Context != nil && o.Context.Err() != nil
 }
 
 // SetDebug turns --debug on or off. DebugLog is where its lines go: stderr with it, nowhere without it.

@@ -699,7 +699,9 @@ By default, `xprin test` reuses one Docker container per unique composition func
 
 **Disabling it:** pass `--no-container-reuse` (to `xprin test` or `xprin update-goldens`) to fall back to a fresh container per render call, matching the pre-reuse behavior. You might want this if you suspect a function under test isn't actually stateless, or to rule out container reuse while debugging an unrelated issue. It is also how user-set `runtime-docker-name`, `runtime-docker-cleanup` and `runtime-docker-network` annotations are kept, see [Migrating from User-Set Container Annotations](#migrating-from-user-set-container-annotations).
 
-**A known edge case:** if `xprin test` is killed abruptly (e.g. `SIGKILL`, out-of-memory), the cleanup step doesn't run and a container (and the shared network) can be left behind. Their names start with `xprin-`, and they are safe to remove manually (`docker rm -f`, `docker network rm`).
+**Stopping a run:** Ctrl-C (or `SIGTERM`) stops the run gracefully. The test cases that are running finish, the ones that did not start are not run, and they are not reported as skipped (**SKIP** is for the test cases whose `needs` failed, or that the mode has no use for): a file that has some is printed as `FAIL <file> [interrupted]`, and the containers, the network and the temporary directories are removed. Press Ctrl-C a second time to quit at once, without the cleanup. See [Stopping a Run](architecture.md#stopping-a-run).
+
+**A known edge case:** if `xprin test` is killed in a way that can't be handled (`SIGKILL`, out-of-memory) or is stopped with a second Ctrl-C, the cleanup step doesn't run and a container (and the shared network) can be left behind. Their names start with `xprin-`, and they are safe to remove manually (`docker rm -f`, `docker network rm`).
 
 ### Migrating from User-Set Container Annotations
 

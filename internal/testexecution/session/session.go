@@ -83,6 +83,7 @@ type testSuiteEnv struct {
 	savedOutputsDir string                   // the internal artifacts, the outputs that test cases share
 	testSuiteResult *engine.TestSuiteResult  // the result of the file, which the result of each test case is added to
 	testCaseResults []*engine.TestCaseResult // the result of each test case, by its positionInTestSuite, once it ran
+	interrupted     bool                     // whether a test case did not run because the run was interrupted, set by Report
 }
 
 // GetTestSuiteFilePath returns the path of the testsuite file of the session.
@@ -178,6 +179,13 @@ func (s *Session) store(positionInTestSuite int, result *engine.TestCaseResult) 
 func (s *Session) Report(positionInTestSuite int) {
 	result := s.env.testCaseResults[positionInTestSuite]
 
+	// The test cases that did not run because the run was interrupted are not printed one by one, Finish says so
+	if result.Status == engine.StatusSkip() && errors.Is(result.Error, runner.ErrInterrupted) {
+		s.env.interrupted = true
+
+		return
+	}
+
 	// The --debug lines of a test case that ran at the same time as others come with its result, not mixed with theirs
 	if result.DebugLog != "" {
 		fmt.Fprint(s.debug.Writer(), result.DebugLog) //nolint:errcheck // output function, error handling not practical
@@ -193,8 +201,13 @@ func (s *Session) Finish() error {
 	// Complete the test suite result
 	s.env.testSuiteResult.Complete()
 
-	// Print only the file summary (not individual test results)
-	s.env.testSuiteResult.Print(s.output)
+	// Print only the file summary (not individual test results). A file that did not run all its test cases is not a
+	// pass, even if none failed.
+	if s.env.interrupted && !s.env.testSuiteResult.HasFailures() {
+		s.env.testSuiteResult.PrintInterrupted(s.output)
+	} else {
+		s.env.testSuiteResult.Print(s.output)
+	}
 
 	if s.options.ArtifactsRunDir != "" {
 		suiteArtifactsPath := filepath.Join(s.options.ArtifactsRunDir, artifacts.RelPath(s.testSuite.File, s.options.WorkingDir))

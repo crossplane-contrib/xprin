@@ -90,6 +90,11 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 
 	// A file that can't be loaded or set up is reported, left out, and makes the run fail
 	walkErr := discovery.Walk(fs, targets, discoveryOptions(options), func(testSuiteFile string) error {
+		// An interrupted run loads no more files
+		if options.Interrupted() {
+			return nil
+		}
+
 		fileSession, err := createSession(fs, testSuiteFile, options, testRunner)
 		if err != nil || fileSession == nil {
 			return err
@@ -110,6 +115,13 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 	finishErrs, err := scheduler.Run(jobs, max(1, options.Parallel))
 	if err != nil {
 		utils.WarningPrintf("%v\n", err)
+
+		failed = true
+	}
+
+	// Whatever was not run was reported as skipped, and the cleanup is done by the defers: this is a failed run
+	if options.Interrupted() {
+		utils.WarningPrintf("The run was interrupted: the test cases that did not start were not run.\n")
 
 		failed = true
 	}

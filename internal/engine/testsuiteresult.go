@@ -120,8 +120,23 @@ func (tsr *TestSuiteResult) Print(w io.Writer) {
 	status, duration := tsr.status, tsr.duration
 	tsr.mu.Unlock()
 
-	// Convert absolute paths to relative paths when possible (matches Go's testing package behavior).
-	// Prefer the stored working directory; fall back to os.Getwd() when not set (e.g. in tests).
+	displayPath := tsr.displayPath()
+
+	if status == StatusFail() {
+		fmt.Fprintf(w, "%s\n%s\t%s\t%.3fs\n", StatusFail().Value, StatusFail().Value, displayPath, duration.Seconds()) //nolint:errcheck // output function, error handling not practical
+	} else {
+		if tsr.verbose {
+			fmt.Fprintln(w, StatusPass().Value) //nolint:errcheck // output function, error handling not practical
+		}
+
+		fmt.Fprintf(w, "ok\t%s\t%.3fs\n", displayPath, duration.Seconds()) //nolint:errcheck // output function, error handling not practical
+	}
+}
+
+// displayPath returns the path of the file relative to the working directory when it is inside it, like Go's testing
+// package does, and the path as it is otherwise.
+// It uses the stored working directory, and os.Getwd() when it is not set (e.g. in tests).
+func (tsr *TestSuiteResult) displayPath() string {
 	displayPath := tsr.filePath
 
 	pwd := tsr.workingDir
@@ -135,15 +150,13 @@ func (tsr *TestSuiteResult) Print(w io.Writer) {
 		}
 	}
 
-	if status == StatusFail() {
-		fmt.Fprintf(w, "%s\n%s\t%s\t%.3fs\n", StatusFail().Value, StatusFail().Value, displayPath, duration.Seconds()) //nolint:errcheck // output function, error handling not practical
-	} else {
-		if tsr.verbose {
-			fmt.Fprintln(w, StatusPass().Value) //nolint:errcheck // output function, error handling not practical
-		}
+	return displayPath
+}
 
-		fmt.Fprintf(w, "ok\t%s\t%.3fs\n", displayPath, duration.Seconds()) //nolint:errcheck // output function, error handling not practical
-	}
+// PrintInterrupted prints the summary of a file where some test cases did not run because the run was interrupted. It takes
+// the place of Print, for a file where none failed: it is not a pass.
+func (tsr *TestSuiteResult) PrintInterrupted(w io.Writer) {
+	fmt.Fprintf(w, "%s\t%s\t[interrupted]\n", StatusFail().Value, tsr.displayPath()) //nolint:errcheck // output function, error handling not practical
 }
 
 // HasFailures returns true if any test failed.

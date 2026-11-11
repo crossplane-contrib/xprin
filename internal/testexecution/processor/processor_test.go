@@ -18,6 +18,7 @@ package processor
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -976,4 +977,49 @@ func TestProcessTargets_OneOrNoneRunsTheTestCasesOneAfterTheOther(t *testing.T) 
 		assert.Less(t, tl.indexOf(t, "end a_xprin.yaml:0"), tl.indexOf(t, "start a_xprin.yaml:1"), "workers: %d", workers)
 		assert.Less(t, tl.indexOf(t, "end a_xprin.yaml:1"), tl.indexOf(t, "start b_xprin.yaml:0"), "workers: %d", workers)
 	}
+}
+
+func TestProcessTargets_Interrupted(t *testing.T) {
+	origNewCoordinatorFunc := newCoordinatorFunc
+
+	t.Cleanup(func() { newCoordinatorFunc = origNewCoordinatorFunc })
+
+	t.Run("the test case that runs finishes, the files are finished, the containers are removed and the run fails", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		options := &testexecutionOptions.Options{Parallel: 1, Context: ctx}
+
+		fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(2)}, func(r *timelineSession) {
+			r.run = func(int) {
+				_, err := options.Containers.NetworkName() // what a render that runs has created
+				require.NoError(t, err)
+
+				cancel() // the signal arrives while a test case runs
+			}
+		})
+
+		mockDocker := &unittestsUtils.MockDocker{}
+		newCoordinatorFunc = func() (*containers.Coordinator, error) { return containers.NewCoordinator(mockDocker), nil }
+
+		err := ProcessTargets(fs, []string{"/tests"}, options)
+
+		require.ErrorIs(t, err, discovery.ErrFailed)
+		// What the scheduler runs after the signal is for the session to skip: it is still run, reported and finished
+		assert.Equal(t, []string{"report a_xprin.yaml:0", "report a_xprin.yaml:1"}, tl.with("report"))
+		assert.Len(t, tl.with("finish"), 1)
+		assert.Len(t, mockDocker.RemovedNetworks, 1, "the cleanup of the containers must run")
+	})
+
+	t.Run("the files that were not loaded yet are left out", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		fs, tl := setupTimelineSessions(t, map[string]string{"a_xprin.yaml": suiteYAML(1), "b_xprin.yaml": suiteYAML(1)}, nil)
+
+		err := ProcessTargets(fs, []string{"/tests"}, &testexecutionOptions.Options{Parallel: 1, NoContainerReuse: true, Context: ctx})
+
+		require.ErrorIs(t, err, discovery.ErrFailed)
+		assert.Empty(t, tl.with("new"))
+	})
 }

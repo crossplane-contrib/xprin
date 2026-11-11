@@ -18,6 +18,7 @@ package runner
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -784,6 +785,24 @@ func TestRunTestCase_ASkippedByTheMode(t *testing.T) {
 	result := r.executeTestCase(TestSuiteContext{Index: 1, TestSuite: testsuite.New(testSuiteFile, spec)}, spec.Tests[0], nil)
 
 	assert.Equal(t, engine.StatusSkip(), result.Status)
+}
+
+func TestRunTestCase_SkipsWhenTheRunWasInterrupted(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{Name: "plain", ID: "plain"}}}
+	r := New(&testexecutionOptions.Options{Context: ctx})
+	r.runTestCaseFunc = func(api.TestCase) *engine.TestCaseResult {
+		t.Fatal("a test case must not start after the run was interrupted")
+
+		return nil
+	}
+
+	result := r.executeTestCase(TestSuiteContext{Index: 1, TestSuite: testsuite.New(testSuiteFile, spec)}, spec.Tests[0], nil)
+
+	assert.Equal(t, engine.StatusSkip(), result.Status)
+	require.ErrorIs(t, result.Error, ErrInterrupted)
 }
 
 func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {

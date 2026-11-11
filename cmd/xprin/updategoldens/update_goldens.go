@@ -18,11 +18,13 @@ limitations under the License.
 package updategoldens
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/alecthomas/kong"
 	internalcfg "github.com/crossplane-contrib/xprin/internal/config"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/interrupt"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/processor"
 	"github.com/gonvenience/bunt"
@@ -68,7 +70,14 @@ func (c *Cmd) Run(_ *kong.Context) error {
 		bunt.SetColorSettings(bunt.AUTO, bunt.AUTO)
 	}
 
-	return processor.ProcessTargets(c.fs, c.Targets, c.newOptions(c.Config))
+	// SIGINT and SIGTERM stop the run gracefully
+	ctx, stop := interrupt.Notify(context.Background())
+	defer stop()
+
+	options := c.newOptions(c.Config)
+	options.Context = ctx
+
+	return processor.ProcessTargets(c.fs, c.Targets, options)
 }
 
 // newOptions creates a testexecutionOptions.Options struct from the command and config.
