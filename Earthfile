@@ -32,10 +32,21 @@ lint:
   ARG GOLANGCI_LINT_FIX=true
   BUILD +go-lint --GOLANGCI_LINT_FIX=${GOLANGCI_LINT_FIX}
 
+# version prints the version that +build would embed in the binaries.
+version:
+  LOCALLY
+  ARG XPRIN_VERSION=""
+  RUN echo "xprin version: $(XPRIN_VERSION="$XPRIN_VERSION" ./scripts/version.sh)"
+
 # build builds xprin for your native OS and architecture.
+# The version to embed is computed from the git repository by scripts/version.sh,
+# unless XPRIN_VERSION is set.
 build:
+  LOCALLY
   ARG USERPLATFORM
-  BUILD --platform=$USERPLATFORM +go-build
+  ARG XPRIN_VERSION=""
+  LET version = $(XPRIN_VERSION="$XPRIN_VERSION" ./scripts/version.sh)
+  BUILD --platform=$USERPLATFORM +go-build --XPRIN_VERSION=$version
 
 # multiplatform-build builds xprin for all supported OS and architectures.
 multiplatform-build:
@@ -97,7 +108,7 @@ go-generate:
 go-build:
   ARG EARTHLY_GIT_SHORT_HASH
   ARG EARTHLY_GIT_COMMIT_TIMESTAMP
-  ARG XPRIN_VERSION=v0.0.0-${EARTHLY_GIT_COMMIT_TIMESTAMP}-${EARTHLY_GIT_SHORT_HASH}
+  ARG XPRIN_VERSION=v0.0.0-pre.${EARTHLY_GIT_COMMIT_TIMESTAMP}.g${EARTHLY_GIT_SHORT_HASH}
   ARG TARGETARCH
   ARG TARGETOS
   ARG GOARCH=${TARGETARCH}
