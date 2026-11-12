@@ -36,13 +36,11 @@ var (
 	testsUse = regexp.MustCompile(`\.Tests\b`)
 )
 
-// findImplicitNeeds finds what a testcase needs without listing it, reading its templates as the runner renders
-// them (the testcase without its hooks as one template, and each hook command on its own). It returns:
-//   - ids: the testcases whose outputs it uses through `.Tests`
-//   - needsAll: true when it needs all of them, because it uses `.Tests` in a way that can't be traced to an ID
-//     (`range .Tests`, `index .Tests $id`), or because it can't be marshalled (the runner fails it anyway)
-//
-// Pass the testcase with the common configuration merged in.
+// findImplicitNeeds finds what a testcase needs without listing it, reading its templates as the runner renders them
+// (the testcase without its hooks as one template, each hook command on its own). ids are the testcases whose outputs
+// it uses through `.Tests`, and needsAll is true when it needs all of them: it uses `.Tests` in a way that can't be
+// traced to an ID (`range .Tests`, `index .Tests $id`), or it can't be marshalled. Pass it with the common
+// configuration merged in.
 func findImplicitNeeds(testCase api.TestCase) (ids []string, needsAll bool) {
 	body, err := templates.MarshalWithoutHooks(testCase)
 	if err != nil {

@@ -105,13 +105,12 @@ func New(options *testexecutionOptions.Options) *Runner {
 	return r
 }
 
-// RunTestCase runs a single test case, with what its session gives it in testSuiteContext, and returns a complete TestCaseResult.
-// completed are the results of the test cases that already ran, which the ones that this one needs are found in: it is
-// skipped if one of them failed or was skipped, or if the mode has no use for it.
+// RunTestCase runs a test case, with what its session gives it in testSuiteContext, and returns its result.
+// completed are the results of the test cases that already ran: it is skipped if one that it needs failed or was
+// skipped, or if the mode has no use for it.
 //
-// With --debug, the lines of the test case are printed as they happen when only one test case runs at a time. With
-// --parallel they would be mixed with those of the others, so they are kept in the DebugLog of the result, and its
-// session prints them with the result.
+// With --debug, the lines are printed as they happen, unless several test cases run at the same time (--parallel):
+// then they are kept in the DebugLog of the result, and the session prints them with it.
 func (r *Runner) RunTestCase(testSuiteContext TestSuiteContext, testCase api.TestCase, completed map[string]*engine.TestCaseResult) *engine.TestCaseResult {
 	// Its lines go to the log of the runner, live, unless several test cases run at the same time: then they are kept
 	debug := r.debug

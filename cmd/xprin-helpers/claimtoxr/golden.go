@@ -28,19 +28,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
-// FindNameInGolden scans goldenPath - a YAML stream of one or more documents, e.g. a full render
-// output - for the first document whose kind matches wantKind, and returns its metadata.name.
+// FindNameInGolden scans goldenPath, a YAML stream (e.g. a full render output), for the first document of kind
+// wantKind, and returns its metadata.name.
 //
-// Matching by kind (rather than trusting a fixed position, e.g. "the XR is always the first
-// document") matters here specifically because, unlike xprin's own runner - which only ever reads
-// back a file it rendered itself - this is reachable from the standalone `--golden` CLI flag, which
-// accepts whatever file a user points it at; trusting document order would silently return the
-// wrong resource's name for anything that isn't a real, XR-first render output.
+// It matches by kind and not by position (the XR first) because `--golden` accepts any file that a user points it at.
 //
-// found is false, with a nil error, both when goldenPath doesn't exist yet and when it exists but
-// contains no document of that kind. Neither is an error: a missing or non-matching golden file
-// just means there's nothing to reproduce a name from yet (e.g. before the first
-// `xprin update-goldens` capture), so the caller should fall back to its own default behaviour.
+// found is false, with a nil error, when goldenPath doesn't exist yet or has no document of that kind: there is no
+// name to reproduce yet (before the first `xprin update-goldens`), and the caller uses its default.
 func FindNameInGolden(fs afero.Fs, goldenPath, wantKind string) (name string, found bool, err error) {
 	data, err := afero.ReadFile(fs, goldenPath)
 	if err != nil {

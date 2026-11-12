@@ -28,10 +28,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// The phases of a test case: what executeTestCase, and the mode of the command, run one after the other. Each is a
-// method of the Runner, and returns the failed result, to end the run of the test case, or nil to go on.
-//
-// They are the phases of docs/how-it-works.md, where one phase can be several of these:
+// The phases of a test case, run one after the other by executeTestCase and the mode. Each is a method of the Runner
+// that returns the failed result, to end the test case, or nil to go on. They are the phases of docs/how-it-works.md:
 //
 //	Setup:             expandInputPaths, copyInputs, runPreTestHooks (executeTestCase makes the temporary directory)
 //	Patch and Render:  renderTestCase

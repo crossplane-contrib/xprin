@@ -38,10 +38,8 @@ type Coordinator struct {
 	networkName string
 }
 
-// NewCoordinator creates an empty coordinator scoped to one xprin test invocation. The
-// generated run ID namespaces every container name this coordinator produces, isolating this
-// invocation's containers from any other xprin test invocation running on the same host. docker
-// performs the container/network operations the coordinator needs.
+// NewCoordinator creates the coordinator of one invocation. Its random run ID is in every name it makes, so that
+// another invocation on the same host has other containers. docker does the container and network operations.
 func NewCoordinator(docker Docker) *Coordinator {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
@@ -52,13 +50,11 @@ func NewCoordinator(docker Docker) *Coordinator {
 	}
 }
 
-// AnnotateAndAcquireFunctions is called before a command that uses the containers of the Functions in functionsPath (a file or a
-// directory of files), for example `crossplane render`.
-// It sets the annotations of their containers (see annotateFunctions), and waits for the containers that another command is
-// creating: the first command that uses a container creates it, and the others that use it wait until that command is done.
-// The function it returns is called when the command is done, with whether it succeeded.
-// Only a success marks the containers as existing, so after a failure the next command tries again.
-// It is safe to call it on a nil Coordinator (container reuse is off): there is nothing to set or to wait for.
+// AnnotateAndAcquireFunctions is called before a command that uses the containers of the Functions in functionsPath (a
+// file or a directory), for example `crossplane render`. It sets their annotations (see annotateFunctions), and waits
+// for the containers that another command is creating: the first command that uses one creates it, and the others wait.
+// The function it returns is called when the command is done, with whether it succeeded: only a success marks the
+// containers as existing, so after a failure the next command tries again. It is safe on a nil Coordinator (reuse is off).
 func (c *Coordinator) AnnotateAndAcquireFunctions(fs afero.Fs, functionsPath string) (release func(created bool), err error) {
 	names, err := c.annotateFunctions(fs, functionsPath)
 	if err != nil {
@@ -94,12 +90,9 @@ func (c *Coordinator) ContainerName(imageRef string) string {
 	return "xprin-" + c.runID + "-" + hex.EncodeToString(sum[:])[:12]
 }
 
-// NetworkName returns the name of this invocation's shared Docker network, creating it on first
-// use. crossplane's dockerized render engine otherwise creates its own new, uniquely-named Docker
-// network for each `crossplane render` call and only connects that call's own containers to it —
-// a container reused from an earlier call is left on the earlier call's network and unreachable.
-// Passing this shared network to every render call via --crossplane-docker-network keeps a reused
-// container reachable for as long as the container itself is reused.
+// NetworkName returns the shared Docker network of the invocation, creating it on first use. Without it each
+// `crossplane render` makes a network of its own, and a container reused from an earlier call stays unreachable on the
+// earlier call's one. It is passed with --crossplane-docker-network.
 func (c *Coordinator) NetworkName() (string, error) {
 	// Held while the network is created, so that two test cases don't create it both
 	c.mu.Lock()
@@ -120,9 +113,8 @@ func (c *Coordinator) NetworkName() (string, error) {
 	return name, nil
 }
 
-// RemoveAll removes every container tracked by this coordinator, and the shared network from
-// NetworkName, if one was created. Meant to be called once, via defer, when the whole xprin test
-// invocation is about to exit.
+// RemoveAll removes the containers that the coordinator tracks, and the shared network if one was created.
+// It is called once, with defer, when the invocation ends.
 func (c *Coordinator) RemoveAll() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
