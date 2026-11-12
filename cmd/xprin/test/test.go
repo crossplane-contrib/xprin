@@ -18,11 +18,13 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/alecthomas/kong"
 	internalcfg "github.com/crossplane-contrib/xprin/internal/config"
+	"github.com/crossplane-contrib/xprin/internal/testexecution/interrupt"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/processor"
 	"github.com/crossplane-contrib/xprin/internal/utils"
@@ -100,6 +102,12 @@ func (c *Cmd) Run(_ *kong.Context) error {
 	}
 
 	options := c.newOptions(c.Config)
+
+	// SIGINT and SIGTERM stop the run gracefully
+	ctx, stop := interrupt.Notify(context.Background())
+	defer stop()
+
+	options.Context = ctx
 
 	if c.Debug {
 		if c.Config.XPCLI.Tier == xpcli.TierV1 {

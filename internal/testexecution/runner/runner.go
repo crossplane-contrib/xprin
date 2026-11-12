@@ -18,6 +18,7 @@ package runner
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"os/exec"
@@ -33,6 +34,10 @@ import (
 	cp "github.com/otiai10/copy"
 	"github.com/spf13/afero"
 )
+
+// ErrInterrupted is why a test case did not run, when the run was interrupted. The result is a skip only for the test
+// cases that need it, and the session reports it as an interrupted file.
+var ErrInterrupted = errors.New("interrupted")
 
 // Runner runs test cases. It is created once for an invocation, and keeps nothing of the test cases that it runs.
 type Runner struct {
@@ -81,6 +86,7 @@ func New(options *testexecutionOptions.Options) *Runner {
 		runCommand: func(dir, name string, args ...string) ([]byte, error) {
 			cmd := exec.Command(name, args...) //nolint:gosec // G204 - Used for Crossplane CLI and hooks, caller is trusted
 			cmd.Dir = dir
+			ownProcessGroup(cmd)
 
 			var combined bytes.Buffer
 
@@ -143,6 +149,11 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 	env := &testCaseEnv{TestSuiteContext: testSuiteContext}
 
 	result := engine.NewTestCaseResult(testCase.Name, testCase.ID, r.Verbose, r.ShowRender, r.ShowValidate, r.ShowHooks, r.ShowAssertions)
+
+	// An interrupted run finishes the test cases that run, and does not start the others
+	if r.Interrupted() {
+		return result.Skip(ErrInterrupted)
+	}
 
 	// Skip immediately a test case that the mode has no use for, whatever it needs (the modes are in mode.go and
 	// update_goldens.go)
