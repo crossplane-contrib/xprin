@@ -15,15 +15,10 @@ limitations under the License.
 */
 
 // Package scheduler runs the tasks of several Jobs with a number of workers, each task after the ones it needs, and
-// reports the results in a fixed order.
+// reports the results in a fixed order. In xprin a Job is a testsuite file, and a task is one of its test cases.
 //
-// A Job is a set of tasks that depend on each other, and a task is the smallest unit that runs.
 // Tasks of different Jobs can run at the same time, so a free worker takes the first task of the next Job while the
 // last task of the previous one is still running.
-//
-// A Job gives its dependency graph, which says what each task needs and the order of a serial run, and it runs its tasks
-// and keeps their results.
-// In xprin a Job is a testsuite file, and a task is one of its test cases.
 package scheduler
 
 import (
@@ -56,16 +51,11 @@ type Job interface {
 }
 
 // Run runs the tasks of the Jobs, with at most workers at the same time, and returns when all were run and reported.
+// A task starts once the tasks it needs have run, passed or not: what to do about that is the Job's to decide. Of the
+// tasks that can start, the first goes first: the first Job, then its graph order. With one worker, exactly in that order.
 //
-// A task starts once the tasks it needs have run, whether they passed or not: what to do about that is the Job's to
-// decide.
-// Of the tasks that can start, the first in order goes first: the first Job, then the first in its graph order.
-// With one worker they run exactly in that order.
-//
-// finishErrs[i] is what Finish returned for jobs[i].
-// err is an error of Run itself: tasks that wait for each other can never start.
-// A testsuite file with a cycle of `needs` is rejected when it is loaded, so this is a bug elsewhere.
-// A panic in a Job is not recovered.
+// finishErrs[i] is what Finish returned for jobs[i]. err is set when tasks wait for each other and can never start
+// (a bug: a file with a cycle of `needs` is rejected when it is loaded). A panic in a Job is not recovered.
 func Run(jobs []Job, workers int) (finishErrs []error, err error) {
 	s := newScheduler(jobs)
 

@@ -174,12 +174,9 @@ func (g *Graph) DependenciesOf(i int) []int {
 	return g.nodes[i].Needs
 }
 
-// GetOrder returns the positions of the testcases in the order they run: each one after the testcases it
-// needs. Whenever several can run, the one listed first in the file does, so the order depends only
-// on the file and the dependencies (never on the order of the IDs in a `needs`), and a file without
-// dependencies runs in the order it is written.
-// Testcases that need each other, directly or not, have no order and are left out: CheckCycles reports them,
-// and a testsuite file that has any is rejected when it is loaded.
+// GetOrder returns the positions of the testcases in the order they run: each one after the testcases it needs, and
+// the one listed first in the file when several can run. A file without dependencies runs as it is written.
+// Testcases in a cycle of needs are left out: CheckCycles reports them, and the file is rejected when it is loaded.
 func (g *Graph) GetOrder() []int {
 	// CheckCycles keeps the order when it finds no cycles. A graph that was not checked sorts now, so that its
 	// order is never missing.

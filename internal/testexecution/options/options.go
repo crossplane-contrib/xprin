@@ -29,47 +29,31 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/xpcli"
 )
 
-// Options groups all test runner options for easier passing to ProcessTargets and related functions.
+// Options are the options of a test run, which the commands fill in.
 type Options struct {
-	Dependencies   map[string]string
-	Repositories   map[string]string
-	ShowRender     bool
-	ShowValidate   bool
-	ShowHooks      bool
-	ShowAssertions bool
-	Verbose        bool
-	Debug          bool
-	DebugLog       *log.Logger
-	Color          bool // When true, diff output is colorized (resolved from --color on|off|auto in the CLI).
-	Quiet          bool // When true, suppress "[no testsuite files]" and "[no test cases found]" messages. Independent of Verbose.
-
+	Dependencies      map[string]string
+	Repositories      map[string]string
+	ShowRender        bool
+	ShowValidate      bool
+	ShowHooks         bool
+	ShowAssertions    bool
+	Verbose           bool
+	Debug             bool
+	DebugLog          *log.Logger
+	Color             bool            // diff output is colorized (--color, resolved)
+	Quiet             bool            // no "[no testsuite files]" and "[no test cases found]" messages
 	Context           context.Context //nolint:containedctx // canceled when the run is interrupted, nil if it can't be
-	Parallel          int             // How many test cases run at the same time: 1 or more. 0, when it is not set, is the same as 1.
+	Parallel          int             // how many test cases run at the same time, 0 is 1
 	Render            []string
 	Validate          []string
 	XPCLI             xpcli.XPCLI
 	CrossplaneVersion string
-	// WorkingDir is the process working directory captured once at xprin test start.
-	// Used for display paths in test output and for computing testsuite relpaths in artifact export.
-	WorkingDir string
-	// Artifact export: ArtifactsBaseDir is the user-supplied parent directory; empty disables export.
-	// ArtifactsRunDir is set lazily to <parent>/xprin-artifacts-<YYYYMMDDHHMMSS>/ on first test run.
-	ArtifactsBaseDir string
-	ArtifactsRunDir  string
-	// UpdateGoldens writes render output to the expected: paths of assertions.diff/dyff instead of comparing.
-	// Skips validate, assertions, and post-test hooks.
-	UpdateGoldens bool
-	// Containers tracks reuse of Docker containers for composition functions across this
-	// invocation. Shared by pointer across every Runner created for this invocation. nil
-	// disables container reuse — ProcessTargets initializes it for real runs (unless
-	// NoContainerReuse is set); tests that construct Options directly without going through
-	// ProcessTargets simply get the feature disabled.
-	Containers *containers.Coordinator
-	// NoContainerReuse disables reuse of Docker containers for composition functions
-	// (--no-container-reuse): every render call creates and tears down a fresh container
-	// instead of reusing one per function image across the invocation. ProcessTargets honors
-	// this by never initializing Containers.
-	NoContainerReuse bool
+	WorkingDir        string                  // where `xprin test` started, for the paths it shows and the artifacts
+	ArtifactsBaseDir  string                  // --artifacts-dir, empty disables the export
+	ArtifactsRunDir   string                  // <ArtifactsBaseDir>/xprin-artifacts-<time>/, set on the first test run
+	UpdateGoldens     bool                    // write the golden files instead of comparing (no validate, assertions or post-test hooks)
+	Containers        *containers.Coordinator // the container reuse of the invocation, nil disables it
+	NoContainerReuse  bool                    // --no-container-reuse, ProcessTargets makes no Containers
 }
 
 // FromConfig returns the options that the configuration decides: the dependencies, the repositories, the

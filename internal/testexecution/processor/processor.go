@@ -58,10 +58,7 @@ var (
 
 // ProcessTargets processes the targets and runs the tests.
 func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions.Options) error {
-	// Containers tracks reuse of Docker containers for composition functions for this whole
-	// invocation. Initialized here rather than required of callers, so every entry point into
-	// test execution gets reuse enabled for free, unless the user opted out via
-	// --no-container-reuse.
+	// The container reuse of the invocation, unless --no-container-reuse
 	if !options.NoContainerReuse {
 		coordinator, err := newCoordinatorFunc()
 		if err != nil {
@@ -74,9 +71,8 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 	}
 
 	// The run has three steps:
-	// 1. Find, load and set up every testsuite file. The scheduler needs all of them before it can start, to order the
-	//    test cases and their results across the files, so this is done for all the files before any test case runs.
-	//    What is wrong with the files is also reported first.
+	// 1. Find, load and set up every testsuite file, before any test case runs: the scheduler needs all of them to
+	//    order the test cases and their results across the files, and what is wrong with the files is reported first.
 	// 2. Run the test cases of all the files, with the scheduler.
 	// 3. Report what failed in the files, and print one FAIL.
 	var (
@@ -84,8 +80,7 @@ func ProcessTargets(fs afero.Fs, targets []string, options *testexecutionOptions
 		jobs     []scheduler.Job
 	)
 
-	// One runner for all the files: it is stateless, it runs a test case and gives its result back to the session.
-	// Each file gets its own session, which holds the state of the file (the results so far, the shared outputs).
+	// One stateless runner for all the files, and one session for each, which holds the state of its file
 	testRunner := runner.New(options)
 
 	// A file that can't be loaded or set up is reported, left out, and makes the run fail
