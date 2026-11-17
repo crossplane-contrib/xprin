@@ -234,7 +234,7 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 		return failed
 	}
 
-	if failed := r.renderTestCase(env, testCase, result); failed != nil {
+	if failed := r.runCrossplaneRender(env, testCase, result); failed != nil {
 		return failed
 	}
 

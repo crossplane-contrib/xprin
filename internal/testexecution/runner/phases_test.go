@@ -69,13 +69,13 @@ func newRenderRunner(t *testing.T, modify func(r *Runner)) (r *Runner, env *test
 	return r, env, renderArgs
 }
 
-// renderWith runs renderTestCase on the test case, with a runner from newRenderRunner, and returns what renderTestCase
+// renderWith runs runCrossplaneRender on the test case, with a runner from newRenderRunner, and returns what runCrossplaneRender
 // returned and the arguments of the render command.
 func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (failed *engine.TestCaseResult, renderArgs []string) {
 	t.Helper()
 
 	r, env, args := newRenderRunner(t, modify)
-	failed = r.renderTestCase(env, testCase, engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false))
+	failed = r.runCrossplaneRender(env, testCase, engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false))
 
 	return failed, *args
 }
@@ -129,7 +129,7 @@ func TestSaveOutputs(t *testing.T) {
 	})
 }
 
-func TestRenderTestCase_AppliesTheContainerReuseToTheFunctionsRightBeforeRendering(t *testing.T) {
+func TestRunCrossplaneRender_AppliesTheContainerReuseToTheFunctionsRightBeforeRendering(t *testing.T) {
 	const functionsPath = "/inputs/functions.yaml"
 
 	fs := afero.NewMemMapFs()
@@ -162,14 +162,14 @@ spec:
 	}
 
 	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: functionsPath}}
-	r.renderTestCase(newTestEnv(), testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+	r.runCrossplaneRender(newTestEnv(), testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 
 	assert.Equal(t, coord.ContainerName("xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.5.0"), annotations["render.crossplane.io/runtime-docker-name"])
 	assert.Equal(t, "Orphan", annotations["render.crossplane.io/runtime-docker-cleanup"])
 	assert.NotContains(t, annotations, "render.crossplane.io/runtime-docker-network")
 }
 
-func TestRenderTestCase_APanicOfTheRenderDoesNotLeaveTheContainersLocked(t *testing.T) {
+func TestRunCrossplaneRender_APanicOfTheRenderDoesNotLeaveTheContainersLocked(t *testing.T) {
 	const functionsPath = "/inputs/functions.yaml"
 
 	fs := afero.NewMemMapFs()
@@ -188,7 +188,7 @@ spec:
 	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: functionsPath}}
 
 	assert.PanicsWithValue(t, "boom", func() {
-		r.renderTestCase(newTestEnv(), testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+		r.runCrossplaneRender(newTestEnv(), testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 	})
 
 	// The test cases after it that use the container don't wait for a render that is not running any more
@@ -324,7 +324,7 @@ func TestExpandInputPaths_ExpandsRelativePathsAndKeepsTheAbsoluteOnes(t *testing
 	assert.Equal(t, "/xrd.yaml", testCase.Patches.XRD)
 }
 
-func TestRenderTestCase_BuildsTheRenderCommand(t *testing.T) {
+func TestRunCrossplaneRender_BuildsTheRenderCommand(t *testing.T) {
 	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
 	base := []string{config.RenderSubcommand, config.RenderFlags}
 
@@ -385,7 +385,7 @@ func TestRenderTestCase_BuildsTheRenderCommand(t *testing.T) {
 
 // With container reuse the render is told to use the shared network of the run, also without a crossplane version,
 // because the dockerized render engine would otherwise create a network for each call.
-func TestRenderTestCase_PinsTheDockerNetwork(t *testing.T) {
+func TestRunCrossplaneRender_PinsTheDockerNetwork(t *testing.T) {
 	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
 	hasNetwork := func(args []string) bool {
 		return slices.ContainsFunc(args, func(arg string) bool { return strings.HasPrefix(arg, "--crossplane-docker-network=") })
@@ -427,7 +427,7 @@ func TestRenderTestCase_PinsTheDockerNetwork(t *testing.T) {
 	}
 }
 
-func TestRenderTestCase_PatchesTheXR(t *testing.T) {
+func TestRunCrossplaneRender_PatchesTheXR(t *testing.T) {
 	const patchedXR = "/inputs/patched-xr.yaml"
 
 	for name, tt := range map[string]struct {
@@ -485,7 +485,7 @@ func TestRenderTestCase_PatchesTheXR(t *testing.T) {
 	}
 }
 
-func TestRenderTestCase_ConvertsTheClaim(t *testing.T) {
+func TestRunCrossplaneRender_ConvertsTheClaim(t *testing.T) {
 	claim := api.TestCase{Name: "test", Inputs: api.Inputs{Claim: "claim.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
 
 	failed, args := renderWith(t, claim, func(r *Runner) {
@@ -500,7 +500,7 @@ func TestRenderTestCase_ConvertsTheClaim(t *testing.T) {
 	assert.Equal(t, "/inputs/converted-xr.yaml", args[2], "render gets the converted XR")
 }
 
-func TestRenderTestCase_Fails(t *testing.T) {
+func TestRunCrossplaneRender_Fails(t *testing.T) {
 	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
 	claim := api.TestCase{Name: "test", Inputs: api.Inputs{Claim: "claim.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
 
@@ -548,7 +548,7 @@ func TestRenderTestCase_Fails(t *testing.T) {
 
 // The rendered resources are written to the outputs directory of the test case, one file for each and one for the XR,
 // which is the first resource, and the result has the paths.
-func TestRenderTestCase_WritesTheOutputs(t *testing.T) {
+func TestRunCrossplaneRender_WritesTheOutputs(t *testing.T) {
 	const rendered = `apiVersion: example.org/v1alpha1
 kind: Pod
 metadata:
@@ -564,7 +564,7 @@ metadata:
 	})
 	result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
 
-	failed := r.renderTestCase(env, api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}, result)
+	failed := r.runCrossplaneRender(env, api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}, result)
 
 	require.Nil(t, failed)
 	assert.Equal(t, "/outputs/rendered.yaml", result.Outputs.Render)
@@ -586,7 +586,7 @@ metadata:
 	assert.Contains(t, string(xr), "test-pod", "the XR is the first rendered resource")
 }
 
-func TestRenderTestCase_FailsWithTheOutputWhenTheRenderFails(t *testing.T) {
+func TestRunCrossplaneRender_FailsWithTheOutputWhenTheRenderFails(t *testing.T) {
 	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
 
 	failed, _ := renderWith(t, xr, func(r *Runner) {
@@ -601,7 +601,7 @@ func TestRenderTestCase_FailsWithTheOutputWhenTheRenderFails(t *testing.T) {
 	assert.Contains(t, failed.FormattedRenderOutput, "render fail")
 }
 
-func TestValidateTestCase_PassesTheCrossplaneVersionAsTheImage(t *testing.T) {
+func TestRunCrossplaneValidate_PassesTheCrossplaneVersionAsTheImage(t *testing.T) {
 	for name, tt := range map[string]struct {
 		version string
 		crds    []string
@@ -643,7 +643,7 @@ func TestValidateTestCase_PassesTheCrossplaneVersionAsTheImage(t *testing.T) {
 			result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
 			result.Outputs.Render = "/outputs/rendered.yaml"
 
-			failed := r.validateTestCase(env, api.TestCase{Name: "test", Inputs: api.Inputs{CRDs: tt.crds}}, result)
+			failed := r.runCrossplaneValidate(env, api.TestCase{Name: "test", Inputs: api.Inputs{CRDs: tt.crds}}, result)
 
 			assert.Nil(t, failed)
 			assert.Equal(t, tt.want, gotArgs)
