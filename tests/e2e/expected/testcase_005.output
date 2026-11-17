@@ -15,6 +15,16 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
 --- FAIL: Render failure (claim used as XR) (X.XXXs)
     Render:
         [!] crossplane: error: composition's compositeTypeRef.kind (XAWSInfrastructure) does not match XR's kind (AWSInfrastructure)
+--- FAIL: Errors: the render fails, but not with the expected message (X.XXXs)
+    Assertions:
+        [x] The message is the one of another error
+            the render failed, but its output does not contain "could not be evaluated, abort":
+            crossplane: error: composition's compositeTypeRef.kind (XAWSInfrastructure) does not match XR's kind (AWSInfrastructure)
+        Total: 2 assertions, 1 successful, 1 failed, 0 errors
+--- FAIL: Errors: the render succeeds (X.XXXs)
+    Assertions:
+        [x] The render fails: the render succeeded, but it was expected to fail
+        Total: 1 assertions, 0 successful, 1 failed, 0 errors
 --- FAIL: Validation failure (missing CRD) (X.XXXs)
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure

@@ -1,5 +1,9 @@
 === RUN   Render failure (claim used as XR)
 --- SKIP: Render failure (claim used as XR) (X.XXXs)
+=== RUN   Errors: the render fails, but not with the expected message
+--- SKIP: Errors: the render fails, but not with the expected message (X.XXXs)
+=== RUN   Errors: the render succeeds
+--- SKIP: Errors: the render succeeds (X.XXXs)
 === RUN   Validation failure (missing CRD)
 --- SKIP: Validation failure (missing CRD) (X.XXXs)
 === RUN   Pre-test hook failure
@@ -78,6 +82,22 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
             hello
     Render:
         [!] crossplane: error: composition's compositeTypeRef.kind (XAWSInfrastructure) does not match XR's kind (AWSInfrastructure)
+=== RUN   Errors: the render fails, but not with the expected message
+--- FAIL: Errors: the render fails, but not with the expected message (X.XXXs)
+    Assertions:
+        [✓] The render fails: the render failed
+        [x] The message is the one of another error
+            the render failed, but its output does not contain "could not be evaluated, abort":
+            crossplane: error: composition's compositeTypeRef.kind (XAWSInfrastructure) does not match XR's kind (AWSInfrastructure)
+        Total: 2 assertions, 1 successful, 1 failed, 0 errors
+=== RUN   Errors: the render succeeds
+--- FAIL: Errors: the render succeeds (X.XXXs)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Assertions:
+        [x] The render fails: the render succeeded, but it was expected to fail
+        Total: 1 assertions, 0 successful, 1 failed, 0 errors
 === RUN   Validation failure (missing CRD)
 --- FAIL: Validation failure (missing CRD) (X.XXXs)
     Pre-test Hooks:

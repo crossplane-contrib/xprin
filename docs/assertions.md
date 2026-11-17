@@ -32,6 +32,13 @@ Assertions are organized by **assertion engine**. xprin supports three engines:
 
 You can use one or more engines in the same test; all assertion results are collected and reported together.
 
+A fourth group, `assertions.errors`, is not an engine: it asserts on a **failure**, where the engines assert on what was **rendered**.
+
+| Asserts on | Key |
+|--------|-----|
+| What was rendered | `assertions.xprin`, `assertions.diff`, `assertions.dyff` |
+| A phase that fails | `assertions.errors` (see [Error assertions (errors)](#error-assertions-errors)) |
+
 ```yaml
 assertions:
   xprin:
@@ -91,6 +98,70 @@ assertions:
 ```
 
 When `resource` is set, the runner uses the path of that resource’s rendered file as **actual**; otherwise it uses the path of the full render output.
+
+---
+
+## Error assertions (errors)
+
+`assertions.errors` asserts that a phase **fails**, and optionally why. It is for the negative test cases: an input that a composition has to refuse. A test case that has an assertion on the error of the render expects the render to fail: that failure does not fail the test case, and only these assertions run (the other assertions and the validate step do not, since nothing was rendered). The post-test hooks run after them, as always, but without outputs: `.Outputs` is empty. It passes if its assertions pass and its hooks succeed.
+
+### Fields
+
+`name` and `phase` are required, `operator` and `value` are optional ([specification](testsuite-specification.md#assertionserrors)).
+
+`operator` and `value` go together. Without them, any failure of the phase passes. The output is the combined stdout and stderr of the command of the phase (`crossplane render`).
+
+### Examples
+
+A render that has to fail, for any reason:
+
+```yaml
+tests:
+- name: "the existing resource stops the render"
+  inputs:
+    xr: xr.yaml
+    composition: composition.yaml
+    functions: functions.yaml
+    observed-resources: existing-endpoint.yaml
+  assertions:
+    errors:
+    - name: "the render fails"
+      phase: render
+```
+
+A render that has to fail for a reason, with the message in `common` for all the test cases of the file:
+
+```yaml
+common:
+  inputs:
+    composition: composition.yaml
+    functions: functions.yaml
+    observed-resources: existing-endpoint.yaml
+  assertions:
+    errors:
+    - name: "the existing resource could not be evaluated"
+      phase: render
+      operator: contains
+      value: "could not be evaluated, abort"
+
+tests:
+- name: "attachment in another region"
+  inputs:
+    xr: attachment_in_other_region/xr.yaml
+- name: "subnet in another region"
+  inputs:
+    xr: subnet_in_other_region/xr.yaml
+```
+
+### Behavior
+
+- If the render succeeds, the assertion fails: `the render succeeded, but it was expected to fail`.
+- If the render fails and the output is not what `operator` and `value` say, the assertion fails, and its message has the output.
+- A test case whose render fails, and that has no assertion on the error of the render, fails as always.
+- Without `operator` and `value`, the assertion also passes when the render could not run for another reason (the Docker daemon is not running, an image can't be pulled). Use them to check that it failed for the reason you expect.
+- The post-test hooks run after the assertions on the error of the render, whatever they say, as they run after assertions that fail. A hook that uses `.Outputs` gets empty values, so it has to expect that, or the test case has none.
+- The test case has no outputs, so a test case that [needs](how-it-works.md#dependencies-between-test-cases-needs) it has nothing of it to use with `.Tests`.
+- Like the other groups, `assertions.errors` is merged per group: a test case that has its own list does not get the one of `common`.
 
 ---
 
@@ -528,10 +599,10 @@ Assertions can be defined in both the `common` section and at the test case leve
 
 ### Merging Behavior
 
-Merge is **per engine** (`assertions.xprin`, `assertions.diff`, `assertions.dyff`):
+Merge is **per group** (`assertions.xprin`, `assertions.diff`, `assertions.dyff`, `assertions.errors`):
 
-- **If the test case has no assertions for an engine**: Common’s assertions for that engine are used.
-- **If the test case has any assertions for an engine**: The test case’s list for that engine is used (common’s list for that engine is not appended).
+- **If the test case has no assertions for a group**: Common’s assertions for that group are used.
+- **If the test case has any assertions for a group**: The test case’s list for that group is used (common’s list for that group is not appended).
 
 ### Example
 
@@ -594,6 +665,8 @@ Field access handles:
 2. All assertions are evaluated sequentially
 3. Results are collected (pass/fail with messages)
 4. All results are reported at the end
+
+**A render that is expected to fail:** with `assertions.errors` for the render (see [Error assertions](#error-assertions-errors)), a failed render ends the test case, and only these assertions run, then the post-test hooks.
 
 **Error Handling:**
 - All assertions are evaluated even if some fail

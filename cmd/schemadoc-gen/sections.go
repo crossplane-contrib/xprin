@@ -40,6 +40,7 @@ func newSections() sectionList {
 		{"ASSERTIONS", "assertions", "assertions", "Assertions"},
 		{"ASSERTIONS_XPRIN", "assertions.xprin[*]", "assertionsxprin", "AssertionXprin"},
 		{"ASSERTIONS_GOLDEN", "golden-file assertion", "assertionsdiff-and-assertionsdyff", "AssertionGoldenFile"},
+		{"ASSERTIONS_ERRORS", "assertions.errors[*]", "assertionserrors", "AssertionError"},
 	}
 }
 

@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane-contrib/xprin/internal/api"
 	"github.com/crossplane-contrib/xprin/internal/config"
 	"github.com/crossplane-contrib/xprin/internal/engine"
+	"github.com/crossplane-contrib/xprin/internal/templates/placeholder"
 	"github.com/crossplane-contrib/xprin/internal/testexecution/containers"
 	testexecutionOptions "github.com/crossplane-contrib/xprin/internal/testexecution/options"
 	"github.com/crossplane-contrib/xprin/internal/testsuite"
@@ -75,7 +76,8 @@ func renderWith(t *testing.T, testCase api.TestCase, modify func(r *Runner)) (fa
 	t.Helper()
 
 	r, env, args := newRenderRunner(t, modify)
-	failed = r.runCrossplaneRender(env, testCase, engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false))
+	env.expectedFailures = testCase.ExpectedFailures()
+	failed = r.runCrossplaneRender(env, testCase, nil, engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false))
 
 	return failed, *args
 }
@@ -162,7 +164,7 @@ spec:
 	}
 
 	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: functionsPath}}
-	r.runCrossplaneRender(newTestEnv(), testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+	r.runCrossplaneRender(newTestEnv(), testCase, nil, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 
 	assert.Equal(t, coord.ContainerName("xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.5.0"), annotations["render.crossplane.io/runtime-docker-name"])
 	assert.Equal(t, "Orphan", annotations["render.crossplane.io/runtime-docker-cleanup"])
@@ -188,7 +190,7 @@ spec:
 	testCase := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: functionsPath}}
 
 	assert.PanicsWithValue(t, "boom", func() {
-		r.runCrossplaneRender(newTestEnv(), testCase, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+		r.runCrossplaneRender(newTestEnv(), testCase, nil, engine.NewTestCaseResult("test", "", false, false, false, false, false))
 	})
 
 	// The test cases after it that use the container don't wait for a render that is not running any more
@@ -564,7 +566,7 @@ metadata:
 	})
 	result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
 
-	failed := r.runCrossplaneRender(env, api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}, result)
+	failed := r.runCrossplaneRender(env, api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}, nil, result)
 
 	require.Nil(t, failed)
 	assert.Equal(t, "/outputs/rendered.yaml", result.Outputs.Render)
@@ -656,4 +658,194 @@ func TestRunCrossplaneValidate_PassesTheCrossplaneVersionAsTheImage(t *testing.T
 			}
 		})
 	}
+}
+
+// A test case with assertions on the error of the render expects the render to fail: the failure does not fail it,
+// and only these assertions decide.
+func TestRunCrossplaneRender_ExpectsTheRenderToFail(t *testing.T) {
+	failing := func(r *Runner) {
+		r.runCommand = func(string, string, ...string) ([]byte, error) {
+			return []byte("crossplane: error: could not be evaluated, abort\n"), errors.New("exit status 1")
+		}
+	}
+	withErrors := func(errorAssertions ...api.AssertionError) api.TestCase {
+		return api.TestCase{
+			Name:       "test",
+			Inputs:     api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"},
+			Assertions: api.Assertions{Errors: errorAssertions},
+		}
+	}
+
+	anyError := api.AssertionError{Name: "fails", Phase: api.PhaseCrossplaneRender}
+
+	t.Run("any error: the test case passes", func(t *testing.T) {
+		ended, _ := renderWith(t, withErrors(anyError), failing)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusPass(), ended.Status)
+		assert.True(t, ended.HasFailedRender, "the render failed, as expected")
+		assert.Empty(t, ended.FormattedRenderOutput, "and it is not shown as a failure")
+		assert.False(t, ended.HasFailedAssertions)
+		assert.Empty(t, ended.Outputs.Render, "there are no outputs")
+	})
+
+	t.Run("the message is the one expected: the test case passes", func(t *testing.T) {
+		ended, _ := renderWith(t, withErrors(api.AssertionError{Name: "text", Phase: api.PhaseCrossplaneRender, Operator: "contains", Value: "could not be evaluated, abort"}), failing)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusPass(), ended.Status)
+	})
+
+	t.Run("another message: the test case fails, with the output in the assertion", func(t *testing.T) {
+		ended, _ := renderWith(t, withErrors(api.AssertionError{Name: "text", Phase: api.PhaseCrossplaneRender, Operator: "contains", Value: "something else"}), failing)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusFail(), ended.Status)
+		assert.True(t, ended.HasFailedAssertions)
+		assert.Empty(t, ended.FormattedRenderOutput, "the render failure is expected, so it is not shown as one")
+		require.Len(t, ended.AssertionsResults, 1)
+		assert.Contains(t, ended.AssertionsResults[0].Message, "could not be evaluated, abort")
+	})
+
+	t.Run("only the assertions on the error run", func(t *testing.T) {
+		testCase := withErrors(anyError, api.AssertionError{Name: "text", Phase: api.PhaseCrossplaneRender, Operator: "is", Value: "crossplane: error: could not be evaluated, abort"})
+		testCase.Assertions.Xprin = []api.AssertionXprin{{Name: "count", Type: "Count", Value: 1}}
+
+		ended, _ := renderWith(t, testCase, failing)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusPass(), ended.Status)
+		require.Len(t, ended.AssertionsResults, 2)
+		assert.Equal(t, "fails", ended.AssertionsResults[0].Name)
+		assert.Equal(t, "text", ended.AssertionsResults[1].Name)
+	})
+
+	t.Run("the render succeeds: the render phase goes on", func(t *testing.T) {
+		ended, _ := renderWith(t, withErrors(anyError), nil)
+
+		assert.Nil(t, ended)
+	})
+
+	t.Run("a render that fails in a test case without them fails it, as before", func(t *testing.T) {
+		testCase := withErrors()
+		testCase.Assertions.Xprin = []api.AssertionXprin{{Name: "count", Type: "Count", Value: 1}}
+
+		ended, _ := renderWith(t, testCase, failing)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusFail(), ended.Status)
+		assert.True(t, ended.HasFailedRender)
+	})
+}
+
+// With a render that succeeded, the assertions on its error fail: the render was expected to fail.
+func TestRunAssertions_ErrorsFailWhenTheRenderSucceeded(t *testing.T) {
+	r := newMockRunner(&testexecutionOptions.Options{})
+	r.fs = afero.NewMemMapFs()
+
+	env := newTestEnv()
+	env.outputsDir = "/outputs"
+	require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
+
+	testCase := api.TestCase{Name: "test", Assertions: api.Assertions{Errors: []api.AssertionError{{Name: "fails", Phase: api.PhaseCrossplaneRender}}}}
+	result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
+
+	require.Nil(t, r.runAssertions(env, testCase, result))
+
+	assert.True(t, result.HasFailedAssertions)
+	require.Len(t, result.AssertionsResults, 1)
+	assert.Equal(t, engine.StatusFail(), result.AssertionsResults[0].Status)
+	assert.Contains(t, result.AssertionsResults[0].Message, "the render succeeded, but it was expected to fail")
+}
+
+// The post-test hooks run after the assertions on the error of the render, with no outputs, whatever the assertions say.
+func TestRunCrossplaneRender_RunsThePostTestHooksAfterAnExpectedFailure(t *testing.T) {
+	run := func(t *testing.T, hook string, hookFails bool, errorAssertions ...api.AssertionError) (*engine.TestCaseResult, []string) {
+		t.Helper()
+
+		var hooksRun []string
+
+		r, env, _ := newRenderRunner(t, func(r *Runner) {
+			r.runCommand = func(_, name string, args ...string) ([]byte, error) {
+				if name == "sh" { // a hook
+					hooksRun = append(hooksRun, args[len(args)-1])
+
+					if hookFails {
+						return []byte("hook failed"), errors.New("exit status 1")
+					}
+
+					return []byte("done"), nil
+				}
+
+				return []byte("crossplane: error: could not be evaluated, abort\n"), errors.New("exit status 1")
+			}
+		})
+
+		testCase := api.TestCase{
+			Name:       "test",
+			Inputs:     api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"},
+			Assertions: api.Assertions{Errors: errorAssertions},
+			Hooks:      api.Hooks{PostTest: []api.Hook{{Name: "post", Run: placeholder.Replace(hook)}}}, // as the loader makes it
+		}
+
+		env.expectedFailures = testCase.ExpectedFailures()
+
+		return r.runCrossplaneRender(env, testCase, nil, engine.NewTestCaseResult("test", "", false, false, false, false, false)), hooksRun
+	}
+
+	anyError := api.AssertionError{Name: "fails", Phase: api.PhaseCrossplaneRender}
+	otherMessage := api.AssertionError{Name: "other", Phase: api.PhaseCrossplaneRender, Operator: "contains", Value: "something else"}
+
+	t.Run("the assertions pass: the hooks run, and the test case passes", func(t *testing.T) {
+		ended, hooksRun := run(t, "echo bye", false, anyError)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusPass(), ended.Status)
+		assert.Equal(t, []string{"echo bye"}, hooksRun)
+	})
+
+	t.Run("the assertions fail: the hooks run too, and the test case fails", func(t *testing.T) {
+		ended, hooksRun := run(t, "echo bye", false, otherMessage)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusFail(), ended.Status)
+		assert.True(t, ended.HasFailedAssertions)
+		assert.Equal(t, []string{"echo bye"}, hooksRun)
+	})
+
+	t.Run("a failing hook fails the test case", func(t *testing.T) {
+		ended, hooksRun := run(t, "exit 1", true, anyError)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusFail(), ended.Status)
+		assert.True(t, ended.HasFailedPostTestHooks)
+		assert.False(t, ended.HasFailedAssertions)
+		assert.Equal(t, []string{"exit 1"}, hooksRun)
+	})
+
+	t.Run("the outputs are empty in a hook", func(t *testing.T) {
+		ended, hooksRun := run(t, `echo "[{{ .Outputs.Render }}]"`, false, anyError)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusPass(), ended.Status)
+		assert.Equal(t, []string{`echo "[]"`}, hooksRun)
+	})
+
+	t.Run("a phase that does not exist does not expect the render to fail: no hooks", func(t *testing.T) {
+		ended, hooksRun := run(t, "echo bye", false, api.AssertionError{Name: "typo", Phase: "rendr"})
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusFail(), ended.Status)
+		assert.True(t, ended.HasFailedRender)
+		assert.Empty(t, hooksRun)
+	})
+
+	t.Run("a render that fails when it is not expected to runs no hooks, as before", func(t *testing.T) {
+		ended, hooksRun := run(t, "echo bye", false)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusFail(), ended.Status)
+		assert.True(t, ended.HasFailedRender)
+		assert.Empty(t, hooksRun)
+	})
 }

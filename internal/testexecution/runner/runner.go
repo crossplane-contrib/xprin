@@ -64,6 +64,9 @@ type testCaseEnv struct {
 	tmpDir     string
 	inputsDir  string
 	outputsDir string
+
+	// the phases that the test case expects to fail, from its assertions on errors (set after it is merged with common)
+	expectedFailures api.ExpectedFailures
 }
 
 // TestSuiteContext is what a test case is run with, from the testsuite file that it is a part of.
@@ -218,6 +221,9 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 		return result.Fail(err)
 	}
 
+	env.expectedFailures = testCase.ExpectedFailures()
+	result.ExpectedFailures = engine.ExpectedFailures{CrossplaneRender: env.expectedFailures.CrossplaneRender}
+
 	if r.Debug {
 		debuglog.PrintTestCase(r.debug, testCase, "Test specification:")
 	}
@@ -234,7 +240,8 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 		return failed
 	}
 
-	if failed := r.runCrossplaneRender(env, testCase, result); failed != nil {
+	// A crossplane render that fails ends the test case: as a failure, or as its assertions on the error say if it expects it
+	if failed := r.runCrossplaneRender(env, testCase, needsResults, result); failed != nil {
 		return failed
 	}
 

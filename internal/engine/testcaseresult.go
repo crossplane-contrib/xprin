@@ -83,6 +83,9 @@ type TestCaseResult struct {
 	// Outputs for template variables in hooks
 	Outputs Outputs
 
+	// The phases that the test case expects to fail, so that is not a failure of it
+	ExpectedFailures ExpectedFailures
+
 	HasFailedRender        bool
 	HasFailedValidate      bool
 	HasFailedAssertions    bool
@@ -186,6 +189,11 @@ func (tcr *TestCaseResult) FailRender() *TestCaseResult {
 	tcr.FormattedRenderOutput = tcr.formatRenderOutput()
 
 	return tcr.Fail(nil)
+}
+
+// ExpectedFailures are the phases that a test case expects to fail (the runner sets them from the test case).
+type ExpectedFailures struct {
+	CrossplaneRender bool
 }
 
 // HasPipelineFailure returns true if validate, assertions, or post-test hooks failed.
