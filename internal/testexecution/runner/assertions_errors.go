@@ -37,9 +37,10 @@ func executeAssertionsErrors(assertions []api.AssertionError, result *engine.Tes
 
 // phaseOutcome is what an assertion on an error checks: how a phase ended.
 type phaseOutcome struct {
-	name   string // the phase as it is said in a message: "the render"
-	failed bool
-	output string
+	name    string // the phase as it is said in a message: "the render", "validate"
+	skipped bool   // the phase did not run: validate does not without CRDs, or after a render that failed
+	failed  bool
+	output  string
 }
 
 // outcomeOf returns how the phase ended in the result, and false for a phase that does not exist.
@@ -47,6 +48,9 @@ func outcomeOf(phase string, result *engine.TestCaseResult) (phaseOutcome, bool)
 	switch phase {
 	case api.PhaseCrossplaneRender:
 		return phaseOutcome{name: "the render", failed: result.HasFailedRender, output: string(result.RawRenderOutput)}, true
+	case api.PhaseCrossplaneValidate:
+		// The output is written when validate runs: there is none if the test case has no CRDs, or the render failed
+		return phaseOutcome{name: "validate", skipped: result.Outputs.Validate == nil, failed: result.HasFailedValidate, output: string(result.RawValidateOutput)}, true
 	default:
 		return phaseOutcome{}, false
 	}
@@ -58,6 +62,10 @@ func executeAssertionError(assertion api.AssertionError, result *engine.TestCase
 	outcome, ok := outcomeOf(assertion.Phase, result)
 	if !ok {
 		return engine.NewAssertionResult(assertion.Name, engine.StatusError(), fmt.Sprintf("unsupported phase: %q", assertion.Phase))
+	}
+
+	if outcome.skipped {
+		return engine.NewAssertionResult(assertion.Name, engine.StatusFail(), outcome.name+" did not run, but it was expected to fail")
 	}
 
 	if !outcome.failed {

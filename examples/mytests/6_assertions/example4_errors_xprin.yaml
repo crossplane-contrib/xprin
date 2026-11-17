@@ -25,3 +25,26 @@ tests:
     post-test:
     - name: "Post-test hook, it runs after an expected render failure, without outputs"
       run: echo "the render failed as expected, there is no output [{{ .Outputs.Render }}]"
+
+# Validate fails: the SSH key of the XR is not one that its XRD allows. The render succeeded, so the other assertions
+# run as always, and the failure of validate is not one of the test case.
+- name: "Validate is expected to fail"
+  inputs:
+    xr: ../../aws/xr_invalid.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+  assertions:
+    xprin:
+    - name: "The resources were rendered"
+      type: "Count"
+      value: 2
+    errors:
+    - name: "Validate fails"
+      phase: validate
+    - name: "It fails because of the SSH key"
+      phase: validate
+      operator: contains
+      value: 'spec.sshPublicKey: Unsupported value: "prod_ssh_key"'

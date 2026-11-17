@@ -193,13 +193,15 @@ func (tcr *TestCaseResult) FailRender() *TestCaseResult {
 
 // ExpectedFailures are the phases that a test case expects to fail (the runner sets them from the test case).
 type ExpectedFailures struct {
-	CrossplaneRender bool
+	CrossplaneRender   bool
+	CrossplaneValidate bool
 }
 
 // HasPipelineFailure returns true if validate, assertions, or post-test hooks failed.
 // Used by the runner to call Fail(nil) when no infrastructure error was collected.
+// A validate that fails is not one of them when the test case expects it to: its assertions on the error decide.
 func (tcr *TestCaseResult) HasPipelineFailure() bool {
-	return tcr.HasFailedValidate || tcr.HasFailedAssertions || tcr.HasFailedPostTestHooks
+	return (tcr.HasFailedValidate && !tcr.ExpectedFailures.CrossplaneValidate) || tcr.HasFailedAssertions || tcr.HasFailedPostTestHooks
 }
 
 // MarkValidateFailed marks the test as having failed validation and returns the formatted error.
@@ -340,12 +342,14 @@ func (tcr *TestCaseResult) formatRenderOutput() string {
 func (tcr *TestCaseResult) formatValidateOutput() string {
 	const header = "Validate:"
 
-	if !tcr.HasFailedValidate && (!tcr.Verbose || !tcr.ShowValidate) {
+	failed := tcr.HasFailedValidate && !tcr.ExpectedFailures.CrossplaneValidate
+
+	if !failed && (!tcr.Verbose || !tcr.ShowValidate) {
 		return ""
 	}
 
 	outputStr := strings.TrimSpace(string(tcr.RawValidateOutput))
-	if tcr.HasFailedValidate && !tcr.ShowValidate {
+	if failed && !tcr.ShowValidate {
 		lines := strings.Split(outputStr, "\n")
 
 		filtered := lines[:0]

@@ -103,13 +103,16 @@ When `resource` is set, the runner uses the path of that resource’s rendered f
 
 ## Error assertions (errors)
 
-`assertions.errors` asserts that a phase **fails**, and optionally why. It is for the negative test cases: an input that a composition has to refuse. A test case that has an assertion on the error of the render expects the render to fail: that failure does not fail the test case, and only these assertions run (the other assertions and the validate step do not, since nothing was rendered). The post-test hooks run after them, as always, but without outputs: `.Outputs` is empty. It passes if its assertions pass and its hooks succeed.
+`assertions.errors` asserts that a phase **fails**, and optionally why. It is for the negative test cases: an input that a composition has to refuse, or an XR that its XRD has to reject.
+
+- A test case that has an assertion on the error of the **render** expects the render to fail: that failure does not fail the test case, and only these assertions run (the other assertions and the validate step do not, since nothing was rendered). The post-test hooks run after them, as always, but without outputs: `.Outputs` is empty. It passes if its assertions pass and its hooks succeed.
+- A test case that has an assertion on the error of **validate** expects the validate step to fail: that failure does not fail the test case. The render ran, so everything else runs as always, the other assertions and the post-test hooks too, and the test case passes if they all pass.
 
 ### Fields
 
 `name` and `phase` are required, `operator` and `value` are optional ([specification](testsuite-specification.md#assertionserrors)).
 
-`operator` and `value` go together. Without them, any failure of the phase passes. The output is the combined stdout and stderr of the command of the phase (`crossplane render`).
+`operator` and `value` go together. Without them, any failure of the phase passes. The output is the combined stdout and stderr of the command of the phase (`crossplane render`, or `crossplane resource validate`).
 
 ### Examples
 
@@ -153,14 +156,34 @@ tests:
     xr: subnet_in_other_region/xr.yaml
 ```
 
+An XR that its XRD has to reject, checked by the validate step:
+
+```yaml
+tests:
+- name: "an SSH key that the XRD does not allow is rejected"
+  inputs:
+    xr: xr-invalid-ssh-key.yaml
+    composition: composition.yaml
+    functions: functions.yaml
+    crds:
+    - xrd.yaml
+  assertions:
+    errors:
+    - name: "validate rejects the key"
+      phase: validate
+      operator: contains
+      value: "spec.sshPublicKey: Unsupported value"
+```
+
 ### Behavior
 
-- If the render succeeds, the assertion fails: `the render succeeded, but it was expected to fail`.
-- If the render fails and the output is not what `operator` and `value` say, the assertion fails, and its message has the output.
-- A test case whose render fails, and that has no assertion on the error of the render, fails as always.
-- Without `operator` and `value`, the assertion also passes when the render could not run for another reason (the Docker daemon is not running, an image can't be pulled). Use them to check that it failed for the reason you expect.
+- If the phase succeeds, the assertion fails: `the render succeeded, but it was expected to fail`, or `validate succeeded, but it was expected to fail`.
+- If the phase fails and the output is not what `operator` and `value` say, the assertion fails, and its message has the output.
+- Validate does not run without CRDs (see [Phase 4: Validate](how-it-works.md#phase-4-validate-optional)), or after a render that failed: an assertion on its error fails with `validate did not run, but it was expected to fail`.
+- A test case whose render fails, and that has no assertion on the error of the render, fails as always. So does one whose validate fails, and that has no assertion on its error.
+- Without `operator` and `value`, the assertion also passes when the command could not run for another reason (the Docker daemon is not running, an image can't be pulled, a schema is missing). Use them to check that it failed for the reason you expect.
 - The post-test hooks run after the assertions on the error of the render, whatever they say, as they run after assertions that fail. A hook that uses `.Outputs` gets empty values, so it has to expect that, or the test case has none.
-- The test case has no outputs, so a test case that [needs](how-it-works.md#dependencies-between-test-cases-needs) it has nothing of it to use with `.Tests`.
+- With an expected render failure the test case has no outputs, so a test case that [needs](how-it-works.md#dependencies-between-test-cases-needs) it has nothing of it to use with `.Tests`.
 - Like the other groups, `assertions.errors` is merged per group: a test case that has its own list does not get the one of `common`.
 
 ---
@@ -666,7 +689,7 @@ Field access handles:
 3. Results are collected (pass/fail with messages)
 4. All results are reported at the end
 
-**A render that is expected to fail:** with `assertions.errors` for the render (see [Error assertions](#error-assertions-errors)), a failed render ends the test case, and only these assertions run, then the post-test hooks.
+**A phase that is expected to fail:** with [`assertions.errors`](#error-assertions-errors) for the render, a failed render ends the test case, and only these assertions run, then the post-test hooks. With them for validate, the failed validate is not a failure, and the assertions run as always.
 
 **Error Handling:**
 - All assertions are evaluated even if some fail

@@ -52,6 +52,40 @@ tests:
     - name: "The render fails"
       phase: render
 
+- name: "Errors: validate fails, but not with the expected message"
+  inputs:
+    xr: ../../aws/xr_invalid.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+  assertions:
+    errors:
+    - name: "Validate fails"
+      phase: validate
+    - name: "The message is the one of another error"
+      phase: validate
+      operator: contains
+      value: "spec.team: Required value"
+
+- name: "Errors: validate succeeds"
+  inputs:
+    xr: ../../aws/xr.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+  assertions:
+    errors:
+    - name: "Validate fails"
+      phase: validate
+
+- name: "Errors: validate does not run, because there are no CRDs"
+  inputs:
+    xr: ../../aws/xr.yaml
+  assertions:
+    errors:
+    - name: "Validate fails"
+      phase: validate
+
 # Validation failures
 - name: "Validation failure (missing CRD)"
   inputs:

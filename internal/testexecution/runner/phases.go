@@ -613,7 +613,7 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 			result.AssertionsResults = append(result.AssertionsResults, exec.executeAssertionsDyff(testCase.Assertions.Dyff)...)
 		}
 
-		// The render succeeded here, so the assertions on its error fail
+		// The render succeeded here: the assertions on its error fail, and the ones on validate say how it ended
 		if testCase.HasAssertionsErrors() {
 			if r.Debug {
 				r.debug.Printf("Executing %d assertions on errors for test case '%s'\n", len(testCase.Assertions.Errors), testCase.Name)

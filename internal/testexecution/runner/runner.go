@@ -222,7 +222,7 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 	}
 
 	env.expectedFailures = testCase.ExpectedFailures()
-	result.ExpectedFailures = engine.ExpectedFailures{CrossplaneRender: env.expectedFailures.CrossplaneRender}
+	result.ExpectedFailures = engine.ExpectedFailures{CrossplaneRender: env.expectedFailures.CrossplaneRender, CrossplaneValidate: env.expectedFailures.CrossplaneValidate}
 
 	if r.Debug {
 		debuglog.PrintTestCase(r.debug, testCase, "Test specification:")

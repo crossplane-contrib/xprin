@@ -12,7 +12,8 @@
         "phase": {
           "type": "string",
           "enum": [
-            "render"
+            "render",
+            "validate"
           ],
           "description": "The phase that is expected to fail (Required)"
         },

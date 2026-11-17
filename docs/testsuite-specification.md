@@ -293,7 +293,7 @@ See [Golden-file assertions (diff and dyff)](assertions.md#golden-file-assertion
 | Property | Type | Requirement | Description |
 | :------- | :--- | :---------: | :---------- |
 | <a id="assertionserrors.name"></a>`name` | `string` | ✅ | Descriptive name for the assertion |
-| <a id="assertionserrors.phase"></a>`phase` | `string` | ✅ | The phase that is expected to fail. Allowed values: `render` |
+| <a id="assertionserrors.phase"></a>`phase` | `string` | ✅ | The phase that is expected to fail. Allowed values: `render`, `validate` |
 | <a id="assertionserrors.operator"></a>`operator` | `string` | 🔹 | How value is compared with the output of the failed phase (used together with value). Allowed values: `==`, `is`, `contains` |
 | <a id="assertionserrors.value"></a>`value` | `string` | 🔹 | The text that the output is compared with |
 

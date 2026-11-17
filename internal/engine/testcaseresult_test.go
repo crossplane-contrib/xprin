@@ -1123,3 +1123,45 @@ metadata:
 		assert.Equal(t, "Service", result.RenderedResources[2].GetKind())
 	})
 }
+
+func TestTestCaseResult_ExpectedFailures_Validate(t *testing.T) {
+	failedValidate := func(expected bool) *TestCaseResult {
+		result := NewTestCaseResult("test", "test-id", false, false, false, false, false)
+		result.RawValidateOutput = []byte("could not find CRD/XRD for: example.com/v1")
+		result.HasFailedValidate = true
+		result.ExpectedFailures.CrossplaneValidate = expected
+
+		return result
+	}
+
+	t.Run("a failed validate is a failure of the pipeline", func(t *testing.T) {
+		assert.True(t, failedValidate(false).HasPipelineFailure())
+	})
+
+	t.Run("a failed validate that was expected is not", func(t *testing.T) {
+		assert.False(t, failedValidate(true).HasPipelineFailure())
+	})
+
+	t.Run("the assertions and the post-test hooks still are, when it was expected", func(t *testing.T) {
+		withAssertions := failedValidate(true)
+		withAssertions.HasFailedAssertions = true
+
+		withHooks := failedValidate(true)
+		withHooks.HasFailedPostTestHooks = true
+
+		assert.True(t, withAssertions.HasPipelineFailure())
+		assert.True(t, withHooks.HasPipelineFailure())
+	})
+
+	t.Run("the validate section is not shown as a failure when it was expected", func(t *testing.T) {
+		assert.Contains(t, failedValidate(false).formatValidateOutput(), "could not find CRD/XRD")
+		assert.Empty(t, failedValidate(true).formatValidateOutput(), "non-verbose: nothing, as for a validate that passed")
+
+		verbose := NewTestCaseResult("test", "test-id", true, false, true, false, false) // verbose, with --show-validate
+		verbose.RawValidateOutput = []byte("could not find CRD/XRD for: example.com/v1")
+		verbose.HasFailedValidate = true
+		verbose.ExpectedFailures.CrossplaneValidate = true
+
+		assert.Contains(t, verbose.formatValidateOutput(), "could not find CRD/XRD", "with --show-validate it is there, as for a validate that passed")
+	})
+}

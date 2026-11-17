@@ -325,7 +325,7 @@ Assertions provide declarative validation of rendered resources without writing 
 - **diff:** Golden-file comparison using a **unified diff**
 - **dyff:** Golden-file comparison using **dyff** (structural YAML diff, document-aware).
 
-A fourth group, **errors**, is for the negative test cases: it asserts that the render **fails**, and optionally why (see [Error assertions](assertions.md#error-assertions-errors)).
+A fourth group, **errors**, is for the negative test cases: it asserts that the render or validate **fails**, and optionally why (see [Error assertions](assertions.md#error-assertions-errors)).
 
 **Quick Example:**
 ```yaml

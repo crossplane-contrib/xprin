@@ -1298,9 +1298,10 @@ xprin test examples/mytests/6_assertions/example3_golden_file_xprin.yaml -v --sh
 
 **File**: [`mytests/6_assertions/example4_errors_xprin.yaml`](mytests/6_assertions/example4_errors_xprin.yaml)
 
-Sometimes the right result is a failure: an input that a composition has to refuse. `assertions.errors` expects a phase to fail (`phase: render`), and optionally says why, with an `operator` (`==`, `is` or `contains`) and a `value` that are compared with the output of the phase. The failure is what makes the test case pass.
+Sometimes the right result is a failure: an input that a composition has to refuse, or an XR that its XRD has to reject. `assertions.errors` expects a phase to fail (`phase: render` or `phase: validate`), and optionally says why, with an `operator` (`==`, `is` or `contains`) and a `value` that are compared with the output of the phase. The failure is what makes the test case pass.
 
-Nothing was rendered, so only the `errors` assertions run, and then the post-test hooks, without outputs.
+- **The render is expected to fail**: nothing was rendered, so only the `errors` assertions run, and then the post-test hooks, without outputs.
+- **Validate is expected to fail**: the render succeeded, so the other assertions run as always.
 
 ```bash
 xprin test examples/mytests/6_assertions/example4_errors_xprin.yaml -v --show-all
@@ -1321,8 +1322,23 @@ xprin test examples/mytests/6_assertions/example4_errors_xprin.yaml -v --show-al
     Post-test Hooks:
         [✓] Post-test hook, it runs after an expected render failure, without outputs
             the render failed as expected, there is no output []
+=== RUN   Validate is expected to fail
+--- PASS: Validate is expected to fail (2.03s)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Validate:
+        [x] schema validation error aws.example.com/v1, Kind=XAWSInfrastructure, platform-aws : spec.sshPublicKey: Unsupported value: "prod_ssh_key": supported values: "qa_ssh_key"
+        [✓] ec2.aws.upbound.io/v1beta1, Kind=SecurityGroup, platform-aws-sg validated successfully
+        Total 2 resources: 0 missing schemas, 1 success cases, 1 failure cases
+        crossplane: error: could not validate all resources
+    Assertions:
+        [✓] The resources were rendered: found 2 resources (as expected)
+        [✓] Validate fails: validate failed
+        [✓] It fails because of the SSH key: validate failed, and its output contains "spec.sshPublicKey: Unsupported value: \"prod_ssh_key\""
+        Total: 3 assertions, 3 successful, 0 failed, 0 errors
 PASS
-ok	examples/mytests/6_assertions/example4_errors_xprin.yaml	0.041s
+ok	examples/mytests/6_assertions/example4_errors_xprin.yaml	2.071s
 ```
 
 </details>

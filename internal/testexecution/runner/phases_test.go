@@ -726,6 +726,15 @@ func TestRunCrossplaneRender_ExpectsTheRenderToFail(t *testing.T) {
 		assert.Nil(t, ended)
 	})
 
+	t.Run("assertions on the error of validate only: a failed render fails the test case, as before", func(t *testing.T) {
+		ended, _ := renderWith(t, withErrors(api.AssertionError{Name: "validate fails", Phase: api.PhaseCrossplaneValidate}), failing)
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusFail(), ended.Status)
+		assert.True(t, ended.HasFailedRender)
+		assert.Empty(t, ended.AssertionsResults)
+	})
+
 	t.Run("a render that fails in a test case without them fails it, as before", func(t *testing.T) {
 		testCase := withErrors()
 		testCase.Assertions.Xprin = []api.AssertionXprin{{Name: "count", Type: "Count", Value: 1}}
@@ -756,6 +765,81 @@ func TestRunAssertions_ErrorsFailWhenTheRenderSucceeded(t *testing.T) {
 	require.Len(t, result.AssertionsResults, 1)
 	assert.Equal(t, engine.StatusFail(), result.AssertionsResults[0].Status)
 	assert.Contains(t, result.AssertionsResults[0].Message, "the render succeeded, but it was expected to fail")
+}
+
+// A test case with assertions on the error of the validate step expects it to fail: the failure is not one of the
+// pipeline, and the assertions decide.
+func TestRunCrossplaneValidate_ExpectsValidateToFail(t *testing.T) {
+	const validateOutput = "[x] example.com/v1, Kind=XApp, myapp: spec.region: Required value\n"
+
+	run := func(t *testing.T, validateFails bool, errorAssertions ...api.AssertionError) *engine.TestCaseResult {
+		t.Helper()
+
+		r := newMockRunner(&testexecutionOptions.Options{
+			Dependencies: map[string]string{"crossplane": config.CrossplaneCmd},
+			Validate:     []string{config.ValidateSubcommand},
+		})
+		r.fs = afero.NewMemMapFs()
+		r.runCommand = func(string, string, ...string) ([]byte, error) {
+			if validateFails {
+				return []byte(validateOutput), errors.New("exit status 1")
+			}
+
+			return []byte("validated"), nil
+		}
+
+		env := newTestEnv()
+		env.inputsDir, env.outputsDir = "/inputs", "/outputs"
+		require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
+
+		testCase := api.TestCase{Name: "test", Inputs: api.Inputs{CRDs: []string{"crd.yaml"}}, Assertions: api.Assertions{Errors: errorAssertions}}
+		result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
+		result.Outputs.Render = "/outputs/rendered.yaml"
+		result.ExpectedFailures.CrossplaneValidate = testCase.ExpectedFailures().CrossplaneValidate // as the runner sets it
+
+		require.Nil(t, r.runCrossplaneValidate(env, testCase, result))
+		require.Nil(t, r.runAssertions(env, testCase, result))
+
+		return result
+	}
+
+	fails := api.AssertionError{Name: "validate fails", Phase: api.PhaseCrossplaneValidate}
+	region := api.AssertionError{Name: "region", Phase: api.PhaseCrossplaneValidate, Operator: "contains", Value: "spec.region: Required value"}
+	team := api.AssertionError{Name: "team", Phase: api.PhaseCrossplaneValidate, Operator: "contains", Value: "spec.team"}
+
+	t.Run("a failed validate that is expected: no failure, and the assertions pass", func(t *testing.T) {
+		result := run(t, true, fails, region)
+
+		assert.True(t, result.HasFailedValidate)
+		assert.False(t, result.HasFailedAssertions)
+		assert.False(t, result.HasPipelineFailure())
+		assert.Empty(t, result.FormattedValidateOutput, "it is not shown as a failure")
+	})
+
+	t.Run("another message: the assertion fails the test case", func(t *testing.T) {
+		result := run(t, true, team)
+
+		assert.True(t, result.HasFailedAssertions)
+		assert.True(t, result.HasPipelineFailure())
+		require.Len(t, result.AssertionsResults, 1)
+		assert.Contains(t, result.AssertionsResults[0].Message, "spec.region: Required value", "the output is in the message")
+	})
+
+	t.Run("validate succeeds: the assertion fails", func(t *testing.T) {
+		result := run(t, false, fails)
+
+		assert.True(t, result.HasFailedAssertions)
+		assert.True(t, result.HasPipelineFailure())
+		require.Len(t, result.AssertionsResults, 1)
+		assert.Contains(t, result.AssertionsResults[0].Message, "validate succeeded, but it was expected to fail")
+	})
+
+	t.Run("a failed validate that is not expected is a failure, as before", func(t *testing.T) {
+		result := run(t, true)
+
+		assert.True(t, result.HasPipelineFailure())
+		assert.Contains(t, result.FormattedValidateOutput, "spec.region: Required value")
+	})
 }
 
 // The post-test hooks run after the assertions on the error of the render, with no outputs, whatever the assertions say.
@@ -833,6 +917,15 @@ func TestRunCrossplaneRender_RunsThePostTestHooksAfterAnExpectedFailure(t *testi
 
 	t.Run("a phase that does not exist does not expect the render to fail: no hooks", func(t *testing.T) {
 		ended, hooksRun := run(t, "echo bye", false, api.AssertionError{Name: "typo", Phase: "rendr"})
+
+		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusFail(), ended.Status)
+		assert.True(t, ended.HasFailedRender)
+		assert.Empty(t, hooksRun)
+	})
+
+	t.Run("assertions on the error of validate do not expect the render to fail: no hooks", func(t *testing.T) {
+		ended, hooksRun := run(t, "echo bye", false, api.AssertionError{Name: "validate fails", Phase: api.PhaseCrossplaneValidate})
 
 		require.NotNil(t, ended)
 		assert.Equal(t, engine.StatusFail(), ended.Status)

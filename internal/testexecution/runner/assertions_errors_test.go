@@ -137,3 +137,61 @@ func TestExecuteErrorsAssertions(t *testing.T) {
 		assert.Equal(t, engine.StatusFail(), results[1].Status)
 	})
 }
+
+// For validate, an errors assertion reads how the validate step ended: if it ran, if it failed, and its output.
+func TestExecuteErrorsAssertions_Validate(t *testing.T) {
+	const output = "[x] example.com/v1, Kind=XApp, myapp: spec.region: Required value\nTotal 1 resources: 0 missing schemas, 0 success cases, 1 failure cases\n"
+
+	validated := "/outputs/validate.txt"
+
+	for name, tt := range map[string]struct {
+		assertion   api.AssertionError
+		result      engine.TestCaseResult
+		wantStatus  engine.Status
+		wantMessage string
+	}{
+		"it failed": {
+			assertion:   api.AssertionError{Name: "fails", Phase: api.PhaseCrossplaneValidate},
+			result:      engine.TestCaseResult{HasFailedValidate: true, RawValidateOutput: []byte(output)},
+			wantStatus:  engine.StatusPass(),
+			wantMessage: "validate failed",
+		},
+		"it failed, with the output": {
+			assertion:   api.AssertionError{Name: "region", Phase: api.PhaseCrossplaneValidate, Operator: "contains", Value: "spec.region: Required value"},
+			result:      engine.TestCaseResult{HasFailedValidate: true, RawValidateOutput: []byte(output)},
+			wantStatus:  engine.StatusPass(),
+			wantMessage: `validate failed, and its output contains "spec.region: Required value"`,
+		},
+		"it failed, with another output": {
+			assertion:   api.AssertionError{Name: "team", Phase: api.PhaseCrossplaneValidate, Operator: "contains", Value: "spec.team"},
+			result:      engine.TestCaseResult{HasFailedValidate: true, RawValidateOutput: []byte(output)},
+			wantStatus:  engine.StatusFail(),
+			wantMessage: `validate failed, but its output does not contain "spec.team":`,
+		},
+		"it succeeded": {
+			assertion:   api.AssertionError{Name: "fails", Phase: api.PhaseCrossplaneValidate},
+			result:      engine.TestCaseResult{Outputs: engine.Outputs{Validate: &validated}},
+			wantStatus:  engine.StatusFail(),
+			wantMessage: "validate succeeded, but it was expected to fail",
+		},
+		"it did not run: no CRDs, or the render failed": {
+			assertion:   api.AssertionError{Name: "fails", Phase: api.PhaseCrossplaneValidate},
+			result:      engine.TestCaseResult{},
+			wantStatus:  engine.StatusFail(),
+			wantMessage: "validate did not run, but it was expected to fail",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			// A failed validate is written to the outputs too, so it ran
+			if tt.result.HasFailedValidate {
+				tt.result.Outputs.Validate = &validated
+			}
+
+			results := executeAssertionsErrors([]api.AssertionError{tt.assertion}, &tt.result)
+
+			require.Len(t, results, 1)
+			assert.Equal(t, tt.wantStatus, results[0].Status)
+			assert.Contains(t, results[0].Message, tt.wantMessage)
+		})
+	}
+}

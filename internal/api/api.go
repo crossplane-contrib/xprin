@@ -66,13 +66,16 @@ type AssertionGoldenFile struct {
 	Resource string `json:"resource,omitempty"` // Resource identifier for resource-based assertions (format: Kind/Name e.g. "Cluster/platform-aws-rds")
 }
 
-// PhaseCrossplaneRender is the phase of the assertions on the error of crossplane render.
-const PhaseCrossplaneRender = "render"
+// The phases that the assertions on errors are about: crossplane render, and crossplane validate.
+const (
+	PhaseCrossplaneRender   = "render"
+	PhaseCrossplaneValidate = "validate"
+)
 
 // AssertionError represents a single assertion on the error of a phase that is expected to fail.
 type AssertionError struct {
 	Name     string `json:"name"`                                                          // Descriptive name for the assertion
-	Phase    string `json:"phase"              jsonschema:"enum=render"`                   // The phase that is expected to fail
+	Phase    string `json:"phase"              jsonschema:"enum=render,enum=validate"`     // The phase that is expected to fail
 	Operator string `json:"operator,omitempty" jsonschema:"enum===,enum=is,enum=contains"` // How value is compared with the output of the failed phase (used together with value)
 	Value    string `json:"value,omitempty"`                                               // The text that the output is compared with
 }
@@ -318,14 +321,16 @@ func (tc *TestCase) HasAssertionsErrors() bool {
 
 // ExpectedFailures are the phases that a test case expects to fail: the ones that it has assertions on the error of.
 type ExpectedFailures struct {
-	CrossplaneRender bool
+	CrossplaneRender   bool
+	CrossplaneValidate bool
 }
 
 // ExpectedFailures returns the phases that the test case expects to fail. The test case has to be merged with common,
 // which can have the assertions.
 func (tc *TestCase) ExpectedFailures() ExpectedFailures {
 	return ExpectedFailures{
-		CrossplaneRender: len(tc.Assertions.ErrorsOfPhase(PhaseCrossplaneRender)) > 0,
+		CrossplaneRender:   len(tc.Assertions.ErrorsOfPhase(PhaseCrossplaneRender)) > 0,
+		CrossplaneValidate: len(tc.Assertions.ErrorsOfPhase(PhaseCrossplaneValidate)) > 0,
 	}
 }
 

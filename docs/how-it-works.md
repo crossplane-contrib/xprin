@@ -133,6 +133,7 @@ The patched XR replaces the original in the temp directory (see [`xprin-helpers 
 - If `crossplane resource validate` fails, the test **continues** to assertions and post-test hooks
 - Validation failures are collected and reported at the end
 - This allows assertions to run even if validation fails, enabling better debugging
+- A test case with [`assertions.errors`](assertions.md#error-assertions-errors) for validate expects it to fail: the failure is not one of the test case, and its assertions decide
 
 **CLI versions:** the validate subcommand depends on the CLI, and can be set in the configuration (see [Crossplane CLI Versions](#crossplane-cli-versions)).
 
@@ -151,7 +152,7 @@ The patched XR replaces the original in the temp directory (see [`xprin-helpers 
 - **diff**: Golden-file comparison using unified diff (line-by-line)
 - **dyff**: Golden-file comparison using structural YAML diff (document-aware)
 
-A fourth group, [`assertions.errors`](assertions.md#error-assertions-errors), is for the negative test cases: it asserts that the render **fails**, and optionally why, instead of asserting on what was rendered.
+A fourth group, [`assertions.errors`](assertions.md#error-assertions-errors), is for the negative test cases: it asserts that the render or validate **fails**, and optionally why, instead of asserting on what was rendered.
 
 **Error Handling:**
 - All assertions are evaluated even if some fail
@@ -210,7 +211,7 @@ These failures cause the test to fail immediately, skipping all subsequent phase
 These failures are collected and reported, but execution continues:
 
 1. **Validate Phase Failures:**
-   - `crossplane resource validate` command failures
+   - `crossplane resource validate` command failures, unless the test case has [`assertions.errors`](assertions.md#error-assertions-errors) for validate: it expects it to fail, and its assertions decide
    - Schema validation errors
 
 2. **Assert Phase Failures:**
