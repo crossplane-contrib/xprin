@@ -55,11 +55,7 @@ assertions:
 
 ### Fields (diff and dyff)
 
-| Field | Required | Type | Description |
-|-------|----------|------|-------------|
-| `name` | ✅ | string | Assertion name (descriptive identifier). |
-| `expected` | ✅ | string | Path to the golden (expected) file, relative to the test suite file. |
-| `resource` | ❌ | string | Optional. If set, **actual** is the rendered file for this resource (format: `Kind/name`). If omitted, **actual** is the full render output. |
+`name` and `expected` are required, `resource` is optional ([specification](testsuite-specification.md#assertionsdiff-and-assertionsdyff)).
 
 ### When to use diff vs dyff
 
@@ -100,18 +96,9 @@ When `resource` is set, the runner uses the path of that resource’s rendered f
 
 ## Assertion types (xprin)
 
-### Field Reference
+### Fields
 
-| Field | Required | Type | Description |
-|-------|----------|------|-------------|
-| `name` | ✅ | string | Assertion name (descriptive identifier) |
-| `type` | ✅ | string | Assertion type (see [Assertion types (xprin)](#assertion-types-xprin)) |
-| `resource` | ✅* | string | Resource identifier: exact name, kind only, or pattern (see [Resource field: patterns](#resource-field-patterns-globbing)) |
-| `field` | ✅* | string | Field path for field-based assertions (e.g., `metadata.name`, `spec.replicas`) |
-| `operator` | ✅* | string | Operator for field value assertions (e.g., `==`, `is`) |
-| `value` | ✅* | any | Expected value for count, type, or field value assertions |
-
-*Required fields depend on assertion type (see [Assertion types (xprin)](#assertion-types-xprin))
+`name` and `type` are required, the others depend on the type ([specification](testsuite-specification.md#assertionsxprin)).
 
 ### Resource field: patterns (globbing)
 
