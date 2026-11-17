@@ -32,8 +32,8 @@ import (
 // that returns the failed result, to end the test case, or nil to go on. They are the phases of docs/how-it-works.md:
 //
 //	Setup:             expandInputPaths, copyInputs, runPreTestHooks (executeTestCase makes the temporary directory)
-//	Patch and Render:  renderTestCase
-//	Validate:          validateTestCase
+//	Patch and Render:  runCrossplaneRender
+//	Validate:          runCrossplaneValidate
 //	Assert:            runAssertions
 //	Finish:            runPostTestHooks, saveOutputs
 
@@ -313,12 +313,12 @@ func (r *Runner) runPreTestHooks(env *testCaseEnv, testCase api.TestCase, needsR
 	return nil
 }
 
-// renderTestCase turns the test case into the XR to render (converting its Claim, or taking its XR, and patching it),
+// runCrossplaneRender turns the test case into the XR to render (converting its Claim, or taking its XR, and patching it),
 // renders it, and writes the rendered resources to the outputs directory of its environment. It returns the
 // failed result when any of that fails, to end the run of the test case, and nil to go on.
 //
 //nolint:gocognit // The steps of the conversion, the patching and the render, one after the other
-func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
+func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
 	var err error
 
 	// Handle XR input - either convert Claim to XR or use provided XR file
@@ -496,11 +496,11 @@ func (r *Runner) renderTestCase(env *testCaseEnv, testCase api.TestCase, result 
 	return nil
 }
 
-// validateTestCase validates the rendered resources of the test case against its CRDs, if it has any, and writes
+// runCrossplaneValidate validates the rendered resources of the test case against its CRDs, if it has any, and writes
 // the output to the outputs directory of its environment. A failed validation is in the result, and does not
 // end the run of the test case: only a failure to write the output does, and the failed result is returned then.
 // It returns nil to go on.
-func (r *Runner) validateTestCase(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
+func (r *Runner) runCrossplaneValidate(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
 	var err error
 
 	if len(testCase.Inputs.CRDs) >= 1 {

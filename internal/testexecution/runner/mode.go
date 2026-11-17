@@ -56,7 +56,7 @@ func (testMode) skips(*testCaseEnv, api.TestCase) bool {
 func (m testMode) runPhasesAfterRender(testCase api.TestCase, env *testCaseEnv, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
 	r := m.r
 
-	if failed := r.validateTestCase(env, testCase, result); failed != nil {
+	if failed := r.runCrossplaneValidate(env, testCase, result); failed != nil {
 		return failed
 	}
 
