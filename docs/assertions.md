@@ -32,6 +32,13 @@ Assertions are organized by **assertion engine**. xprin supports three engines:
 
 You can use one or more engines in the same test; all assertion results are collected and reported together.
 
+A fourth group, `assertions.errors`, is not an engine: it asserts on a **failure**, where the engines assert on what was **rendered**.
+
+| Asserts on | Key |
+|--------|-----|
+| What was rendered | `assertions.xprin`, `assertions.diff`, `assertions.dyff` |
+| A phase that fails | `assertions.errors` (see [Error assertions (errors)](#error-assertions-errors)) |
+
 ```yaml
 assertions:
   xprin:
@@ -55,11 +62,7 @@ assertions:
 
 ### Fields (diff and dyff)
 
-| Field | Required | Type | Description |
-|-------|----------|------|-------------|
-| `name` | ✅ | string | Assertion name (descriptive identifier). |
-| `expected` | ✅ | string | Path to the golden (expected) file, relative to the test suite file. |
-| `resource` | ❌ | string | Optional. If set, **actual** is the rendered file for this resource (format: `Kind/name`). If omitted, **actual** is the full render output. |
+`name` and `expected` are required, `resource` is optional ([specification](testsuite-specification.md#assertionsdiff-and-assertionsdyff)).
 
 ### When to use diff vs dyff
 
@@ -98,20 +101,98 @@ When `resource` is set, the runner uses the path of that resource’s rendered f
 
 ---
 
+## Error assertions (errors)
+
+`assertions.errors` asserts that a phase **fails**, and optionally why. It is for the negative test cases: an input that a composition has to refuse, or an XR that its XRD has to reject.
+
+- A test case that has an assertion on the error of the **render** expects the render to fail: that failure does not fail the test case, and only these assertions run (the other assertions and the validate step do not, since nothing was rendered). The post-test hooks run after them, as always, but without outputs: `.Outputs` is empty. It passes if its assertions pass and its hooks succeed.
+- A test case that has an assertion on the error of **validate** expects the validate step to fail: that failure does not fail the test case. The render ran, so everything else runs as always, the other assertions and the post-test hooks too, and the test case passes if they all pass.
+
+### Fields
+
+`name` and `phase` are required, `operator` and `value` are optional ([specification](testsuite-specification.md#assertionserrors)).
+
+`operator` and `value` go together. Without them, any failure of the phase passes. The output is the combined stdout and stderr of the command of the phase (`crossplane render`, or `crossplane resource validate`).
+
+### Examples
+
+A render that has to fail, for any reason:
+
+```yaml
+tests:
+- name: "the existing resource stops the render"
+  inputs:
+    xr: xr.yaml
+    composition: composition.yaml
+    functions: functions.yaml
+    observed-resources: existing-endpoint.yaml
+  assertions:
+    errors:
+    - name: "the render fails"
+      phase: render
+```
+
+A render that has to fail for a reason, with the message in `common` for all the test cases of the file:
+
+```yaml
+common:
+  inputs:
+    composition: composition.yaml
+    functions: functions.yaml
+    observed-resources: existing-endpoint.yaml
+  assertions:
+    errors:
+    - name: "the existing resource could not be evaluated"
+      phase: render
+      operator: contains
+      value: "could not be evaluated, abort"
+
+tests:
+- name: "attachment in another region"
+  inputs:
+    xr: attachment_in_other_region/xr.yaml
+- name: "subnet in another region"
+  inputs:
+    xr: subnet_in_other_region/xr.yaml
+```
+
+An XR that its XRD has to reject, checked by the validate step:
+
+```yaml
+tests:
+- name: "an SSH key that the XRD does not allow is rejected"
+  inputs:
+    xr: xr-invalid-ssh-key.yaml
+    composition: composition.yaml
+    functions: functions.yaml
+    crds:
+    - xrd.yaml
+  assertions:
+    errors:
+    - name: "validate rejects the key"
+      phase: validate
+      operator: contains
+      value: "spec.sshPublicKey: Unsupported value"
+```
+
+### Behavior
+
+- If the phase succeeds, the assertion fails: `the render succeeded, but it was expected to fail`, or `validate succeeded, but it was expected to fail`.
+- If the phase fails and the output is not what `operator` and `value` say, the assertion fails, and its message has the output.
+- Validate does not run without CRDs (see [Phase 4: Validate](how-it-works.md#phase-4-validate-optional)), or after a render that failed: an assertion on its error fails with `validate did not run, but it was expected to fail`.
+- A test case whose render fails, and that has no assertion on the error of the render, fails as always. So does one whose validate fails, and that has no assertion on its error.
+- Without `operator` and `value`, the assertion also passes when the command could not run for another reason (the Docker daemon is not running, an image can't be pulled, a schema is missing). Use them to check that it failed for the reason you expect.
+- The post-test hooks run after the assertions on the error of the render, whatever they say, as they run after assertions that fail. A hook that uses `.Outputs` gets empty values, so it has to expect that, or the test case has none.
+- With an expected render failure the test case has no outputs, so a test case that [needs](how-it-works.md#dependencies-between-test-cases-needs) it has nothing of it to use with `.Tests`.
+- Like the other groups, `assertions.errors` is merged per group: a test case that has its own list does not get the one of `common`.
+
+---
+
 ## Assertion types (xprin)
 
-### Field Reference
+### Fields
 
-| Field | Required | Type | Description |
-|-------|----------|------|-------------|
-| `name` | ✅ | string | Assertion name (descriptive identifier) |
-| `type` | ✅ | string | Assertion type (see [Assertion types (xprin)](#assertion-types-xprin)) |
-| `resource` | ✅* | string | Resource identifier: exact name, kind only, or pattern (see [Resource field: patterns](#resource-field-patterns-globbing)) |
-| `field` | ✅* | string | Field path for field-based assertions (e.g., `metadata.name`, `spec.replicas`) |
-| `operator` | ✅* | string | Operator for field value assertions (e.g., `==`, `is`) |
-| `value` | ✅* | any | Expected value for count, type, or field value assertions |
-
-*Required fields depend on assertion type (see [Assertion types (xprin)](#assertion-types-xprin))
+`name` and `type` are required, the others depend on the type ([specification](testsuite-specification.md#assertionsxprin)).
 
 ### Resource field: patterns (globbing)
 
@@ -541,10 +622,10 @@ Assertions can be defined in both the `common` section and at the test case leve
 
 ### Merging Behavior
 
-Merge is **per engine** (`assertions.xprin`, `assertions.diff`, `assertions.dyff`):
+Merge is **per group** (`assertions.xprin`, `assertions.diff`, `assertions.dyff`, `assertions.errors`):
 
-- **If the test case has no assertions for an engine**: Common’s assertions for that engine are used.
-- **If the test case has any assertions for an engine**: The test case’s list for that engine is used (common’s list for that engine is not appended).
+- **If the test case has no assertions for a group**: Common’s assertions for that group are used.
+- **If the test case has any assertions for a group**: The test case’s list for that group is used (common’s list for that group is not appended).
 
 ### Example
 
@@ -607,6 +688,8 @@ Field access handles:
 2. All assertions are evaluated sequentially
 3. Results are collected (pass/fail with messages)
 4. All results are reported at the end
+
+**A phase that is expected to fail:** with [`assertions.errors`](#error-assertions-errors) for the render, a failed render ends the test case, and only these assertions run, then the post-test hooks. With them for validate, the failed validate is not a failure, and the assertions run as always.
 
 **Error Handling:**
 - All assertions are evaluated even if some fail

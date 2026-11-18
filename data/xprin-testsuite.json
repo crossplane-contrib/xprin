@@ -3,6 +3,42 @@
   "$id": "https://github.com/crossplane-contrib/xprin/internal/api/test-suite-spec",
   "$ref": "#/$defs/TestSuiteSpec",
   "$defs": {
+    "AssertionError": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Descriptive name for the assertion (Required)"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "render",
+            "validate"
+          ],
+          "description": "The phase that is expected to fail (Required)"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "==",
+            "is",
+            "contains"
+          ],
+          "description": "How value is compared with the output of the failed phase (used together with value) (Optional)"
+        },
+        "value": {
+          "type": "string",
+          "description": "The text that the output is compared with (Optional)"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "phase"
+      ],
+      "description": "AssertionError represents a single assertion on the error of a phase that is expected to fail."
+    },
     "AssertionGoldenFile": {
       "properties": {
         "name": {
@@ -95,11 +131,18 @@
           },
           "type": "array",
           "description": "dyff assertions (dyff between expected and actual) (Optional)"
+        },
+        "errors": {
+          "items": {
+            "$ref": "#/$defs/AssertionError"
+          },
+          "type": "array",
+          "description": "assertions on the error of a phase that is expected to fail (Optional)"
         }
       },
       "additionalProperties": false,
       "type": "object",
-      "description": "Assertions represents assertions grouped by execution engine."
+      "description": "Assertions represents assertions grouped by execution engine, and the assertions on errors."
     },
     "Common": {
       "properties": {

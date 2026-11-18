@@ -1154,6 +1154,48 @@ func TestTestCase_mergeCommon(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "per-engine assertion merge: test has xprin only, common has xprin and errors",
+			testCase: TestCase{
+				Name: "test21",
+				Inputs: Inputs{
+					XR:          "xr.yaml",
+					Composition: "composition.yaml",
+					Functions:   "functions.yaml",
+				},
+				Assertions: Assertions{
+					Xprin: []AssertionXprin{
+						{Name: "test-count", Type: "Count", Value: 1},
+					},
+				},
+			},
+			common: Common{
+				Assertions: Assertions{
+					Xprin: []AssertionXprin{
+						{Name: "common-count", Type: "Count", Value: 2},
+					},
+					Errors: []AssertionError{
+						{Name: "common error", Phase: PhaseCrossplaneRender, Operator: "contains", Value: "abort"},
+					},
+				},
+			},
+			expected: TestCase{
+				Name: "test21",
+				Inputs: Inputs{
+					XR:          "xr.yaml",
+					Composition: "composition.yaml",
+					Functions:   "functions.yaml",
+				},
+				Assertions: Assertions{
+					Xprin: []AssertionXprin{
+						{Name: "test-count", Type: "Count", Value: 1},
+					},
+					Errors: []AssertionError{
+						{Name: "common error", Phase: PhaseCrossplaneRender, Operator: "contains", Value: "abort"},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1785,6 +1827,17 @@ func TestTestCase_hasAssertions(t *testing.T) {
 					Xprin: []AssertionXprin{
 						{Name: "test-count", Type: "Count", Value: 3},
 						{Name: "test-exists", Type: "Exists", Resource: "Deployment/my-app"},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "only assertions on errors",
+			testCase: TestCase{
+				Assertions: Assertions{
+					Errors: []AssertionError{
+						{Name: "test-error", Phase: PhaseCrossplaneRender},
 					},
 				},
 			},

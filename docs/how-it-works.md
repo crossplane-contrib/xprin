@@ -133,6 +133,7 @@ The patched XR replaces the original in the temp directory (see [`xprin-helpers 
 - If `crossplane resource validate` fails, the test **continues** to assertions and post-test hooks
 - Validation failures are collected and reported at the end
 - This allows assertions to run even if validation fails, enabling better debugging
+- A test case with [`assertions.errors`](assertions.md#error-assertions-errors) for validate expects it to fail: the failure is not one of the test case, and its assertions decide
 
 **CLI versions:** the validate subcommand depends on the CLI, and can be set in the configuration (see [Crossplane CLI Versions](#crossplane-cli-versions)).
 
@@ -151,6 +152,8 @@ The patched XR replaces the original in the temp directory (see [`xprin-helpers 
 - **diff**: Golden-file comparison using unified diff (line-by-line)
 - **dyff**: Golden-file comparison using structural YAML diff (document-aware)
 
+A fourth group, [`assertions.errors`](assertions.md#error-assertions-errors), is for the negative test cases: it asserts that the render or validate **fails**, and optionally why, instead of asserting on what was rendered.
+
 **Error Handling:**
 - All assertions are evaluated even if some fail
 - Failed assertions are collected and reported at the end
@@ -167,7 +170,7 @@ The patched XR replaces the original in the temp directory (see [`xprin-helpers 
 **Template Variables:** see [Available Variables](#available-variables).
 
 **Error Handling:**
-- Post-test hooks run even if validation or assertions failed, so that cleanup can happen; they don't run after a hard failure (setup or render, see [Error Handling Behavior](#error-handling-behavior))
+- Post-test hooks run even if validation or assertions failed, so that cleanup can happen; they don't run after a hard failure (setup or render, see [Error Handling Behavior](#error-handling-behavior)), except after a render that the test case expects to fail, where they run after its `assertions.errors`
 - Hook failures are collected and reported
 
 **When it runs:**
@@ -198,7 +201,7 @@ These failures cause the test to fail immediately, skipping all subsequent phase
    - Claim to XR conversion failures
 
 2. **Render Phase Failures:**
-   - `crossplane render` command failures
+   - `crossplane render` command failures, unless the test case has [`assertions.errors`](assertions.md#error-assertions-errors) for the render: it expects the render to fail, and only these assertions run, then the post-test hooks
    - Render output parsing failures
 
 **Rationale:** Without successful setup or render output, subsequent phases cannot proceed meaningfully.
@@ -208,7 +211,7 @@ These failures cause the test to fail immediately, skipping all subsequent phase
 These failures are collected and reported, but execution continues:
 
 1. **Validate Phase Failures:**
-   - `crossplane resource validate` command failures
+   - `crossplane resource validate` command failures, unless the test case has [`assertions.errors`](assertions.md#error-assertions-errors) for validate: it expects it to fail, and its assertions decide
    - Schema validation errors
 
 2. **Assert Phase Failures:**
@@ -267,7 +270,7 @@ xprin supports defining configuration at two levels: `common` (shared across all
 1. **Common Configuration**: Applied to all test cases in the suite
 2. **Test Case Configuration**: Overrides common configuration for that specific test
 3. **Field-Level Replacement**: For all fields (including maps like `inputs.context-files`, `inputs.context-values`), if a test case specifies a field, it completely replaces the common value for that field. There is no deep merging of map keys - the entire field value is replaced.
-4. **List replacement (per type)**: For **hooks** and **assertions**, merge is per type. For hooks: `hooks.pre-test` and `hooks.post-test` are independent—if the test case has no pre-test hooks, common’s pre-test hooks are used; if it has any, the test case’s list is used (and similarly for post-test). For assertions: same per engine (`assertions.xprin`, `assertions.diff`, `assertions.dyff`)—if the test case has no assertions for a given engine, common’s list for that engine is used; if it has any, the test case’s list is used. There is no appending; each list is replaced as a whole when the test case specifies it.
+4. **List replacement (per type)**: For **hooks** and **assertions**, merge is per type. For hooks: `hooks.pre-test` and `hooks.post-test` are independent—if the test case has no pre-test hooks, common’s pre-test hooks are used; if it has any, the test case’s list is used (and similarly for post-test). For assertions: same per group (`assertions.xprin`, `assertions.diff`, `assertions.dyff`, `assertions.errors`)—if the test case has no assertions for a given group, common’s list for that group is used; if it has any, the test case’s list is used. There is no appending; each list is replaced as a whole when the test case specifies it.
 
 ### Precedence Rules
 
@@ -562,7 +565,7 @@ Hooks provide a way to execute arbitrary shell commands at specific points in th
 
 ## Assertions Execution
 
-Assertions run after validation (or after rendering, when there are no CRDs), on the rendered resources in the temp directory. Three engines are supported: **xprin** (in-process count/existence/field checks), **diff** (golden-file unified diff, [go-difflib](https://github.com/pmezard/go-difflib)) and **dyff** (golden-file structural YAML diff, [dyff](https://github.com/homeport/dyff)). They are all evaluated, even when some fail, and reported together; the test case then continues to the post-test hooks.
+Assertions run after validation (or after rendering, when there are no CRDs), on the rendered resources in the temp directory. Three engines are supported (and [`assertions.errors`](assertions.md#error-assertions-errors), which is not one: it asserts on a phase that fails): **xprin** (in-process count/existence/field checks), **diff** (golden-file unified diff, [go-difflib](https://github.com/pmezard/go-difflib)) and **dyff** (golden-file structural YAML diff, [dyff](https://github.com/homeport/dyff)). They are all evaluated, even when some fail, and reported together; the test case then continues to the post-test hooks.
 
 See [Assertions](assertions.md) for the engines, the types, the [field path syntax](assertions.md#field-path-syntax), the [execution and error handling](assertions.md#execution-and-error-handling), and examples.
 

@@ -59,6 +59,11 @@ Every property of the file, by its full path:
 - [`common.assertions.dyff[*].name`](#assertionsdiff-and-assertionsdyff.name)
 - [`common.assertions.dyff[*].expected`](#assertionsdiff-and-assertionsdyff.expected)
 - [`common.assertions.dyff[*].resource`](#assertionsdiff-and-assertionsdyff.resource)
+- [`common.assertions.errors[*]`](#assertionserrors)
+- [`common.assertions.errors[*].name`](#assertionserrors.name)
+- [`common.assertions.errors[*].phase`](#assertionserrors.phase)
+- [`common.assertions.errors[*].operator`](#assertionserrors.operator)
+- [`common.assertions.errors[*].value`](#assertionserrors.value)
 - [`tests[*]`](#tests)
 - [`tests[*].name`](#tests.name)
 - [`tests[*].id`](#tests.id)
@@ -102,6 +107,11 @@ Every property of the file, by its full path:
 - [`tests[*].assertions.dyff[*].name`](#assertionsdiff-and-assertionsdyff.name)
 - [`tests[*].assertions.dyff[*].expected`](#assertionsdiff-and-assertionsdyff.expected)
 - [`tests[*].assertions.dyff[*].resource`](#assertionsdiff-and-assertionsdyff.resource)
+- [`tests[*].assertions.errors[*]`](#assertionserrors)
+- [`tests[*].assertions.errors[*].name`](#assertionserrors.name)
+- [`tests[*].assertions.errors[*].phase`](#assertionserrors.phase)
+- [`tests[*].assertions.errors[*].operator`](#assertionserrors.operator)
+- [`tests[*].assertions.errors[*].value`](#assertionserrors.value)
 
 <!-- DOCS_END_INDEX -->
 
@@ -241,6 +251,7 @@ Used in `common.assertions` and `tests[*].assertions`.
 | <a id="assertions.xprin"></a>`xprin` | list of [`assertions.xprin[*]`](#assertionsxprin) | 🔹 | xprin assertions (in-process) |
 | <a id="assertions.diff"></a>`diff` | list of [`golden-file assertion`](#assertionsdiff-and-assertionsdyff) | 🔹 | diff assertions (go-native compare to golden file) |
 | <a id="assertions.dyff"></a>`dyff` | list of [`golden-file assertion`](#assertionsdiff-and-assertionsdyff) | 🔹 | dyff assertions (dyff between expected and actual) |
+| <a id="assertions.errors"></a>`errors` | list of [`assertions.errors[*]`](#assertionserrors) | 🔹 | assertions on the error of a phase that is expected to fail |
 
 <!-- DOCS_END_ASSERTIONS -->
 
@@ -274,6 +285,21 @@ Which of `resource`, `field`, `operator` and `value` an assertion needs depends 
 <!-- DOCS_END_ASSERTIONS_GOLDEN -->
 
 See [Golden-file assertions (diff and dyff)](assertions.md#golden-file-assertions-diff-and-dyff).
+
+### `assertions.errors[*]`
+
+<!-- DOCS_START_ASSERTIONS_ERRORS -->
+
+| Property | Type | Requirement | Description |
+| :------- | :--- | :---------: | :---------- |
+| <a id="assertionserrors.name"></a>`name` | `string` | ✅ | Descriptive name for the assertion |
+| <a id="assertionserrors.phase"></a>`phase` | `string` | ✅ | The phase that is expected to fail. Allowed values: `render`, `validate` |
+| <a id="assertionserrors.operator"></a>`operator` | `string` | 🔹 | How value is compared with the output of the failed phase (used together with value). Allowed values: `==`, `is`, `contains` |
+| <a id="assertionserrors.value"></a>`value` | `string` | 🔹 | The text that the output is compared with |
+
+<!-- DOCS_END_ASSERTIONS_ERRORS -->
+
+See [Error assertions (errors)](assertions.md#error-assertions-errors).
 
 ---
 

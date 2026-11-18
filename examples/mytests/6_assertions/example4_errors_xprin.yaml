@@ -1,0 +1,50 @@
+# Negative test cases: the assertions in `errors` expect a phase to fail, and say why. The failure is what makes the
+# test case pass.
+tests:
+
+# The render fails: the XR is a claim, so its kind is not the one of the composition. Only the `errors` assertions
+# run: nothing was rendered for the others. The post-test hooks run after them, without outputs.
+- name: "The render is expected to fail"
+  inputs:
+    xr: ../../aws/claim.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+  assertions:
+    errors:
+    - name: "The render fails"
+      phase: render
+    - name: "It fails because of the kind of the XR"
+      phase: render
+      operator: contains
+      value: "does not match XR's kind"
+    - name: "The output is the whole error of the render"
+      phase: render
+      operator: is
+      value: "crossplane: error: composition's compositeTypeRef.kind (XAWSInfrastructure) does not match XR's kind (AWSInfrastructure)"
+  hooks:
+    post-test:
+    - name: "Post-test hook, it runs after an expected render failure, without outputs"
+      run: echo "the render failed as expected, there is no output [{{ .Outputs.Render }}]"
+
+# Validate fails: the SSH key of the XR is not one that its XRD allows. The render succeeded, so the other assertions
+# run as always, and the failure of validate is not one of the test case.
+- name: "Validate is expected to fail"
+  inputs:
+    xr: ../../aws/xr_invalid.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+  assertions:
+    xprin:
+    - name: "The resources were rendered"
+      type: "Count"
+      value: 2
+    errors:
+    - name: "Validate fails"
+      phase: validate
+    - name: "It fails because of the SSH key"
+      phase: validate
+      operator: contains
+      value: 'spec.sshPublicKey: Unsupported value: "prod_ssh_key"'

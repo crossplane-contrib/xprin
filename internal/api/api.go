@@ -66,11 +66,26 @@ type AssertionGoldenFile struct {
 	Resource string `json:"resource,omitempty"` // Resource identifier for resource-based assertions (format: Kind/Name e.g. "Cluster/platform-aws-rds")
 }
 
-// Assertions represents assertions grouped by execution engine.
+// The phases that the assertions on errors are about: crossplane render, and crossplane validate.
+const (
+	PhaseCrossplaneRender   = "render"
+	PhaseCrossplaneValidate = "validate"
+)
+
+// AssertionError represents a single assertion on the error of a phase that is expected to fail.
+type AssertionError struct {
+	Name     string `json:"name"`                                                          // Descriptive name for the assertion
+	Phase    string `json:"phase"              jsonschema:"enum=render,enum=validate"`     // The phase that is expected to fail
+	Operator string `json:"operator,omitempty" jsonschema:"enum===,enum=is,enum=contains"` // How value is compared with the output of the failed phase (used together with value)
+	Value    string `json:"value,omitempty"`                                               // The text that the output is compared with
+}
+
+// Assertions represents assertions grouped by execution engine, and the assertions on errors.
 type Assertions struct {
-	Xprin []AssertionXprin      `json:"xprin,omitempty"` // xprin assertions (in-process)
-	Diff  []AssertionGoldenFile `json:"diff,omitempty"`  // diff assertions (go-native compare to golden file)
-	Dyff  []AssertionGoldenFile `json:"dyff,omitempty"`  // dyff assertions (dyff between expected and actual)
+	Xprin  []AssertionXprin      `json:"xprin,omitempty"`  // xprin assertions (in-process)
+	Diff   []AssertionGoldenFile `json:"diff,omitempty"`   // diff assertions (go-native compare to golden file)
+	Dyff   []AssertionGoldenFile `json:"dyff,omitempty"`   // dyff assertions (dyff between expected and actual)
+	Errors []AssertionError      `json:"errors,omitempty"` // assertions on the error of a phase that is expected to fail
 }
 
 // Common represents the common configuration for a testsuite file.
@@ -173,9 +188,27 @@ func (a *Assertions) HasAssertionsGoldenFiles() bool {
 	return a.HasAssertionsDiff() || a.HasAssertionsDyff()
 }
 
+// HasAssertionsErrors returns true if any assertions on errors are set.
+func (a *Assertions) HasAssertionsErrors() bool {
+	return len(a.Errors) > 0
+}
+
+// ErrorsOfPhase returns the assertions on the error of the phase, in the order they are listed.
+func (a *Assertions) ErrorsOfPhase(phase string) []AssertionError {
+	var found []AssertionError
+
+	for _, assertion := range a.Errors {
+		if assertion.Phase == phase {
+			found = append(found, assertion)
+		}
+	}
+
+	return found
+}
+
 // HasAssertions returns true if any assertions are set.
 func (a *Assertions) HasAssertions() bool {
-	return a.HasAssertionsXprin() || a.HasAssertionsDiff() || a.HasAssertionsDyff()
+	return a.HasAssertionsXprin() || a.HasAssertionsDiff() || a.HasAssertionsDyff() || a.HasAssertionsErrors()
 }
 
 // PositionOf returns the position in the file of the first test case that has this ID, or -1 if no test
@@ -281,6 +314,26 @@ func (tc *TestCase) HasAssertionsXprin() bool {
 	return tc.Assertions.HasAssertionsXprin()
 }
 
+// HasAssertionsErrors checks if any assertions on errors are set in the test case.
+func (tc *TestCase) HasAssertionsErrors() bool {
+	return tc.Assertions.HasAssertionsErrors()
+}
+
+// ExpectedFailures are the phases that a test case expects to fail: the ones that it has assertions on the error of.
+type ExpectedFailures struct {
+	CrossplaneRender   bool
+	CrossplaneValidate bool
+}
+
+// ExpectedFailures returns the phases that the test case expects to fail. The test case has to be merged with common,
+// which can have the assertions.
+func (tc *TestCase) ExpectedFailures() ExpectedFailures {
+	return ExpectedFailures{
+		CrossplaneRender:   len(tc.Assertions.ErrorsOfPhase(PhaseCrossplaneRender)) > 0,
+		CrossplaneValidate: len(tc.Assertions.ErrorsOfPhase(PhaseCrossplaneValidate)) > 0,
+	}
+}
+
 // HasAssertionsDiff checks if any diff assertions are set in the test case.
 func (tc *TestCase) HasAssertionsDiff() bool {
 	return tc.Assertions.HasAssertionsDiff()
@@ -382,6 +435,11 @@ func (tc *TestCase) MergeCommon(common Common) {
 	if common.Assertions.HasAssertionsXprin() && !tc.HasAssertionsXprin() {
 		tc.Assertions.Xprin = make([]AssertionXprin, len(common.Assertions.Xprin))
 		copy(tc.Assertions.Xprin, common.Assertions.Xprin)
+	}
+
+	if common.Assertions.HasAssertionsErrors() && !tc.HasAssertionsErrors() {
+		tc.Assertions.Errors = make([]AssertionError, len(common.Assertions.Errors))
+		copy(tc.Assertions.Errors, common.Assertions.Errors)
 	}
 
 	if common.Assertions.HasAssertionsDiff() && !tc.HasAssertionsDiff() {

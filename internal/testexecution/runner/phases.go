@@ -314,11 +314,12 @@ func (r *Runner) runPreTestHooks(env *testCaseEnv, testCase api.TestCase, needsR
 }
 
 // runCrossplaneRender turns the test case into the XR to render (converting its Claim, or taking its XR, and patching it),
-// renders it, and writes the rendered resources to the outputs directory of its environment. It returns the
-// failed result when any of that fails, to end the run of the test case, and nil to go on.
+// renders it, and writes the rendered resources to the outputs directory of its environment. It returns the result
+// that ends the run of the test case when any of that fails (the failed one, or the one of the assertions on errors
+// when the test case expects the render to fail), and nil to go on.
 //
 //nolint:gocognit // The steps of the conversion, the patching and the render, one after the other
-func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
+func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
 	var err error
 
 	// Handle XR input - either convert Claim to XR or use provided XR file
@@ -436,6 +437,11 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, re
 	releaseContainers(err == nil)
 
 	if err != nil {
+		// A test case with assertions on the error of crossplane render expects it to fail
+		if env.expectedFailures.CrossplaneRender {
+			return r.checkCrossplaneRenderFailure(env, testCase, needsResults, result)
+		}
+
 		return result.FailRender()
 	}
 
@@ -494,6 +500,28 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, re
 	}
 
 	return nil
+}
+
+// checkCrossplaneRenderFailure ends a test case that expects the render to fail and whose render failed: that is what it
+// expects, so it does not fail because of it. Only the assertions on the error of the render run, and then the post-test
+// hooks, which have no outputs to work with. The test case passes if they all do.
+func (r *Runner) checkCrossplaneRenderFailure(env *testCaseEnv, testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
+	if r.Debug {
+		r.debug.Printf("The render failed, as the assertions on errors of test case '%s' expect\n", testCase.Name)
+	}
+
+	result.HasFailedRender = true
+
+	result.AssertionsResults = executeAssertionsErrors(testCase.Assertions.Errors, result)
+	result.ProcessAssertionsOutput()
+
+	r.runPostTestHooks(env, testCase, needsResults, result)
+
+	if result.HasPipelineFailure() {
+		return result.Fail(nil)
+	}
+
+	return result.Complete()
 }
 
 // runCrossplaneValidate validates the rendered resources of the test case against its CRDs, if it has any, and writes
@@ -583,6 +611,15 @@ func (r *Runner) runAssertions(env *testCaseEnv, testCase api.TestCase, result *
 			}
 
 			result.AssertionsResults = append(result.AssertionsResults, exec.executeAssertionsDyff(testCase.Assertions.Dyff)...)
+		}
+
+		// The render succeeded here: the assertions on its error fail, and the ones on validate say how it ended
+		if testCase.HasAssertionsErrors() {
+			if r.Debug {
+				r.debug.Printf("Executing %d assertions on errors for test case '%s'\n", len(testCase.Assertions.Errors), testCase.Name)
+			}
+
+			result.AssertionsResults = append(result.AssertionsResults, executeAssertionsErrors(testCase.Assertions.Errors, result)...)
 		}
 
 		// Format assertions output and set hasFailedAssertions
