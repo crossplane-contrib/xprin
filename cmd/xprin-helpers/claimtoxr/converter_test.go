@@ -188,8 +188,11 @@ func generateExpectedXR(claim *unstructured.Unstructured, kind string, direct bo
 	}
 
 	if !direct {
-		// Add Crossplane labels
+		// Crossplane creates the XR of a Claim with generateName set to "<claim name>-"
 		metadata := xr.Object["metadata"].(map[string]any)
+		metadata["generateName"] = claim.GetName() + "-"
+
+		// Add Crossplane labels
 		metadata["labels"] = map[string]any{
 			"crossplane.io/claim-name":      claim.GetName(),
 			"crossplane.io/claim-namespace": claim.GetNamespace(),
@@ -211,6 +214,38 @@ func generateExpectedXR(claim *unstructured.Unstructured, kind string, direct bo
 	}
 
 	return xr
+}
+
+func TestConvertClaimToXRGenerateName(t *testing.T) {
+	claim := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "example.org/v1alpha1",
+		"kind":       "TestApp",
+		"metadata":   map[string]any{"name": "test-app", "namespace": "default"},
+		"spec":       map[string]any{},
+	}}
+
+	cases := map[string]struct {
+		opts Options
+		want string
+	}{
+		"NotDirect":         {opts: Options{}, want: "test-app-"},
+		"NotDirectWithName": {opts: Options{Name: "my-xr"}, want: "test-app-"},
+		"Direct":            {opts: Options{Direct: true}, want: ""},
+		"DirectWithName":    {opts: Options{Direct: true, Name: "my-xr"}, want: ""},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := ConvertClaimToXR(claim.DeepCopy(), tc.opts)
+			if err != nil {
+				t.Fatalf("ConvertClaimToXR(...): unexpected error: %v", err)
+			}
+
+			if diff := cmp.Diff(tc.want, got.GetGenerateName()); diff != "" {
+				t.Errorf("generateName: -want, +got:\n%s", diff)
+			}
+		})
+	}
 }
 
 func TestResolveKind(t *testing.T) {
@@ -436,7 +471,8 @@ func TestConvertClaimToXR(t *testing.T) {
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
 						"metadata": map[string]any{
-							"name": "test-app-abcde",
+							"name":         "test-app-abcde",
+							"generateName": "test-app-",
 							"labels": map[string]any{
 								"existing-label":    "value",
 								labelClaimName:      "test-app",
@@ -667,7 +703,8 @@ func TestConvertClaimToXR(t *testing.T) {
 						"apiVersion": "example.org/v1alpha1",
 						"kind":       "XTestApp",
 						"metadata": map[string]any{
-							"name": "my-xr",
+							"name":         "my-xr",
+							"generateName": "test-app-",
 							"labels": map[string]any{
 								labelClaimName:      "test-app",
 								labelClaimNamespace: "myclaims",

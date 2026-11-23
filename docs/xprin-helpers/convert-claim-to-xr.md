@@ -28,6 +28,7 @@ The converter by default assumes that the produced XR derives from a Claim, thus
 - Set a random suffix in `.metadata.name` (unless `--name` or `--golden` are given)
 - Set the `kind`'s value to the same as the Claim's prefixed by an "X" (unless `--kind` or `--xrd` are set)
 - Set [the appropriate labels](https://docs.crossplane.io/v1.20/concepts/composite-resources/#composite-resource-labels)
+- Set `.metadata.generateName` to the Claim's name followed by a hyphen, like Crossplane does when it creates the XR of a Claim (unless `--direct` is set).
 - Set `.spec.claimRef`
 
 The last two show the relation between the Claim and the XR.

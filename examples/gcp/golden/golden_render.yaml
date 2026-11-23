@@ -2,6 +2,7 @@
 apiVersion: gcp.example.com/v1
 kind: XGCPInfrastructure
 metadata:
+  generateName: platform-gcp-
   labels:
     crossplane.io/claim-name: platform-gcp
     crossplane.io/claim-namespace: default
