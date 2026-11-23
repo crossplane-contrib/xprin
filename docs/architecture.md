@@ -106,11 +106,12 @@ Who uses it:
 
 For each test case, the runner does the following, in this order:
 
-1. The mode may skip it (see [Modes](#modes)). Then the results of the test cases it needs are collected, and it is skipped if one failed or was skipped.
-2. A temp directory `xprin-testcase-*` is made, with `inputs/` and `outputs/`. It is removed when the test case ends, after the external artifacts are exported (the defers run last in, first out).
-3. The `common` configuration is merged, the template variables are processed (see [Templates](#templates)), and the mandatory fields are checked.
-4. The phases run: the input paths are made absolute and checked, the inputs are copied, the pre-test hooks run, and the render step converts the Claim or takes the XR, patches it, applies the [container reuse](#container-reuse) to the copy of the functions, runs `crossplane render` and writes the rendered resources to `outputs/`.
-5. The mode runs what follows the render.
+1. The `common` configuration is merged into the test case, so that the mode and the phases both work on the test case with it.
+2. The mode may skip it (see [Modes](#modes)). Then the results of the test cases it needs are collected, and it is skipped if one failed or was skipped.
+3. A temp directory `xprin-testcase-*` is made, with `inputs/` and `outputs/`. It is removed when the test case ends, after the external artifacts are exported (the defers run last in, first out).
+4. The template variables are processed (see [Templates](#templates)), and the mandatory fields are checked.
+5. The phases run: the input paths are made absolute and checked, the inputs are copied, the pre-test hooks run, and the render step converts the Claim or takes the XR, patches it, applies the [container reuse](#container-reuse) to the copy of the functions, runs `crossplane render` and writes the rendered resources to `outputs/`.
+6. The mode runs what follows the render.
 
 Each phase returns the failed result to end the test case, or nil to go on. The exceptions are validation, assertions and post-test hooks: a failure in them is in the result, and the test case goes on to the next phase, so that the post-test hooks run even when assertions failed; the test case then fails at the end.
 
