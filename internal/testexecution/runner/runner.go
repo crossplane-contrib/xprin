@@ -157,6 +157,12 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 		return result.Skip(ErrInterrupted)
 	}
 
+	// The test case is what it is with the common of its file merged into it, for everything that follows: the mode
+	// decides on it, and so do the phases
+	if env.TestSuite.Spec.HasCommon() {
+		testCase.MergeCommon(env.TestSuite.Spec.Common)
+	}
+
 	// Skip immediately a test case that the mode has no use for, whatever it needs (the modes are in mode.go and
 	// update_goldens.go)
 	if r.mode.skips(env, testCase) {
@@ -206,10 +212,6 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 		r.debug.Printf("Created temporary directory for test case: %s\n", env.tmpDir)
 		r.debug.Printf("- Inputs: %s\n", env.inputsDir)
 		r.debug.Printf("- Outputs: %s\n", env.outputsDir)
-	}
-
-	if env.TestSuite.Spec.HasCommon() {
-		testCase.MergeCommon(env.TestSuite.Spec.Common)
 	}
 
 	// Process template variables for this test case
