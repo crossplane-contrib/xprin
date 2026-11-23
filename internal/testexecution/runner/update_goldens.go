@@ -30,8 +30,9 @@ type updateGoldensMode struct {
 }
 
 // skips tells that update-goldens has nothing to do with a test case that writes no golden file, and that no golden
-// file depends on: the graph knows which those are. One without an ID is not in the graph by it, but no test case
-// can need it, so only its own golden-file assertions matter.
+// file depends on: the graph knows which those are. The test case is merged with common already, so the golden-file
+// assertions that it gets from there are its own. One without an ID is not in the graph by it, but no test case can
+// need it, so only its own golden-file assertions matter.
 func (m updateGoldensMode) skips(env *testCaseEnv, testCase api.TestCase) bool {
 	return !testCase.HasAssertionsGoldenFiles() && !env.TestSuite.Graph.NodeByID(testCase.ID).NeededForGoldens
 }

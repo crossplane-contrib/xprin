@@ -805,6 +805,53 @@ func TestRunTestCase_SkipsWhenTheRunWasInterrupted(t *testing.T) {
 	require.ErrorIs(t, result.Error, ErrInterrupted)
 }
 
+func TestRunTestCase_TheModeDecidesOnTheTestCaseMergedWithCommon(t *testing.T) {
+	golden := []api.AssertionGoldenFile{{Name: "g", Expected: "g.yaml"}}
+
+	for name, tt := range map[string]struct {
+		common   api.Common
+		testCase api.TestCase
+		ran      bool
+	}{
+		"the golden files of common are the ones of the test case": {
+			common:   api.Common{Assertions: api.Assertions{Diff: golden}},
+			testCase: api.TestCase{Name: "t", ID: "t"},
+			ran:      true,
+		},
+		"its own golden files": {
+			testCase: api.TestCase{Name: "t", ID: "t", Assertions: api.Assertions{Dyff: golden}},
+			ran:      true,
+		},
+		"no golden files anywhere: there is nothing to update": {
+			common:   api.Common{Hooks: api.Hooks{PreTest: []api.Hook{{Name: "h", Run: "true"}}}},
+			testCase: api.TestCase{Name: "t", ID: "t"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			spec := &api.TestSuiteSpec{Common: tt.common, Tests: []api.TestCase{tt.testCase}}
+			r := New(&testexecutionOptions.Options{UpdateGoldens: true})
+
+			var ran bool
+
+			r.runTestCaseFunc = func(testCase api.TestCase) *engine.TestCaseResult {
+				ran = true
+
+				assert.Equal(t, tt.testCase.HasAssertionsGoldenFiles() || tt.common.Assertions.HasAssertionsGoldenFiles(), testCase.HasAssertionsGoldenFiles(), "it is merged with common")
+
+				return engine.NewTestCaseResult("t", "t", false, false, false, false, false)
+			}
+
+			result := r.executeTestCase(TestSuiteContext{Index: 1, TestSuite: testsuite.New(testSuiteFile, spec)}, tt.testCase, nil)
+
+			assert.Equal(t, tt.ran, ran)
+
+			if !tt.ran {
+				assert.Equal(t, engine.StatusSkip(), result.Status)
+			}
+		})
+	}
+}
+
 func TestRunTestCase_UsesTestResultWithStartTime(t *testing.T) {
 	options := &testexecutionOptions.Options{
 		Render:       []string{config.RenderSubcommand, config.RenderFlags},
