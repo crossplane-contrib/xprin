@@ -707,6 +707,13 @@ tests:
   inputs: ...
 ```
 
+### options.skip-validate
+
+`skip-validate: true` makes validate not run, with or without `inputs.crds`. There is no validate to assert on or to get the output of:
+
+- An `assertions.errors` for `phase: validate` is reported as an error (`[!]`) and fails the test case, with the rest running as always.
+- A template that uses `.Outputs.Validate` (or `.Tests.<id>.Outputs.Validate` of a test case that skips validate) is a template error: there is no validation output.
+
 ## Artifacts
 
 xprin keeps files for two purposes, and calls them internal and external artifacts.

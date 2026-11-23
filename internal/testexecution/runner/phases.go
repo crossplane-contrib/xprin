@@ -567,6 +567,16 @@ func (r *Runner) checkCrossplaneRenderFailure(env *testCaseEnv, testCase api.Tes
 func (r *Runner) runCrossplaneValidate(env *testCaseEnv, testCase api.TestCase, result *engine.TestCaseResult) *engine.TestCaseResult {
 	var err error
 
+	if testCase.Options.IsSkipValidate() {
+		result.Outputs.HasSkippedValidate = true
+
+		if r.Debug {
+			r.debug.Printf("Skipped validate command because of options.skip-validate\n")
+		}
+
+		return nil
+	}
+
 	if len(testCase.Inputs.CRDs) >= 1 {
 		validateArgs := make([]string, 0, len(r.Validate)+4)
 

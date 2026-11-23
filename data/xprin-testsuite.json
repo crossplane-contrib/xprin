@@ -285,11 +285,15 @@
         "skip": {
           "type": "boolean",
           "description": "When true, the whole test case is skipped and reported as SKIP. (Optional)"
+        },
+        "skip-validate": {
+          "type": "boolean",
+          "description": "When true, validate does not run, with or without inputs.crds (Optional)"
         }
       },
       "additionalProperties": false,
       "type": "object",
-      "description": "Options represents what changes how a test case runs: it can skip the whole test case."
+      "description": "Options represents what changes how a test case runs: it can skip the whole test case, or validate."
     },
     "Patches": {
       "properties": {

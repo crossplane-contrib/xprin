@@ -10,6 +10,8 @@
 --- SKIP: Errors: validate succeeds (X.XXXs)
 === RUN   Errors: validate does not run, because there are no CRDs
 --- SKIP: Errors: validate does not run, because there are no CRDs (X.XXXs)
+=== RUN   Errors: validate does not run, because of options.skip-validate (an error of the assertion)
+--- SKIP: Errors: validate does not run, because of options.skip-validate (an error of the assertion) (X.XXXs)
 === RUN   Validation failure (missing CRD)
 --- SKIP: Validation failure (missing CRD) (X.XXXs)
 === RUN   Pre-test hook failure
@@ -130,6 +132,11 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
     Assertions:
         [x] Validate fails: validate did not run, but it was expected to fail
         Total: 1 assertions, 0 successful, 1 failed, 0 errors
+=== RUN   Errors: validate does not run, because of options.skip-validate (an error of the assertion)
+--- FAIL: Errors: validate does not run, because of options.skip-validate (an error of the assertion) (X.XXXs)
+    Assertions:
+        [!] Validate fails: options.skip-validate: validate is skipped, there is nothing to assert on
+        Total: 2 assertions, 1 successful, 0 failed, 1 error
 === RUN   Validation failure (missing CRD)
 --- FAIL: Validation failure (missing CRD) (X.XXXs)
     Validate:

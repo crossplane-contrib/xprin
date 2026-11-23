@@ -1482,3 +1482,38 @@ ok	examples/mytests/8_options/example1_skip_xprin.yaml	0.422s
 ```
 
 </details>
+
+### Example 2: Skip validate
+
+**File**: [`mytests/8_options/example2_skip_validate_xprin.yaml`](mytests/8_options/example2_skip_validate_xprin.yaml)
+
+A test case with `options.skip-validate: true` does not validate, even with `inputs.crds`. The XR of this one is not valid for its XRD: validate would fail it, and without validate the render, the hooks and the assertions decide. An `assertions.errors` with `phase: validate` cannot be met with it: that assertion is reported as an error (`[!]`) and fails the test case, because there is no validate to fail.
+
+```bash
+xprin test examples/mytests/8_options/example2_skip_validate_xprin.yaml -v --show-all
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin test examples/mytests/8_options/example2_skip_validate_xprin.yaml -v --show-all
+=== RUN   Validate does not run
+--- PASS: Validate does not run (0.41s)
+    Pre-test Hooks:
+        [✓] Pre-test hook
+            runs
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Assertions:
+        [✓] The resources were rendered: found 2 resources (as expected)
+        Total: 1 assertions, 1 successful, 0 failed, 0 errors
+    Post-test Hooks:
+        [✓] Post-test hook
+            runs
+PASS
+ok	examples/mytests/8_options/example2_skip_validate_xprin.yaml	0.412s
+```
+
+</details>

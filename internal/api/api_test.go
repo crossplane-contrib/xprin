@@ -1267,6 +1267,31 @@ func TestOptions_Skip(t *testing.T) {
 	})
 }
 
+func TestOptions_SkipValidate(t *testing.T) {
+	yes, no := true, false
+
+	tests := []struct {
+		name     string
+		testCase *bool
+		common   *bool
+		want     bool
+	}{
+		{name: "unset", want: false},
+		{name: "common skips", common: &yes, want: true},
+		{name: "the test case skips, whatever common says", testCase: &yes, common: &no, want: true},
+		{name: "the test case does not skip, whatever common says", testCase: &no, common: &yes, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testCase := TestCase{Options: Options{SkipValidate: tt.testCase}}
+			testCase.MergeCommon(Common{Options: Options{SkipValidate: tt.common}})
+
+			assert.Equal(t, tt.want, testCase.Options.IsSkipValidate())
+		})
+	}
+}
+
 func TestTestCase_checkMandatoryFields(t *testing.T) {
 	tests := []struct {
 		name    string
