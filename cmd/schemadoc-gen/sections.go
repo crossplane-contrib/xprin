@@ -35,6 +35,7 @@ func newSections() sectionList {
 		{"TESTS", "tests[*]", "tests", "TestCase"},
 		{"INPUTS", "inputs", "inputs", "Inputs"},
 		{"PATCHES", "patches", "patches", "Patches"},
+		{"OPTIONS", "options", "options", "Options"},
 		{"HOOKS", "hooks", "hooks", "Hooks"},
 		{"HOOK", "hook", "hookspre-test-and-hookspost-test", "Hook"},
 		{"ASSERTIONS", "assertions", "assertions", "Assertions"},

@@ -64,6 +64,8 @@ Every property of the file, by its full path:
 - [`common.assertions.errors[*].phase`](#assertionserrors.phase)
 - [`common.assertions.errors[*].operator`](#assertionserrors.operator)
 - [`common.assertions.errors[*].value`](#assertionserrors.value)
+- [`common.options`](#options)
+- [`common.options.skip`](#options.skip)
 - [`tests[*]`](#tests)
 - [`tests[*].name`](#tests.name)
 - [`tests[*].id`](#tests.id)
@@ -112,6 +114,8 @@ Every property of the file, by its full path:
 - [`tests[*].assertions.errors[*].phase`](#assertionserrors.phase)
 - [`tests[*].assertions.errors[*].operator`](#assertionserrors.operator)
 - [`tests[*].assertions.errors[*].value`](#assertionserrors.value)
+- [`tests[*].options`](#options)
+- [`tests[*].options.skip`](#options.skip)
 
 <!-- DOCS_END_INDEX -->
 
@@ -155,6 +159,7 @@ Shared by every test case.
 | <a id="common.patches"></a>`patches` | [`patches`](#patches) | 🔹 | Common XR patching configuration for all testcases |
 | <a id="common.hooks"></a>`hooks` | [`hooks`](#hooks) | 🔹 | Common hooks for all testcases |
 | <a id="common.assertions"></a>`assertions` | [`assertions`](#assertions) | 🔹 | Common assertions to validate rendered resources for all testcases |
+| <a id="common.options"></a>`options` | [`options`](#options) | 🔹 | Common options for all testcases |
 
 <!-- DOCS_END_COMMON -->
 
@@ -173,6 +178,7 @@ A test case: an element of `tests`.
 | <a id="tests.patches"></a>`patches` | [`patches`](#patches) | 🔹 | XR patching configuration |
 | <a id="tests.hooks"></a>`hooks` | [`hooks`](#hooks) | 🔹 | Execution hooks |
 | <a id="tests.assertions"></a>`assertions` | [`assertions`](#assertions) | 🔹 | Assertions to validate rendered resources |
+| <a id="tests.options"></a>`options` | [`options`](#options) | 🔹 | Options of the testcase |
 
 <!-- DOCS_END_TESTS -->
 
@@ -300,6 +306,18 @@ See [Golden-file assertions (diff and dyff)](assertions.md#golden-file-assertion
 <!-- DOCS_END_ASSERTIONS_ERRORS -->
 
 See [Error assertions (errors)](assertions.md#error-assertions-errors).
+
+### `options`
+
+<!-- DOCS_START_OPTIONS -->
+
+| Property | Type | Requirement | Description |
+| :------- | :--- | :---------: | :---------- |
+| <a id="options.skip"></a>`skip` | `boolean` | 🔹 | When true, the whole test case is skipped and reported as SKIP. |
+
+<!-- DOCS_END_OPTIONS -->
+
+See [Options](how-it-works.md#options).
 
 ---
 

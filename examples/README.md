@@ -15,6 +15,7 @@ This directory contains step-by-step examples to help you learn how to use `xpri
 - [Chained Tests](#chained-tests)
 - [Assertions](#assertions)
 - [Show All Results](#show-all-results)
+- [Options](#options)
 
 See [How to Run Tests](../docs/getting-started.md#how-to-run-tests) in the getting started documentation for details on running tests. The basic pattern is:
 
@@ -1393,6 +1394,46 @@ ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	0.579s
             bye
 PASS
 ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	1.334s
+```
+
+</details>
+
+---
+
+## Options
+
+`options` changes how a test case runs. It is in a test case, and in `common` (a test case that sets an option overrides the one of `common`, even to turn it off). See [Options](../docs/how-it-works.md#options).
+
+### Example 1: Skip a test case
+
+**File**: [`mytests/8_options/example1_skip_xprin.yaml`](mytests/8_options/example1_skip_xprin.yaml)
+
+A test case with `options.skip: true` is reported as `SKIP` and nothing of it runs, not its hooks either. The test cases that [need](../docs/how-it-works.md#dependencies-between-test-cases-needs) it are skipped too. A skipped test case does not fail the run.
+
+```bash
+xprin test examples/mytests/8_options/example1_skip_xprin.yaml -v --show-all
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin test examples/mytests/8_options/example1_skip_xprin.yaml -v --show-all
+=== RUN   Runs as always
+--- PASS: Runs as always (0.42s)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Assertions:
+        [✓] The resources were rendered: found 2 resources (as expected)
+        Total: 1 assertions, 1 successful, 0 failed, 0 errors
+=== RUN   Skipped for now
+--- SKIP: Skipped for now (0.00s)
+=== RUN   Needs the skipped one
+--- SKIP: Needs the skipped one (0.00s)
+    [!] needs skipped test case "new_region"
+PASS
+ok	examples/mytests/8_options/example1_skip_xprin.yaml	0.422s
 ```
 
 </details>

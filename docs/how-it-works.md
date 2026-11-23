@@ -243,7 +243,7 @@ Output uses the following **symbols**; internally, outcomes use the correspondin
 | **[✓]** | Pass | `PASS` | Check ran and passed. |
 | **[x]** | Fail | `FAIL` | Check ran and the condition was false (e.g. assertion failed, hook exited non-zero). |
 | **[!]** | Error | `ERROR` | Check could not run (e.g. missing resource, invalid config, render failure, hook template error). |
-| **[s]** | Skip | `SKIP` | Skipped: in `update-goldens` mode, the test case has no `assertions.diff`/`assertions.dyff` entries and no test case that has them needs it (directly or not), or a test case it [`needs`](#dependencies-between-test-cases-needs) failed or was skipped. |
+| **[s]** | Skip | `SKIP` | Skipped: the test case has `options.skip`, or, in `update-goldens` mode, it has no `assertions.diff`/`assertions.dyff` entries and no test case that has them needs it (directly or not), or a test case it [`needs`](#dependencies-between-test-cases-needs) failed or was skipped. |
 
 ### Verbose vs non-verbose output
 
@@ -658,6 +658,28 @@ By default, xprin runs the test cases one at a time. With `-p N` (or `--parallel
 **It costs resources.** Each render starts a Crossplane controller container (with Crossplane CLI v2.3+), and the function containers that its composition needs, so N test cases at the same time are N renders at the same time on your Docker. The [function containers are reused](#function-container-reuse), and the first render that uses an image creates its container while the other renders that use it wait, so the first test cases of a run that use the same functions don't start faster. The gain is in the test cases after those, and in the ones that use different functions. With `--no-container-reuse`, every render also creates its own Docker network, so with many test cases at the same time Docker can run out of address pools (`all predefined address pools have been fully subnetted`) and the renders fail: keep the reuse on, or lower N.
 
 See [Speed](#speed) for how it works with [function container reuse](#function-container-reuse).
+
+## Options
+
+`options` changes how a test case runs. It is in a test case, and in `common`: a test case that sets an option overrides the one of `common`, even to turn it off. All the options are in the [specification](testsuite-specification.md#options).
+
+### options.skip
+
+`skip: true` skips the test case: it is reported as `SKIP`, and nothing of it runs, not its hooks either. The test cases that [`needs`](#dependencies-between-test-cases-needs) it are skipped too, like for any skipped test case. It is decided once the test case has the `common` merged into it, before anything else of the test case happens.
+
+```yaml
+common:
+  options:
+    skip: true          # skips all the test cases of the file, except the ones that turn it off
+
+tests:
+- name: "Not for now"   # skipped
+  inputs: ...
+- name: "Works"
+  options:
+    skip: false         # runs
+  inputs: ...
+```
 
 ## Artifacts
 
