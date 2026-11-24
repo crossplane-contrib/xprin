@@ -8,7 +8,7 @@ ARG --global E2E_CROSSPLANE_CLI=2.5.0
 ARG --global E2E_CROSSPLANE_V2=2.4.3
 
 # legacy
-ARG --global E2E_CROSSPLANE_V1=1.20.14
+ARG --global E2E_CROSSPLANE_V1=1.20.15
 ARG --global E2E_CROSSPLANE_V2_LEGACY=2.2.6
 
 # E2E_PARALLEL is the --parallel of xprin test in the e2e tests: empty is the number of CPUs, 1 is serial, a number sets it
