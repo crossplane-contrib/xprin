@@ -1,0 +1,32 @@
+# A test case with `options.skip: true` is reported as SKIP and nothing of it runs. The test cases that need it are
+# skipped too. A comment is where to say why it is skipped.
+tests:
+- name: "Runs as always"
+  id: base
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+  assertions:
+    xprin:
+    - name: "The resources were rendered"
+      type: "Count"
+      value: 2
+
+# Broken until the composition handles the new region: skipped for now
+- name: "Skipped for now"
+  id: new_region
+  options:
+    skip: true
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+
+- name: "Needs the skipped one"
+  needs:
+  - new_region
+  inputs:
+    xr: ../../aws/xr.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml

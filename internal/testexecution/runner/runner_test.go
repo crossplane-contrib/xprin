@@ -787,6 +787,70 @@ func TestRunTestCase_ASkippedByTheMode(t *testing.T) {
 	assert.Equal(t, engine.StatusSkip(), result.Status)
 }
 
+// A test case that its options skip is skipped, without a reason, whether the option is its own or the one of common.
+func TestRunTestCase_ASkippedByItsOptions(t *testing.T) {
+	yes, no := true, false
+
+	tests := map[string]struct {
+		common   api.Common
+		testCase api.TestCase
+		skipped  bool
+	}{
+		"its own option":                 {testCase: api.TestCase{Name: "t", Options: api.Options{Skip: &yes}}, skipped: true},
+		"the option of common":           {common: api.Common{Options: api.Options{Skip: &yes}}, testCase: api.TestCase{Name: "t"}, skipped: true},
+		"it turns off the one of common": {common: api.Common{Options: api.Options{Skip: &yes}}, testCase: api.TestCase{Name: "t", Options: api.Options{Skip: &no}}},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			spec := &api.TestSuiteSpec{Common: tt.common, Tests: []api.TestCase{tt.testCase}}
+			r := New(&testexecutionOptions.Options{})
+
+			var ran bool
+
+			r.runTestCaseFunc = func(api.TestCase) *engine.TestCaseResult {
+				ran = true
+
+				return engine.NewTestCaseResult("t", "", false, false, false, false, false)
+			}
+
+			result := r.executeTestCase(TestSuiteContext{Index: 1, TestSuite: testsuite.New(testSuiteFile, spec)}, tt.testCase, nil)
+
+			if tt.skipped {
+				assert.False(t, ran, "none of its phases runs")
+				assert.Equal(t, engine.StatusSkip(), result.Status)
+				assert.NoError(t, result.Error, "there is no reason to give")
+
+				return
+			}
+
+			assert.True(t, ran)
+		})
+	}
+}
+
+// The test cases that need a test case that its options skip are skipped too.
+func TestRunTestCase_ASkippedByItsOptionsSkipsTheOnesThatNeedIt(t *testing.T) {
+	yes := true
+	skipped := api.TestCase{Name: "skipped", ID: "a", Options: api.Options{Skip: &yes}}
+	needing := api.TestCase{Name: "needing", ID: "b", Needs: []string{"a"}}
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{skipped, needing}}
+	r := New(&testexecutionOptions.Options{})
+	r.runTestCaseFunc = func(api.TestCase) *engine.TestCaseResult {
+		t.Fatal("neither of them runs")
+
+		return nil
+	}
+
+	ctx := TestSuiteContext{Index: 1, TestSuite: testsuite.New(testSuiteFile, spec)}
+	completed := map[string]*engine.TestCaseResult{}
+	completed["a"] = r.executeTestCase(ctx, skipped, completed)
+	second := r.executeTestCase(ctx, needing, completed)
+
+	assert.Equal(t, engine.StatusSkip(), second.Status)
+	require.ErrorContains(t, second.Error, `needs skipped test case "a"`)
+}
+
 func TestRunTestCase_SkipsWhenTheRunWasInterrupted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

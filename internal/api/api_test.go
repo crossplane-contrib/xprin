@@ -1208,6 +1208,40 @@ func TestTestCase_mergeCommon(t *testing.T) {
 	}
 }
 
+// An option that the test case sets wins over the one of common, to turn it off too.
+func TestOptions_Skip(t *testing.T) {
+	yes, no := true, false
+
+	tests := []struct {
+		name     string
+		testCase *bool
+		common   *bool
+		want     bool
+	}{
+		{name: "unset", want: false},
+		{name: "common skips", common: &yes, want: true},
+		{name: "the test case skips", testCase: &yes, want: true},
+		{name: "the test case does not skip, whatever common says", testCase: &no, common: &yes, want: false},
+		{name: "the test case skips, whatever common says", testCase: &yes, common: &no, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testCase := TestCase{Options: Options{Skip: tt.testCase}}
+			common := Common{Options: Options{Skip: tt.common}}
+
+			testCase.MergeCommon(common)
+
+			assert.Equal(t, tt.want, testCase.Options.IsSkip())
+		})
+	}
+
+	t.Run("options alone are a common to merge", func(t *testing.T) {
+		assert.False(t, (&TestSuiteSpec{}).HasCommon())
+		assert.True(t, (&TestSuiteSpec{Common: Common{Options: Options{Skip: &yes}}}).HasCommon())
+	})
+}
+
 func TestTestCase_checkMandatoryFields(t *testing.T) {
 	tests := []struct {
 		name    string

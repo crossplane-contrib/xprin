@@ -88,12 +88,28 @@ type Assertions struct {
 	Errors []AssertionError      `json:"errors,omitempty"` // assertions on the error of a phase that is expected to fail
 }
 
+// Options represents what changes how a test case runs: it can skip the whole test case.
+type Options struct {
+	Skip *bool `json:"skip,omitempty"` // When true, the whole test case is skipped and reported as SKIP.
+}
+
+// HasOptions returns true if any option is set.
+func (o *Options) HasOptions() bool {
+	return o.Skip != nil
+}
+
+// IsSkip returns true if Skip is explicitly set to true.
+func (o *Options) IsSkip() bool {
+	return o.Skip != nil && *o.Skip
+}
+
 // Common represents the common configuration for a testsuite file.
 type Common struct {
 	Inputs     Inputs     `json:"inputs,omitzero"     jsonschema_extras:"x-xprin-required-merged=true"` // Common inputs (composition, Claim/XR, etc.) for all testcases
 	Patches    Patches    `json:"patches,omitzero"`                                                     // Common XR patching configuration for all testcases
 	Hooks      Hooks      `json:"hooks,omitzero"`                                                       // Common hooks for all testcases
 	Assertions Assertions `json:"assertions,omitzero"`                                                  // Common assertions to validate rendered resources for all testcases
+	Options    Options    `json:"options,omitzero"`                                                     // Common options for all testcases
 }
 
 // TestCase represents a single test case.
@@ -105,6 +121,7 @@ type TestCase struct {
 	Patches    Patches    `json:"patches,omitzero"`                                                     // XR patching configuration
 	Hooks      Hooks      `json:"hooks,omitzero"`                                                       // Execution hooks
 	Assertions Assertions `json:"assertions,omitzero"`                                                  // Assertions to validate rendered resources
+	Options    Options    `json:"options,omitzero"`                                                     // Options of the testcase
 }
 
 // Inputs represents the inputs for a test case or common configuration.
@@ -252,6 +269,11 @@ func (ts *TestSuiteSpec) HasCommonPatches() bool {
 	return ts.Common.Patches.HasPatches()
 }
 
+// HasCommonOptions returns true if any common options are set in the test suite.
+func (ts *TestSuiteSpec) HasCommonOptions() bool {
+	return ts.Common.Options.HasOptions()
+}
+
 // HasCommonHooks returns true if any common hooks are set in the test suite.
 func (ts *TestSuiteSpec) HasCommonHooks() bool {
 	return ts.Common.Hooks.HasHooks()
@@ -276,7 +298,8 @@ func (ts *TestSuiteSpec) HasCommon() bool {
 		ts.Common.Inputs.FunctionCredentials != "" ||
 		ts.HasCommonPatches() ||
 		ts.HasCommonHooks() ||
-		ts.HasCommonAssertions()
+		ts.HasCommonAssertions() ||
+		ts.HasCommonOptions()
 }
 
 // HasXR returns true if the TestCase has an XR field specified.
@@ -358,6 +381,11 @@ func (tc *TestCase) HasAssertions() bool {
 //
 //nolint:gocognit // too many ifs, but not that complex
 func (tc *TestCase) MergeCommon(common Common) {
+	// An option that the test case sets wins, even when it turns off what common turned on
+	if tc.Options.Skip == nil {
+		tc.Options.Skip = common.Options.Skip
+	}
+
 	if tc.Inputs.XR == "" {
 		tc.Inputs.XR = common.Inputs.XR
 	}

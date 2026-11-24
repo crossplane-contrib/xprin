@@ -162,6 +162,10 @@
         "assertions": {
           "$ref": "#/$defs/Assertions",
           "description": "Common assertions to validate rendered resources for all testcases (Optional)"
+        },
+        "options": {
+          "$ref": "#/$defs/Options",
+          "description": "Common options for all testcases (Optional)"
         }
       },
       "additionalProperties": false,
@@ -269,6 +273,17 @@
       "type": "object",
       "description": "Inputs represents the inputs for a test case or common configuration."
     },
+    "Options": {
+      "properties": {
+        "skip": {
+          "type": "boolean",
+          "description": "When true, the whole test case is skipped and reported as SKIP. (Optional)"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Options represents what changes how a test case runs: it can skip the whole test case."
+    },
     "Patches": {
       "properties": {
         "xrd": {
@@ -326,6 +341,10 @@
         "assertions": {
           "$ref": "#/$defs/Assertions",
           "description": "Assertions to validate rendered resources (Optional)"
+        },
+        "options": {
+          "$ref": "#/$defs/Options",
+          "description": "Options of the testcase (Optional)"
         }
       },
       "additionalProperties": false,

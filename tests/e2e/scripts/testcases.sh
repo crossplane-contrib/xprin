@@ -70,3 +70,6 @@ testcase_012_exit_v2=1
 # --artifacts-dir: complete test (hooks/render/validate/assertions) + silent shell checks on artifact structure
 testcase_013="examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml --artifacts-dir=/tmp/xprin-e2e-artifacts-test"
 testcase_013_update_goldens=true
+
+# options.skip: a skipped test case, and the one that needs it, are skipped
+testcase_014="examples/mytests/8_options/ -v --show-all"

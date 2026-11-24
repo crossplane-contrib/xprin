@@ -163,6 +163,11 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 		testCase.MergeCommon(env.TestSuite.Spec.Common)
 	}
 
+	// A test case with options.skip does not run, whatever it needs and whatever the mode is
+	if testCase.Options.IsSkip() {
+		return result.Skip()
+	}
+
 	// Skip immediately a test case that the mode has no use for, whatever it needs (the modes are in mode.go and
 	// update_goldens.go)
 	if r.mode.skips(env, testCase) {
