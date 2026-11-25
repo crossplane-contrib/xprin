@@ -10,8 +10,7 @@ tests:
   hooks:
     pre-test:
     - name: "Set RDS status in XR"
-      run: |
-        printf '\nstatus:\n  rds: my-rds-instance\n' >> "{{ .Inputs.XR }}"
+      run: yq -i '.status.rds = "my-rds-instance"' "{{ .Inputs.XR }}"
 
   assertions:
     xprin:

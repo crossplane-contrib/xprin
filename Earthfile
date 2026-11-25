@@ -223,7 +223,7 @@ e2e-run:
   ENV EXPECTED_XP_TIER=$EXPECTED_XP_TIER
   ENV CROSSPLANE_VERSION=$CROSSPLANE_VERSION
   ENV E2E_PARALLEL=$E2E_PARALLEL
-  RUN apk add --no-cache bash
+  RUN apk add --no-cache bash yq
   COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$CROSSPLANE_CLI_VERSION) /usr/local/bin/crossplane
   COPY +go-build/xprin .
   COPY --dir examples/ tests/ ./
@@ -245,7 +245,7 @@ e2e-legacy-run:
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   ENV EXPECTED_XP_TIER=$EXPECTED_XP_TIER
   ENV E2E_PARALLEL=$E2E_PARALLEL
-  RUN apk add --no-cache bash
+  RUN apk add --no-cache bash yq
   COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$CROSSPLANE_CLI_VERSION) /usr/local/bin/crossplane
   COPY +go-build/xprin .
   COPY --dir examples/ tests/ ./
@@ -291,7 +291,7 @@ e2e-regen-expected-v1:
   ARG GOOS=${TARGETOS}
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_V1) /usr/local/bin/crossplane
-  RUN apk add --no-cache bash
+  RUN apk add --no-cache bash yq
   COPY +go-build/xprin .
   COPY --dir examples/ tests/e2e/scripts/ ./
   RUN chmod +x scripts/gen-invalid-tests.sh scripts/regen-expected.sh
@@ -309,7 +309,7 @@ e2e-regen-expected-v2legacy:
   ARG GOOS=${TARGETOS}
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_V2_LEGACY) /usr/local/bin/crossplane
-  RUN apk add --no-cache bash
+  RUN apk add --no-cache bash yq
   COPY +go-build/xprin .
   COPY --dir examples/ tests/e2e/scripts/ ./
   RUN chmod +x scripts/gen-invalid-tests.sh scripts/regen-expected.sh
@@ -327,7 +327,7 @@ e2e-regen-expected-v2:
   ARG GOOS=${TARGETOS}
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   COPY (+crossplane-cli-setup/crossplane --CROSSPLANE_CLI_VERSION=$E2E_CROSSPLANE_CLI) /usr/local/bin/crossplane
-  RUN apk add --no-cache bash
+  RUN apk add --no-cache bash yq
   COPY +go-build/xprin .
   COPY --dir examples/ tests/e2e/scripts/ ./
   RUN chmod +x scripts/gen-invalid-tests.sh scripts/regen-expected.sh
