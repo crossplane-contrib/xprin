@@ -153,12 +153,21 @@ func (tcr *TestCaseResult) AddToSection(header string, status Status, text strin
 
 // Outputs represents the output data available in post-test hooks.
 type Outputs struct {
-	Render      string            // Path to rendered.yaml
+	Render      *string           // Path to rendered.yaml (nil if there is no render output)
 	XR          string            // Path to xr.yaml
 	Validate    *string           // Path to validate.txt (nil if no CRDs)
 	Assertions  *string           // Path to assertions.txt (nil if no assertions)
 	RenderCount int               // Number of resources in render output
 	Rendered    map[string]string // Kind/Name -> file path for individual rendered resources
+}
+
+// RenderPath returns the path of the render output, or "" when there is none.
+func (o *Outputs) RenderPath() string {
+	if o.Render == nil {
+		return ""
+	}
+
+	return *o.Render
 }
 
 // Fail marks a test case as failed with the given error and completes it, returning the result for chaining.

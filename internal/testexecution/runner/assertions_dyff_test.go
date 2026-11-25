@@ -46,7 +46,7 @@ func TestExecuteDyffAssertions(t *testing.T) {
 		require.NoError(t, afero.WriteFile(fs, golden, content, 0o644))
 		require.NoError(t, afero.WriteFile(fs, actual, content, 0o644))
 
-		outputs := &engine.Outputs{Render: actual, Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: &actual, Rendered: map[string]string{}}
 		assertions := []api.AssertionGoldenFile{
 			{Name: "full render matches", Expected: "golden.yaml"},
 		}
@@ -64,7 +64,7 @@ func TestExecuteDyffAssertions(t *testing.T) {
 		require.NoError(t, afero.WriteFile(fs, golden, []byte("expected: value\n"), 0o644))
 		require.NoError(t, afero.WriteFile(fs, actual, []byte("actual: other\n"), 0o644))
 
-		outputs := &engine.Outputs{Render: actual, Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: &actual, Rendered: map[string]string{}}
 		assertions := []api.AssertionGoldenFile{
 			{Name: "should differ", Expected: "golden.yaml"},
 		}
@@ -84,7 +84,7 @@ func TestExecuteDyffAssertions(t *testing.T) {
 		require.NoError(t, afero.WriteFile(fs, resourcePath, content, 0o644))
 
 		outputs := &engine.Outputs{
-			Render:   "/out/render.yaml",
+			Render:   new("/out/render.yaml"),
 			Rendered: map[string]string{"Pod/foo": resourcePath},
 		}
 		assertions := []api.AssertionGoldenFile{
@@ -98,7 +98,7 @@ func TestExecuteDyffAssertions(t *testing.T) {
 
 	t.Run("error when resource not in Rendered", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		outputs := &engine.Outputs{Render: "/out/render.yaml", Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: new("/out/render.yaml"), Rendered: map[string]string{}}
 		assertions := []api.AssertionGoldenFile{
 			{Name: "missing resource", Expected: "g.yaml", Resource: "Pod/nonexistent"},
 		}
@@ -112,7 +112,7 @@ func TestExecuteDyffAssertions(t *testing.T) {
 	t.Run("error when expandPath errors", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		expandFail := func(string, string) (string, error) { return "", assert.AnError }
-		outputs := &engine.Outputs{Render: "/out/render.yaml", Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: new("/out/render.yaml"), Rendered: map[string]string{}}
 		assertions := []api.AssertionGoldenFile{
 			{Name: "bad path", Expected: "golden.yaml"},
 		}
@@ -133,7 +133,7 @@ func TestExecuteDyffAssertions(t *testing.T) {
 
 		require.NoError(t, afero.WriteFile(fs, golden, []byte("expected: value\n"), 0o644))
 		require.NoError(t, afero.WriteFile(fs, actual, []byte("actual: other\n"), 0o644))
-		outputs := &engine.Outputs{Render: actual, Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: &actual, Rendered: map[string]string{}}
 		assertions := []api.AssertionGoldenFile{{Name: "dyff no color", Expected: "golden.yaml"}}
 		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
 		all := exec.executeAssertionsDyff(assertions)
@@ -152,7 +152,7 @@ func TestExecuteDyffAssertions(t *testing.T) {
 
 		require.NoError(t, afero.WriteFile(fs, golden, []byte("expected: value\n"), 0o644))
 		require.NoError(t, afero.WriteFile(fs, actual, []byte("actual: other\n"), 0o644))
-		outputs := &engine.Outputs{Render: actual, Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: &actual, Rendered: map[string]string{}}
 		assertions := []api.AssertionGoldenFile{{Name: "dyff with color", Expected: "golden.yaml"}}
 		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
 		all := exec.executeAssertionsDyff(assertions)

@@ -91,7 +91,7 @@ func (r *Runner) writeGoldenFile(env *testCaseEnv, a api.AssertionGoldenFile, ou
 
 	var actualPath string
 	if a.Resource == "" {
-		actualPath = outputs.Render
+		actualPath = outputs.RenderPath()
 	} else {
 		var ok bool
 

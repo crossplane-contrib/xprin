@@ -44,7 +44,7 @@ func TestNewTestCaseResult(t *testing.T) {
 		require.NoError(t, result.Error)
 		assert.Equal(t, time.Duration(0), result.Duration)
 		assert.NotNil(t, result.Outputs.Rendered)
-		assert.Empty(t, result.Outputs.Render)
+		assert.Nil(t, result.Outputs.Render)
 		assert.Empty(t, result.Outputs.XR)
 		assert.Nil(t, result.Outputs.Validate)
 		assert.Equal(t, 0, result.Outputs.RenderCount)

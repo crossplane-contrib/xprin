@@ -47,6 +47,8 @@ FAIL	examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml	[invalid
 --- SKIP: Post-test hook that uses the output of a validate that did not run, template rendering error (X.XXXs)
 === RUN   Post-test hook that uses the output of assertions that did not run, template rendering error
 --- SKIP: Post-test hook that uses the output of assertions that did not run, template rendering error (X.XXXs)
+=== RUN   Post-test hook that uses the output of a render that failed as expected, template rendering error
+--- SKIP: Post-test hook that uses the output of a render that failed as expected, template rendering error (X.XXXs)
 === RUN   Invalid Post-test hook, template rendering error
 --- SKIP: Invalid Post-test hook, template rendering error (X.XXXs)
 === RUN   Needs one that did not run validate, and uses its validate output, template rendering error
@@ -280,6 +282,16 @@ FAIL	examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml	[invalid
             assertions=[none]
         [!] Invalid post-test hook (template rendering error: no assertions ran)
             error: failed to render hook template: failed to execute template: .Outputs.Assertions has no value: no assertions ran
+=== RUN   Post-test hook that uses the output of a render that failed as expected, template rendering error
+--- FAIL: Post-test hook that uses the output of a render that failed as expected, template rendering error (X.XXXs)
+    Assertions:
+        [✓] The render fails: the render failed
+        Total: 1 assertions, 1 successful, 0 failed, 0 errors
+    Post-test Hooks:
+        [✓] Post-test hook with a guard on the output of the render (it runs, there is none)
+            render=[none]
+        [!] Invalid post-test hook (template rendering error: there is no render output)
+            error: failed to render hook template: failed to execute template: .Outputs.Render has no value: there is no render output
 === RUN   Invalid Post-test hook, template rendering error
 --- FAIL: Invalid Post-test hook, template rendering error (X.XXXs)
     Render:

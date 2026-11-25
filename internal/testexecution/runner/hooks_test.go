@@ -408,7 +408,7 @@ func TestExecuteHooks_PostTestHooks_InputsAndOutputsTemplateVariables(t *testing
 	// Create mock outputs
 	outputs := &engine.Outputs{
 		XR:          "rendered-xr.yaml",
-		Render:      "rendered-resources.yaml",
+		Render:      new("rendered-resources.yaml"),
 		RenderCount: 5,
 		Rendered: map[string]string{
 			"Pod/test-pod": "/path/to/pod.yaml",

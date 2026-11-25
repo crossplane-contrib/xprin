@@ -474,13 +474,15 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, ne
 	}
 
 	// Write rendered output to the outputs directory
-	result.Outputs.Render = filepath.Join(env.outputsDir, "rendered.yaml")
-	if err := afero.WriteFile(r.fs, result.Outputs.Render, result.RawRenderOutput, 0o600); err != nil {
+	renderPath := filepath.Join(env.outputsDir, "rendered.yaml")
+	if err := afero.WriteFile(r.fs, renderPath, result.RawRenderOutput, 0o600); err != nil {
 		return result.Fail(fmt.Errorf("failed to write rendered output to temporary file: %w", err))
 	}
 
+	result.Outputs.Render = &renderPath
+
 	if r.Debug {
-		r.debug.Printf("Wrote rendered output to: %s\n", result.Outputs.Render)
+		r.debug.Printf("Wrote rendered output to: %s\n", renderPath)
 	}
 
 	// Process render output - this sets RenderedResources and FormattedRenderOutput
@@ -567,7 +569,7 @@ func (r *Runner) runCrossplaneValidate(env *testCaseEnv, testCase api.TestCase, 
 			validateArgs = append(validateArgs, "--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:"+r.CrossplaneVersion)
 		}
 
-		validateArgs = append(validateArgs, filepath.Join(env.inputsDir, "crds"), result.Outputs.Render)
+		validateArgs = append(validateArgs, filepath.Join(env.inputsDir, "crds"), result.Outputs.RenderPath())
 		// Run crossplane beta validate command
 		if r.Debug {
 			r.debug.Printf("Running validate command: %s %s\n", r.Dependencies["crossplane"], strings.Join(validateArgs, " "))
@@ -707,7 +709,9 @@ func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *en
 	}
 
 	// Update Outputs paths to point to the internal artifacts for cross-test references
-	result.Outputs.Render = filepath.Join(testCaseDir, "rendered.yaml")
+	if result.Outputs.Render != nil {
+		*result.Outputs.Render = filepath.Join(testCaseDir, "rendered.yaml")
+	}
 
 	result.Outputs.XR = filepath.Join(testCaseDir, "xr.yaml")
 	if result.Outputs.Validate != nil {

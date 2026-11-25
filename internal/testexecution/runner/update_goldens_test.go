@@ -164,7 +164,7 @@ func TestRunUpdateGoldens_WritesDiffAndDyffAssertions(t *testing.T) {
 		},
 	}
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
-	result.Outputs.Render = "/actual/render.yaml"
+	result.Outputs.Render = new("/actual/render.yaml")
 
 	out := r.runUpdateGoldens(env, testCase, result)
 
@@ -194,7 +194,7 @@ func TestRunUpdateGoldens_TwoAssertionsForTheSameFileAreToldApartByTheirNames(t 
 		},
 	}
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
-	result.Outputs.Render = "/actual/render.yaml"
+	result.Outputs.Render = new("/actual/render.yaml")
 
 	out := r.runUpdateGoldens(env, testCase, result)
 
@@ -269,7 +269,7 @@ func TestRunUpdateGoldens_TheFailedFileComesAfterTheWrittenOnes(t *testing.T) {
 		},
 	}
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
-	result.Outputs.Render = "/actual/render.yaml"
+	result.Outputs.Render = new("/actual/render.yaml")
 	result.Outputs.Rendered = map[string]string{}
 
 	out := r.runUpdateGoldens(env, testCase, result)
@@ -307,7 +307,7 @@ func TestRunUpdateGoldens_AFileThatCantBeWritten(t *testing.T) {
 
 	testCase := api.TestCase{Assertions: api.Assertions{Diff: []api.AssertionGoldenFile{{Name: "g", Expected: "/expected/g.yaml"}}}}
 	result := engine.NewTestCaseResult("read only", "", false, false, false, false, false)
-	result.Outputs.Render = "/actual/render.yaml"
+	result.Outputs.Render = new("/actual/render.yaml")
 
 	out := r.runUpdateGoldens(env, testCase, result)
 

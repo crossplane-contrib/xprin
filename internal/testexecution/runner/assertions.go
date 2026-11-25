@@ -69,7 +69,7 @@ func (e *assertionExecutor) resolveAndReadGoldenFile(a api.AssertionGoldenFile) 
 	}
 
 	if a.Resource == "" {
-		actualPath = e.outputs.Render
+		actualPath = e.outputs.RenderPath()
 	} else {
 		var ok bool
 

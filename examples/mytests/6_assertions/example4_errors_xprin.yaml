@@ -3,7 +3,8 @@
 tests:
 
 # The render fails: the XR is a claim, so its kind is not the one of the composition. Only the `errors` assertions
-# run: nothing was rendered for the others. The post-test hooks run after them, without outputs.
+# run: nothing was rendered for the others. The post-test hooks run after them, without the outputs of the render: a hook
+# that uses one has to guard it.
 - name: "The render is expected to fail"
   inputs:
     xr: ../../aws/claim.yaml
@@ -23,8 +24,8 @@ tests:
       value: "crossplane: error: composition's compositeTypeRef.kind (XAWSInfrastructure) does not match XR's kind (AWSInfrastructure)"
   hooks:
     post-test:
-    - name: "Post-test hook, it runs after an expected render failure, without outputs"
-      run: echo "the render failed as expected, there is no output [{{ .Outputs.Render }}]"
+    - name: "Post-test hook, it runs after an expected render failure, without the outputs of the render"
+      run: echo "the render failed as expected, the output of the render is [{{ if .Outputs.Render }}{{ .Outputs.Render }}{{ else }}not there{{ end }}]"
 
 # Validate fails: the SSH key of the XR is not one that its XRD allows. The render succeeded, so the other assertions
 # run as always, and the failure of validate is not one of the test case.

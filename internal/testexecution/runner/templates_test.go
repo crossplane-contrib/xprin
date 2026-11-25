@@ -187,7 +187,7 @@ func TestNewTemplateContext(t *testing.T) {
 	t.Run("with all parameters", func(t *testing.T) {
 		repos := map[string]string{"myrepo": "/path/to/repo"}
 		inputs := api.Inputs{XR: "test-xr.yaml"}
-		outputs := &engine.Outputs{Render: "rendered.yaml"}
+		outputs := &engine.Outputs{Render: new("rendered.yaml")}
 
 		context := newTemplateContext(repos, inputs, outputs, map[string]*engine.TestCaseResult{})
 
@@ -328,7 +328,7 @@ hooks:
 `
 		outputs := &engine.Outputs{
 			XR:     "rendered-xr.yaml",
-			Render: "rendered-resources.yaml",
+			Render: new("rendered-resources.yaml"),
 		}
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
@@ -350,7 +350,7 @@ hooks:
 		validatePath := "/path/to/validate.txt"
 		outputs := &engine.Outputs{
 			XR:          "rendered-xr.yaml",
-			Render:      "rendered-resources.yaml",
+			Render:      new("rendered-resources.yaml"),
 			Validate:    &validatePath,
 			RenderCount: 5,
 		}
@@ -373,7 +373,7 @@ hooks:
 `
 		outputs := &engine.Outputs{
 			XR:          "rendered-xr.yaml",
-			Render:      "rendered-resources.yaml",
+			Render:      new("rendered-resources.yaml"),
 			Validate:    nil, // No validation output
 			RenderCount: 3,
 		}
@@ -393,7 +393,7 @@ hooks:
 `
 		outputs := &engine.Outputs{
 			XR:     "rendered-xr.yaml",
-			Render: "rendered-resources.yaml",
+			Render: new("rendered-resources.yaml"),
 			Rendered: map[string]string{
 				"ConfigMap/my-config": "/path/to/configmap.yaml",
 				"Service/my-service":  "/path/to/service.yaml",
@@ -419,7 +419,7 @@ hooks:
 		assertionsPath := "/path/to/assertions.txt"
 		outputs := &engine.Outputs{
 			XR:         "rendered-xr.yaml",
-			Render:     "rendered-resources.yaml",
+			Render:     new("rendered-resources.yaml"),
 			Assertions: &assertionsPath,
 		}
 
@@ -440,7 +440,7 @@ hooks:
 `
 		outputs := &engine.Outputs{
 			XR:         "rendered-xr.yaml",
-			Render:     "rendered-resources.yaml",
+			Render:     new("rendered-resources.yaml"),
 			Assertions: nil, // No assertions run
 		}
 
