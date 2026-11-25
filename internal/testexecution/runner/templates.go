@@ -163,6 +163,7 @@ func noValueMessage(content string) string {
 	// the outputs that are not there when what writes them did not run
 	outputs := []struct{ name, reason string }{
 		{".Outputs.Render", "there is no render output"},
+		{".Outputs.XR", "there is no rendered XR"},
 		{".Outputs.Validate", "validate did not run"},
 		{".Outputs.Assertions", "no assertions ran"},
 	}

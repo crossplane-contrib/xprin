@@ -103,7 +103,7 @@ func TestSaveOutputs(t *testing.T) {
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
 		result.Outputs = engine.Outputs{
 			Render:     new("/tmp/outputs/rendered.yaml"),
-			XR:         "/tmp/outputs/xr.yaml",
+			XR:         new("/tmp/outputs/xr.yaml"),
 			Validate:   &validate,
 			Assertions: &assertions,
 			Rendered:   map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"},
@@ -113,7 +113,7 @@ func TestSaveOutputs(t *testing.T) {
 
 		assert.Equal(t, []string{"/tmp/outputs -> /saved-outputs/a"}, *copied)
 		assert.Equal(t, "/saved-outputs/a/rendered.yaml", *result.Outputs.Render)
-		assert.Equal(t, "/saved-outputs/a/xr.yaml", result.Outputs.XR)
+		assert.Equal(t, "/saved-outputs/a/xr.yaml", *result.Outputs.XR)
 		assert.Equal(t, "/saved-outputs/a/validate.txt", *result.Outputs.Validate)
 		assert.Equal(t, "/saved-outputs/a/assertions.txt", *result.Outputs.Assertions)
 		assert.Equal(t, "/saved-outputs/a/Kind-name.yaml", result.Outputs.Rendered["Kind/name"])
@@ -122,12 +122,12 @@ func TestSaveOutputs(t *testing.T) {
 	t.Run("a test case without an ID: nothing is copied", func(t *testing.T) {
 		r, copied := newRunner()
 		result := engine.NewTestCaseResult("a", "", false, false, false, false, false)
-		result.Outputs.XR = "/tmp/outputs/xr.yaml"
+		result.Outputs.XR = new("/tmp/outputs/xr.yaml")
 
 		require.NoError(t, r.saveOutputs(api.TestCase{}, &testCaseEnv{TestSuiteContext: TestSuiteContext{SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, result))
 
 		assert.Empty(t, *copied)
-		assert.Equal(t, "/tmp/outputs/xr.yaml", result.Outputs.XR)
+		assert.Equal(t, "/tmp/outputs/xr.yaml", *result.Outputs.XR)
 	})
 }
 
@@ -665,20 +665,20 @@ metadata:
 
 	require.Nil(t, failed)
 	assert.Equal(t, "/outputs/rendered.yaml", *result.Outputs.Render)
-	assert.Equal(t, "/outputs/xr.yaml", result.Outputs.XR)
+	assert.Equal(t, "/outputs/xr.yaml", *result.Outputs.XR)
 	assert.Equal(t, 2, result.Outputs.RenderCount)
 	assert.Equal(t, map[string]string{
 		"Pod/test-pod":             "/outputs/rendered-pod-test-pod.yaml",
 		"ConfigMap/test-configmap": "/outputs/rendered-configmap-test-configmap.yaml",
 	}, result.Outputs.Rendered)
 
-	for _, path := range []string{*result.Outputs.Render, result.Outputs.XR, result.Outputs.Rendered["Pod/test-pod"], result.Outputs.Rendered["ConfigMap/test-configmap"]} {
+	for _, path := range []string{*result.Outputs.Render, *result.Outputs.XR, result.Outputs.Rendered["Pod/test-pod"], result.Outputs.Rendered["ConfigMap/test-configmap"]} {
 		exists, err := afero.Exists(r.fs, path)
 		require.NoError(t, err)
 		assert.True(t, exists, "%s should have been written", path)
 	}
 
-	xr, err := afero.ReadFile(r.fs, result.Outputs.XR)
+	xr, err := afero.ReadFile(r.fs, *result.Outputs.XR)
 	require.NoError(t, err)
 	assert.Contains(t, string(xr), "test-pod", "the XR is the first rendered resource")
 }

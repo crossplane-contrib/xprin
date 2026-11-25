@@ -154,7 +154,7 @@ func (tcr *TestCaseResult) AddToSection(header string, status Status, text strin
 // Outputs represents the output data available in post-test hooks.
 type Outputs struct {
 	Render      *string           // Path to rendered.yaml (nil if there is no render output)
-	XR          string            // Path to xr.yaml
+	XR          *string           // Path to xr.yaml (nil if there is no render output, or it has no resource)
 	Validate    *string           // Path to validate.txt (nil if no CRDs)
 	Assertions  *string           // Path to assertions.txt (nil if no assertions)
 	RenderCount int               // Number of resources in render output

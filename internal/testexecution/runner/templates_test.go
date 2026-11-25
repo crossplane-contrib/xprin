@@ -39,8 +39,9 @@ func TestRenderTemplate_OutputWithoutValue(t *testing.T) {
 	env := testEnv(testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}}}))
 	validate := "/outputs/validate.txt"
 
-	without := newTemplateContext(nil, api.Inputs{}, &engine.Outputs{XR: "/outputs/xr.yaml"}, nil)
-	with := newTemplateContext(nil, api.Inputs{}, &engine.Outputs{XR: "/outputs/xr.yaml", Validate: &validate}, nil)
+	without := newTemplateContext(nil, api.Inputs{}, &engine.Outputs{XR: new("/outputs/xr.yaml")}, nil)
+	noRender := newTemplateContext(nil, api.Inputs{}, &engine.Outputs{}, nil)
+	with := newTemplateContext(nil, api.Inputs{}, &engine.Outputs{XR: new("/outputs/xr.yaml"), Validate: &validate}, nil)
 
 	for name, tt := range map[string]struct {
 		template string
@@ -54,6 +55,9 @@ func TestRenderTemplate_OutputWithoutValue(t *testing.T) {
 		"guarded, validate did not run":      {"{{ if .Outputs.Validate }}cat {{ .Outputs.Validate }}{{ else }}none{{ end }}", without, "none"},
 		"guarded, validate ran":              {"{{ if .Outputs.Validate }}cat {{ .Outputs.Validate }}{{ else }}none{{ end }}", with, "cat /outputs/validate.txt"},
 		"an output that is there is not one": {"{{ .Outputs.XR }}", without, "/outputs/xr.yaml"},
+		"no rendered XR":                     {"cat {{ .Outputs.XR }}", noRender, "error: .Outputs.XR has no value: there is no rendered XR"},
+		"no render output":                   {"cat {{ .Outputs.Render }}", noRender, "error: .Outputs.Render has no value: there is no render output"},
+		"guarded, no rendered XR":            {"{{ if .Outputs.XR }}cat {{ .Outputs.XR }}{{ else }}none{{ end }}", noRender, "none"},
 		"through a pipe, it is still <nil>":  {`{{ .Outputs.Validate | printf "%s" }}`, without, "error: .Outputs.Validate has no value"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -161,10 +165,12 @@ func TestRenderTemplate_MissingNeed(t *testing.T) {
 	})
 
 	t.Run("index with one that is listed works", func(t *testing.T) {
-		out, err := r.renderTemplate(env, `{{ (index .Tests "b").Outputs.XR }}x`, ctx, "test")
+		listed := newTemplateContext(nil, api.Inputs{}, nil, map[string]*engine.TestCaseResult{"b": {Outputs: engine.Outputs{XR: new("/b/xr.yaml")}}})
+
+		out, err := r.renderTemplate(env, `{{ (index .Tests "b").Outputs.XR }}x`, listed, "test")
 
 		require.NoError(t, err)
-		assert.Equal(t, "x", out)
+		assert.Equal(t, "/b/xr.yamlx", out)
 	})
 
 	t.Run("something that is not a testcase", func(t *testing.T) {
@@ -327,7 +333,7 @@ hooks:
     run: "echo 'Cleaning up {{ .Outputs.XR }} and {{ .Outputs.Render }}'"
 `
 		outputs := &engine.Outputs{
-			XR:     "rendered-xr.yaml",
+			XR:     new("rendered-xr.yaml"),
 			Render: new("rendered-resources.yaml"),
 		}
 
@@ -349,7 +355,7 @@ hooks:
 `
 		validatePath := "/path/to/validate.txt"
 		outputs := &engine.Outputs{
-			XR:          "rendered-xr.yaml",
+			XR:          new("rendered-xr.yaml"),
 			Render:      new("rendered-resources.yaml"),
 			Validate:    &validatePath,
 			RenderCount: 5,
@@ -372,7 +378,7 @@ hooks:
     run: "echo 'Validation: {{ .Outputs.Validate }}, Count: {{ .Outputs.RenderCount }}'"
 `
 		outputs := &engine.Outputs{
-			XR:          "rendered-xr.yaml",
+			XR:          new("rendered-xr.yaml"),
 			Render:      new("rendered-resources.yaml"),
 			Validate:    nil, // No validation output
 			RenderCount: 3,
@@ -392,7 +398,7 @@ hooks:
     run: "echo 'Rendered resources: {{ .Outputs.Rendered }}'"
 `
 		outputs := &engine.Outputs{
-			XR:     "rendered-xr.yaml",
+			XR:     new("rendered-xr.yaml"),
 			Render: new("rendered-resources.yaml"),
 			Rendered: map[string]string{
 				"ConfigMap/my-config": "/path/to/configmap.yaml",
@@ -418,7 +424,7 @@ hooks:
 `
 		assertionsPath := "/path/to/assertions.txt"
 		outputs := &engine.Outputs{
-			XR:         "rendered-xr.yaml",
+			XR:         new("rendered-xr.yaml"),
 			Render:     new("rendered-resources.yaml"),
 			Assertions: &assertionsPath,
 		}
@@ -439,7 +445,7 @@ hooks:
     run: "echo 'Assertions: {{ .Outputs.Assertions }}'"
 `
 		outputs := &engine.Outputs{
-			XR:         "rendered-xr.yaml",
+			XR:         new("rendered-xr.yaml"),
 			Render:     new("rendered-resources.yaml"),
 			Assertions: nil, // No assertions run
 		}
@@ -464,7 +470,7 @@ hooks:
 `
 		repos := map[string]string{"myrepo": "/path/to/repo"}
 		inputs := api.Inputs{XR: "test-xr.yaml"}
-		outputs := &engine.Outputs{XR: "rendered-xr.yaml"}
+		outputs := &engine.Outputs{XR: new("rendered-xr.yaml")}
 
 		templateContext := newTemplateContext(repos, inputs, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
@@ -508,7 +514,7 @@ hooks:
 
 	t.Run("unknown output variable", func(t *testing.T) {
 		yaml := "hooks:\n  post-test:\n  - run: \"echo '{{ .Outputs.UnknownField }}'\""
-		outputs := &engine.Outputs{XR: "rendered-xr.yaml"}
+		outputs := &engine.Outputs{XR: new("rendered-xr.yaml")}
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}

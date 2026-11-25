@@ -494,16 +494,18 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, ne
 
 	if len(result.RenderedResources) > 0 {
 		// Create separate XR file with just the first resource
-		result.Outputs.XR = filepath.Join(env.outputsDir, "xr.yaml")
+		xrPath := filepath.Join(env.outputsDir, "xr.yaml")
 
 		xrYAML, err := yaml.Marshal(result.RenderedResources[0])
 		if err != nil {
 			return result.Fail(fmt.Errorf("failed to marshal XR resource: %w", err))
 		}
 
-		if err := afero.WriteFile(r.fs, result.Outputs.XR, xrYAML, 0o600); err != nil {
+		if err := afero.WriteFile(r.fs, xrPath, xrYAML, 0o600); err != nil {
 			return result.Fail(fmt.Errorf("failed to write XR file: %w", err))
 		}
+
+		result.Outputs.XR = &xrPath
 	}
 
 	// Process all resources for Rendered map (including XR)
@@ -713,7 +715,10 @@ func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *en
 		*result.Outputs.Render = filepath.Join(testCaseDir, "rendered.yaml")
 	}
 
-	result.Outputs.XR = filepath.Join(testCaseDir, "xr.yaml")
+	if result.Outputs.XR != nil {
+		*result.Outputs.XR = filepath.Join(testCaseDir, "xr.yaml")
+	}
+
 	if result.Outputs.Validate != nil {
 		*result.Outputs.Validate = filepath.Join(testCaseDir, "validate.txt")
 	}
