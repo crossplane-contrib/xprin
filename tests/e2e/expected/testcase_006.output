@@ -30,8 +30,16 @@
 --- SKIP: Pre-test hook that uses the converted XR, template rendering error (X.XXXs)
 === RUN   Post-test hook failure
 --- SKIP: Post-test hook failure (X.XXXs)
+=== RUN   Post-test hook that uses the output of a validate that did not run, template rendering error
+--- SKIP: Post-test hook that uses the output of a validate that did not run, template rendering error (X.XXXs)
+=== RUN   Post-test hook that uses the output of assertions that did not run, template rendering error
+--- SKIP: Post-test hook that uses the output of assertions that did not run, template rendering error (X.XXXs)
 === RUN   Invalid Post-test hook, template rendering error
 --- SKIP: Invalid Post-test hook, template rendering error (X.XXXs)
+=== RUN   Needs one that did not run validate, and uses its validate output, template rendering error
+--- SKIP: Needs one that did not run validate, and uses its validate output, template rendering error (X.XXXs)
+=== RUN   Needs one that had no assertions, and uses its assertions output, template rendering error
+--- SKIP: Needs one that had no assertions, and uses its assertions output, template rendering error (X.XXXs)
 === RUN   Assertion failure
 --- FAIL: Assertion failure (X.XXXs)
     Golden Files:
@@ -170,11 +178,31 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
 --- FAIL: Post-test hook failure (X.XXXs)
     Post-test Hooks:
         [x] Fail post-test hook [exit code: 1]
+=== RUN   Post-test hook that uses the output of a validate that did not run, template rendering error
+--- FAIL: Post-test hook that uses the output of a validate that did not run, template rendering error (X.XXXs)
+    Post-test Hooks:
+        [!] Invalid post-test hook (template rendering error: validate did not run)
+            error: failed to render hook template: failed to execute template: .Outputs.Validate has no value: validate did not run
+=== RUN   Post-test hook that uses the output of assertions that did not run, template rendering error
+--- FAIL: Post-test hook that uses the output of assertions that did not run, template rendering error (X.XXXs)
+    Post-test Hooks:
+        [!] Invalid post-test hook (template rendering error: no assertions ran)
+            error: failed to render hook template: failed to execute template: .Outputs.Assertions has no value: no assertions ran
 === RUN   Invalid Post-test hook, template rendering error
 --- FAIL: Invalid Post-test hook, template rendering error (X.XXXs)
     Post-test Hooks:
         [!] Invalid post-test hook (template rendering error)
             error: failed to render hook template: failed to execute template: template: hook:1:16: executing "hook" at <.Outputs.UnknownField>: can't evaluate field UnknownField in type *engine.Outputs
+=== RUN   Needs one that did not run validate, and uses its validate output, template rendering error
+--- FAIL: Needs one that did not run validate, and uses its validate output, template rendering error (X.XXXs)
+    Post-test Hooks:
+        [!] Invalid post-test hook (template rendering error: validate did not run in the one it needs)
+            error: failed to render hook template: failed to execute template: .Outputs.Validate has no value: validate did not run
+=== RUN   Needs one that had no assertions, and uses its assertions output, template rendering error
+--- FAIL: Needs one that had no assertions, and uses its assertions output, template rendering error (X.XXXs)
+    Post-test Hooks:
+        [!] Invalid post-test hook (template rendering error: no assertions ran in the one it needs)
+            error: failed to render hook template: failed to execute template: .Outputs.Assertions has no value: no assertions ran
 === RUN   Assertion failure
 --- FAIL: Assertion failure (X.XXXs)
     Assertions:

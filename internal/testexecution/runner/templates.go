@@ -146,7 +146,39 @@ func (r *Runner) renderTemplate(env *testCaseEnv, content string, templateContex
 		return "", fmt.Errorf("failed to execute template: %w", r.explainMissingNeeds(env, err))
 	}
 
+	// A template does not fail on an output that is not there (a nil pointer): it prints <nil>, and a command that
+	// uses it would run with that. A guard (`{{ if .Outputs.Validate }}`) is false for it, so it is not affected.
+	if strings.Contains(buf.String(), nilValue) {
+		return "", fmt.Errorf("failed to execute template: %s", noValueMessage(content))
+	}
+
 	return buf.String(), nil
+}
+
+// nilValue is what a template prints for an output that is not there.
+const nilValue = "<nil>"
+
+// noValueMessage says which outputs that the template uses have no value, and why.
+func noValueMessage(content string) string {
+	// the outputs that are not there when what writes them did not run
+	outputs := []struct{ name, reason string }{
+		{".Outputs.Validate", "validate did not run"},
+		{".Outputs.Assertions", "no assertions ran"},
+	}
+
+	var messages []string
+
+	for _, output := range outputs {
+		if strings.Contains(content, output.name) {
+			messages = append(messages, fmt.Sprintf("%s has no value: %s", output.name, output.reason))
+		}
+	}
+
+	if len(messages) == 0 {
+		return "a template variable has no value (" + nilValue + ")"
+	}
+
+	return strings.Join(messages, "; ")
 }
 
 // missingKey finds the key in the error of a template that uses `.Tests` for a test case that is not there:

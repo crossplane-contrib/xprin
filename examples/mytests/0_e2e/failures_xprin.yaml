@@ -231,6 +231,30 @@ tests:
     - name: Another failed post-test hook, it should never be shown"
       run: exit 2
 
+- name: "Post-test hook that uses the output of a validate that did not run, template rendering error"
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    post-test:
+    - name: "Post-test hook with a guard on the output of validate (it runs, there are no CRDs)"
+      run: echo "validate=[{{ if .Outputs.Validate }}{{ .Outputs.Validate }}{{ else }}none{{ end }}]"
+    - name: "Invalid post-test hook (template rendering error: validate did not run)"
+      run: cat {{ .Outputs.Validate }}
+    - name: "Successful post-test hook, it should never be shown"
+      run: echo "bye"
+
+- name: "Post-test hook that uses the output of assertions that did not run, template rendering error"
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    post-test:
+    - name: "Post-test hook with a guard on the output of the assertions (it runs, there are no assertions)"
+      run: echo "assertions=[{{ if .Outputs.Assertions }}{{ .Outputs.Assertions }}{{ else }}none{{ end }}]"
+    - name: "Invalid post-test hook (template rendering error: no assertions ran)"
+      run: cat {{ .Outputs.Assertions }}
+    - name: "Successful post-test hook, it should never be shown"
+      run: echo "bye"
+
 - name: "Invalid Post-test hook, template rendering error"
   inputs:
     xr: ../../aws/xr.yaml
@@ -242,6 +266,34 @@ tests:
       run: echo "bye"
     - name: "Failed post-test hook, it should never be shown"
       run: exit 2
+
+- name: "Needs one that did not run validate, and uses its validate output, template rendering error"
+  needs:
+  - success
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    post-test:
+    - name: "Post-test hook with a guard on the validate output of the one it needs (it runs, there is none)"
+      run: echo "validate=[{{ if .Tests.success.Outputs.Validate }}{{ .Tests.success.Outputs.Validate }}{{ else }}none{{ end }}]"
+    - name: "Invalid post-test hook (template rendering error: validate did not run in the one it needs)"
+      run: cat {{ .Tests.success.Outputs.Validate }}
+    - name: "Successful post-test hook, it should never be shown"
+      run: echo "bye"
+
+- name: "Needs one that had no assertions, and uses its assertions output, template rendering error"
+  needs:
+  - success
+  inputs:
+    xr: ../../aws/xr.yaml
+  hooks:
+    post-test:
+    - name: "Post-test hook with a guard on the assertions output of the one it needs (it runs, there is none)"
+      run: echo "assertions=[{{ if .Tests.success.Outputs.Assertions }}{{ .Tests.success.Outputs.Assertions }}{{ else }}none{{ end }}]"
+    - name: "Invalid post-test hook (template rendering error: no assertions ran in the one it needs)"
+      run: cat {{ .Tests.success.Outputs.Assertions }}
+    - name: "Successful post-test hook, it should never be shown"
+      run: echo "bye"
 
 # Assertion failures
 - name: "Assertion failure"

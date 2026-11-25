@@ -18,6 +18,7 @@ package runner
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/crossplane-contrib/xprin/internal/api"
@@ -30,6 +31,54 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard // testify is widely used for testing
 	"sigs.k8s.io/yaml"
 )
+
+// An output that is not there (validate did not run, or there were no assertions) is a template error when it is used,
+// not a <nil> in the command. A guard on it works.
+func TestRenderTemplate_OutputWithoutValue(t *testing.T) {
+	r := New(&testexecutionOptions.Options{})
+	env := testEnv(testsuite.New("/tests/a_xprin.yaml", &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}}}))
+	validate := "/outputs/validate.txt"
+
+	without := newTemplateContext(nil, api.Inputs{}, &engine.Outputs{XR: "/outputs/xr.yaml"}, nil)
+	with := newTemplateContext(nil, api.Inputs{}, &engine.Outputs{XR: "/outputs/xr.yaml", Validate: &validate}, nil)
+
+	for name, tt := range map[string]struct {
+		template string
+		context  *templateContext
+		want     string // the result, or the error if it starts with "error: "
+	}{
+		"validate did not run":               {"cat {{ .Outputs.Validate }}", without, "error: .Outputs.Validate has no value: validate did not run"},
+		"validate ran":                       {"cat {{ .Outputs.Validate }}", with, "cat /outputs/validate.txt"},
+		"no assertions":                      {"cat {{ .Outputs.Assertions }}", without, "error: .Outputs.Assertions has no value: no assertions ran"},
+		"both":                               {"{{ .Outputs.Validate }} {{ .Outputs.Assertions }}", without, "error: .Outputs.Validate has no value: validate did not run; .Outputs.Assertions has no value: no assertions ran"},
+		"guarded, validate did not run":      {"{{ if .Outputs.Validate }}cat {{ .Outputs.Validate }}{{ else }}none{{ end }}", without, "none"},
+		"guarded, validate ran":              {"{{ if .Outputs.Validate }}cat {{ .Outputs.Validate }}{{ else }}none{{ end }}", with, "cat /outputs/validate.txt"},
+		"an output that is there is not one": {"{{ .Outputs.XR }}", without, "/outputs/xr.yaml"},
+		"through a pipe, it is still <nil>":  {`{{ .Outputs.Validate | printf "%s" }}`, without, "error: .Outputs.Validate has no value"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := r.renderTemplate(env, tt.template, tt.context, "test")
+
+			if want, isError := strings.CutPrefix(tt.want, "error: "); isError {
+				require.ErrorContains(t, err, "failed to execute template: "+want)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+
+	t.Run("a test case that did not run validate, used with .Tests", func(t *testing.T) {
+		tests := map[string]*engine.TestCaseResult{"a": {Outputs: engine.Outputs{}}}
+		ctx := newTemplateContext(nil, api.Inputs{}, nil, tests)
+
+		_, err := r.renderTemplate(env, "{{ .Tests.a.Outputs.Validate }}", ctx, "test")
+
+		require.ErrorContains(t, err, ".Outputs.Validate has no value: validate did not run")
+	})
+}
 
 func TestRenderTemplate_Converted(t *testing.T) {
 	r := New(&testexecutionOptions.Options{})
@@ -315,7 +364,7 @@ hooks:
 		assert.NotContains(t, out, "{{ .Outputs.RenderCount }}")
 	})
 
-	t.Run("output variables without validation", func(t *testing.T) {
+	t.Run("output variables without validation: an error, not <nil>", func(t *testing.T) {
 		yaml := `
 hooks:
   post-test:
@@ -331,11 +380,8 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(newTestEnv(), yaml, templateContext, "test")
-		require.NoError(t, err)
-		assert.Contains(t, out, "echo 'Validation: <nil>, Count: 3'")
-		assert.NotContains(t, out, "{{ .Outputs.Validate }}")
-		assert.NotContains(t, out, "{{ .Outputs.RenderCount }}")
+		_, err := runner.renderTemplate(newTestEnv(), yaml, templateContext, "test")
+		require.ErrorContains(t, err, ".Outputs.Validate has no value: validate did not run")
 	})
 
 	t.Run("output variables - rendered map", func(t *testing.T) {
@@ -385,7 +431,7 @@ hooks:
 		assert.NotContains(t, out, "{{ .Outputs.Assertions }}")
 	})
 
-	t.Run("output variables - assertions nil", func(t *testing.T) {
+	t.Run("output variables - assertions nil: an error, not <nil>", func(t *testing.T) {
 		yaml := `
 hooks:
   post-test:
@@ -400,10 +446,8 @@ hooks:
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
 		runner := &Runner{}
-		out, err := runner.renderTemplate(newTestEnv(), yaml, templateContext, "test")
-		require.NoError(t, err)
-		assert.Contains(t, out, "echo 'Assertions: <nil>'")
-		assert.NotContains(t, out, "{{ .Outputs.Assertions }}")
+		_, err := runner.renderTemplate(newTestEnv(), yaml, templateContext, "test")
+		require.ErrorContains(t, err, ".Outputs.Assertions has no value: no assertions ran")
 	})
 
 	t.Run("mixed template variables", func(t *testing.T) {

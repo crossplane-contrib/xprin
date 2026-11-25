@@ -81,10 +81,26 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
 --- FAIL: Post-test hook failure (X.XXXs)
     Post-test Hooks:
         [x] Fail post-test hook [exit code: 1]
+--- FAIL: Post-test hook that uses the output of a validate that did not run, template rendering error (X.XXXs)
+    Post-test Hooks:
+        [!] Invalid post-test hook (template rendering error: validate did not run)
+            error: failed to render hook template: failed to execute template: .Outputs.Validate has no value: validate did not run
+--- FAIL: Post-test hook that uses the output of assertions that did not run, template rendering error (X.XXXs)
+    Post-test Hooks:
+        [!] Invalid post-test hook (template rendering error: no assertions ran)
+            error: failed to render hook template: failed to execute template: .Outputs.Assertions has no value: no assertions ran
 --- FAIL: Invalid Post-test hook, template rendering error (X.XXXs)
     Post-test Hooks:
         [!] Invalid post-test hook (template rendering error)
             error: failed to render hook template: failed to execute template: template: hook:1:16: executing "hook" at <.Outputs.UnknownField>: can't evaluate field UnknownField in type *engine.Outputs
+--- FAIL: Needs one that did not run validate, and uses its validate output, template rendering error (X.XXXs)
+    Post-test Hooks:
+        [!] Invalid post-test hook (template rendering error: validate did not run in the one it needs)
+            error: failed to render hook template: failed to execute template: .Outputs.Validate has no value: validate did not run
+--- FAIL: Needs one that had no assertions, and uses its assertions output, template rendering error (X.XXXs)
+    Post-test Hooks:
+        [!] Invalid post-test hook (template rendering error: no assertions ran in the one it needs)
+            error: failed to render hook template: failed to execute template: .Outputs.Assertions has no value: no assertions ran
 --- FAIL: Assertion failure (X.XXXs)
     Assertions:
         [x] Resource count should be zero: expected 0 resources, got 2
