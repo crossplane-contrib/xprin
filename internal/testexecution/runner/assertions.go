@@ -73,7 +73,7 @@ func (e *assertionExecutor) resolveAndReadGoldenFile(a api.AssertionGoldenFile) 
 	} else {
 		var ok bool
 
-		actualPath, ok = e.outputs.Rendered[a.Resource]
+		actualPath, ok = e.outputs.RenderedFiles()[a.Resource]
 		if !ok {
 			ar := engine.NewAssertionResult(a.Name, engine.StatusError(), fmt.Sprintf("resource %q not found in render output", a.Resource))
 			return "", "", nil, nil, &ar

@@ -217,7 +217,7 @@ func TestRunUpdateGoldens_WritesResourceScopedAssertion(t *testing.T) {
 		},
 	}
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
-	result.Outputs.Rendered = map[string]string{"Pod/my-pod": "/actual/pod.yaml"}
+	result.Outputs.Rendered = new(map[string]string{"Pod/my-pod": "/actual/pod.yaml"})
 
 	out := r.runUpdateGoldens(env, testCase, result)
 
@@ -242,7 +242,7 @@ func TestRunUpdateGoldens_FailsOnUnknownResource(t *testing.T) {
 		},
 	}
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
-	result.Outputs.Rendered = map[string]string{}
+	result.Outputs.Rendered = new(map[string]string{})
 
 	out := r.runUpdateGoldens(env, testCase, result)
 
@@ -270,7 +270,7 @@ func TestRunUpdateGoldens_TheFailedFileComesAfterTheWrittenOnes(t *testing.T) {
 	}
 	result := engine.NewTestCaseResult(testCase.Name, "", false, false, false, false, false)
 	result.Outputs.Render = new("/actual/render.yaml")
-	result.Outputs.Rendered = map[string]string{}
+	result.Outputs.Rendered = new(map[string]string{})
 
 	out := r.runUpdateGoldens(env, testCase, result)
 

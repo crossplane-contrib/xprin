@@ -107,7 +107,7 @@ func (e *assertionExecutor) executeCountAssertion(assertion api.AssertionXprin) 
 
 	if assertion.Resource == "" {
 		// Count the number of all resources in the rendered output
-		actualCount = len(e.outputs.Rendered)
+		actualCount = len(e.outputs.RenderedFiles())
 	} else {
 		// Count only the resources that match a certain pattern
 		var err error
@@ -437,15 +437,17 @@ func (e *assertionExecutor) findResources(pattern string) ([]*unstructured.Unstr
 	}
 
 	// Extract keys and sort them to get deterministic ordering in assertions
-	keys := make([]string, 0, len(e.outputs.Rendered))
-	for k := range e.outputs.Rendered {
+	rendered := e.outputs.RenderedFiles()
+
+	keys := make([]string, 0, len(rendered))
+	for k := range rendered {
 		keys = append(keys, k)
 	}
 
 	sort.Strings(keys)
 
 	for _, resourceIdentifier := range keys {
-		resourcePath := e.outputs.Rendered[resourceIdentifier]
+		resourcePath := rendered[resourceIdentifier]
 
 		isMatched, err := filepath.Match(pattern, resourceIdentifier)
 		if err != nil {

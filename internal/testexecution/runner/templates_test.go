@@ -57,6 +57,11 @@ func TestRenderTemplate_OutputWithoutValue(t *testing.T) {
 		"an output that is there is not one": {"{{ .Outputs.XR }}", without, "/outputs/xr.yaml"},
 		"no rendered XR":                     {"cat {{ .Outputs.XR }}", noRender, "error: .Outputs.XR has no value: there is no rendered XR"},
 		"no render output":                   {"cat {{ .Outputs.Render }}", noRender, "error: .Outputs.Render has no value: there is no render output"},
+		"no rendered resources, index":       {`{{ index .Outputs.Rendered "Kind/name" }}`, noRender, "error: .Outputs.Rendered has no value: there is no render output"},
+		"no rendered resources, range":       {"{{ range $k, $v := .Outputs.Rendered }}{{ $k }}{{ end }}", noRender, "error: .Outputs.Rendered has no value: there is no render output"},
+		"no rendered resources, len":         {"{{ len .Outputs.Rendered }}", noRender, "error: .Outputs.Rendered has no value: there is no render output"},
+		"guarded, no rendered resources":     {`{{ if .Outputs.Rendered }}{{ index .Outputs.Rendered "Kind/name" }}{{ else }}none{{ end }}`, noRender, "none"},
+		"only the ones that are not there":   {"{{ .Outputs.XR }} {{ .Outputs.Validate }}", without, "error: .Outputs.Validate has no value: validate did not run"},
 		"no render count":                    {"{{ .Outputs.RenderCount }}", noRender, "error: .Outputs.RenderCount has no value: there is no render output"},
 		"guarded, no render count":           {"{{ if .Outputs.RenderCount }}{{ .Outputs.RenderCount }}{{ else }}none{{ end }}", noRender, "none"},
 		"guarded, no rendered XR":            {"{{ if .Outputs.XR }}cat {{ .Outputs.XR }}{{ else }}none{{ end }}", noRender, "none"},
@@ -75,6 +80,13 @@ func TestRenderTemplate_OutputWithoutValue(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+
+	t.Run("the message says only the outputs that are not there", func(t *testing.T) {
+		_, err := r.renderTemplate(env, "{{ .Outputs.XR }} {{ .Outputs.Validate }}", without, "test")
+
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), ".Outputs.XR")
+	})
 
 	t.Run("a test case that did not run validate, used with .Tests", func(t *testing.T) {
 		tests := map[string]*engine.TestCaseResult{"a": {Outputs: engine.Outputs{}}}
@@ -402,10 +414,10 @@ hooks:
 		outputs := &engine.Outputs{
 			XR:     new("rendered-xr.yaml"),
 			Render: new("rendered-resources.yaml"),
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"ConfigMap/my-config": "/path/to/configmap.yaml",
 				"Service/my-service":  "/path/to/service.yaml",
-			},
+			}),
 		}
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})

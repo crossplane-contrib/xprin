@@ -29,7 +29,7 @@ import (
 
 func TestNewAssertionExecutor(t *testing.T) {
 	outputs := &engine.Outputs{
-		Rendered: make(map[string]string),
+		Rendered: new(make(map[string]string)),
 	}
 
 	executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
@@ -60,7 +60,7 @@ func TestAssertionExecutor_resolveAndReadGoldenFile(t *testing.T) {
 		require.NoError(t, afero.WriteFile(fs, expectedPath, content, 0o644))
 		require.NoError(t, afero.WriteFile(fs, actualPath, content, 0o644))
 
-		outputs := &engine.Outputs{Render: &actualPath, Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: &actualPath, Rendered: new(map[string]string{})}
 		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
 		a := api.AssertionGoldenFile{Name: "full", Expected: "golden.yaml"}
 
@@ -82,7 +82,7 @@ func TestAssertionExecutor_resolveAndReadGoldenFile(t *testing.T) {
 
 		outputs := &engine.Outputs{
 			Render:   new("/out/render.yaml"),
-			Rendered: map[string]string{"Pod/foo": resourcePath},
+			Rendered: new(map[string]string{"Pod/foo": resourcePath}),
 		}
 		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
 		a := api.AssertionGoldenFile{Name: "pod", Expected: "golden-pod.yaml", Resource: "Pod/foo"}
@@ -98,7 +98,7 @@ func TestAssertionExecutor_resolveAndReadGoldenFile(t *testing.T) {
 	t.Run("error when expandPath errors", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		expandFail := func(string, string) (string, error) { return "", assert.AnError }
-		outputs := &engine.Outputs{Render: new("/out/render.yaml"), Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: new("/out/render.yaml"), Rendered: new(map[string]string{})}
 		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandFail, false)
 		a := api.AssertionGoldenFile{Name: "bad path", Expected: "golden.yaml"}
 
@@ -110,7 +110,7 @@ func TestAssertionExecutor_resolveAndReadGoldenFile(t *testing.T) {
 
 	t.Run("error when resource not in Rendered", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		outputs := &engine.Outputs{Render: new("/out/render.yaml"), Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: new("/out/render.yaml"), Rendered: new(map[string]string{})}
 		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
 		a := api.AssertionGoldenFile{Name: "missing", Expected: "g.yaml", Resource: "Pod/nonexistent"}
 
@@ -124,7 +124,7 @@ func TestAssertionExecutor_resolveAndReadGoldenFile(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		actualPath := testDiffActualPath
 		require.NoError(t, afero.WriteFile(fs, actualPath, []byte("x"), 0o644))
-		outputs := &engine.Outputs{Render: &actualPath, Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: &actualPath, Rendered: new(map[string]string{})}
 		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
 		a := api.AssertionGoldenFile{Name: "no expected", Expected: "nonexistent.yaml"}
 
@@ -139,7 +139,7 @@ func TestAssertionExecutor_resolveAndReadGoldenFile(t *testing.T) {
 		expectedPath := testDiffGoldenPath
 		require.NoError(t, afero.WriteFile(fs, expectedPath, []byte("x"), 0o644))
 
-		outputs := &engine.Outputs{Render: new("/nonexistent/actual.yaml"), Rendered: map[string]string{}}
+		outputs := &engine.Outputs{Render: new("/nonexistent/actual.yaml"), Rendered: new(map[string]string{})}
 		exec := newAssertionExecutor(fs, outputs, false, testSuiteFile, expandPath, false)
 		a := api.AssertionGoldenFile{Name: "no actual", Expected: "golden.yaml"}
 

@@ -95,7 +95,7 @@ func (r *Runner) writeGoldenFile(env *testCaseEnv, a api.AssertionGoldenFile, ou
 	} else {
 		var ok bool
 
-		actualPath, ok = outputs.Rendered[a.Resource]
+		actualPath, ok = outputs.RenderedFiles()[a.Resource]
 		if !ok {
 			return expectedPath, fmt.Errorf("resource %q not found in render output", a.Resource)
 		}

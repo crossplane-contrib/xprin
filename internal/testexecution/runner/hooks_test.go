@@ -410,9 +410,9 @@ func TestExecuteHooks_PostTestHooks_InputsAndOutputsTemplateVariables(t *testing
 		XR:          new("rendered-xr.yaml"),
 		Render:      new("rendered-resources.yaml"),
 		RenderCount: new(5),
-		Rendered: map[string]string{
+		Rendered: new(map[string]string{
 			"Pod/test-pod": "/path/to/pod.yaml",
-		},
+		}),
 	}
 
 	// Create hooks with BOTH Inputs and Outputs template variables (using placeholders as they would appear after YAML loading)

@@ -510,6 +510,9 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, ne
 	}
 
 	// Process all resources for Rendered map (including XR)
+	rendered := make(map[string]string, len(result.RenderedResources))
+	result.Outputs.Rendered = &rendered
+
 	for i, resource := range result.RenderedResources {
 		kind := resource.GetKind()
 		name := resource.GetName()
@@ -529,7 +532,7 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, ne
 		}
 
 		// Add to Rendered map with string key containing slash
-		result.Outputs.Rendered[fmt.Sprintf("%s/%s", kind, name)] = filepath
+		rendered[fmt.Sprintf("%s/%s", kind, name)] = filepath
 	}
 
 	return nil
@@ -729,9 +732,9 @@ func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *en
 	}
 
 	// Update Rendered map paths to point to the internal artifacts
-	for key, path := range result.Outputs.Rendered {
+	for key, path := range result.Outputs.RenderedFiles() {
 		filename := filepath.Base(path)
-		result.Outputs.Rendered[key] = filepath.Join(testCaseDir, filename)
+		(*result.Outputs.Rendered)[key] = filepath.Join(testCaseDir, filename)
 	}
 
 	return nil

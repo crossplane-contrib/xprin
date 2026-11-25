@@ -106,7 +106,7 @@ func TestSaveOutputs(t *testing.T) {
 			XR:         new("/tmp/outputs/xr.yaml"),
 			Validate:   &validate,
 			Assertions: &assertions,
-			Rendered:   map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"},
+			Rendered:   new(map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"}),
 		}
 
 		require.NoError(t, r.saveOutputs(api.TestCase{ID: "a"}, &testCaseEnv{TestSuiteContext: TestSuiteContext{SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, result))
@@ -116,7 +116,7 @@ func TestSaveOutputs(t *testing.T) {
 		assert.Equal(t, "/saved-outputs/a/xr.yaml", *result.Outputs.XR)
 		assert.Equal(t, "/saved-outputs/a/validate.txt", *result.Outputs.Validate)
 		assert.Equal(t, "/saved-outputs/a/assertions.txt", *result.Outputs.Assertions)
-		assert.Equal(t, "/saved-outputs/a/Kind-name.yaml", result.Outputs.Rendered["Kind/name"])
+		assert.Equal(t, "/saved-outputs/a/Kind-name.yaml", result.Outputs.RenderedFiles()["Kind/name"])
 	})
 
 	t.Run("a test case without an ID: nothing is copied", func(t *testing.T) {
@@ -670,9 +670,9 @@ metadata:
 	assert.Equal(t, map[string]string{
 		"Pod/test-pod":             "/outputs/rendered-pod-test-pod.yaml",
 		"ConfigMap/test-configmap": "/outputs/rendered-configmap-test-configmap.yaml",
-	}, result.Outputs.Rendered)
+	}, result.Outputs.RenderedFiles())
 
-	for _, path := range []string{*result.Outputs.Render, *result.Outputs.XR, result.Outputs.Rendered["Pod/test-pod"], result.Outputs.Rendered["ConfigMap/test-configmap"]} {
+	for _, path := range []string{*result.Outputs.Render, *result.Outputs.XR, result.Outputs.RenderedFiles()["Pod/test-pod"], result.Outputs.RenderedFiles()["ConfigMap/test-configmap"]} {
 		exists, err := afero.Exists(r.fs, path)
 		require.NoError(t, err)
 		assert.True(t, exists, "%s should have been written", path)
