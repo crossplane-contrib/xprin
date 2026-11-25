@@ -313,10 +313,32 @@ func (r *Runner) runPreTestHooks(env *testCaseEnv, testCase api.TestCase, needsR
 	return nil
 }
 
-// runCrossplaneRender turns the test case into the XR to render (converting its Claim, or taking its XR, and patching it),
-// renders it, and writes the rendered resources to the outputs directory of its environment. It returns the result
-// that ends the run of the test case when any of that fails (the failed one, or the one of the assertions on errors
-// when the test case expects the render to fail), and nil to go on.
+// runPostClaimConversionHooks runs the post-claim-conversion hooks of the test case, if it has any: they run on the XR that
+// the claim was converted into (`.Converted.XR`), before it is patched and rendered. It returns the failed result when
+// one of them fails, and nil to go on.
+func (r *Runner) runPostClaimConversionHooks(env *testCaseEnv, testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
+	if !testCase.HasPostClaimConversionHooks() {
+		return nil
+	}
+
+	hookExecutor := newHookExecutor(r.Repositories, r.debug, r.runCommandIn(env), r.renderTemplateOf(env))
+
+	var err error
+
+	result.PostClaimConversionHooksResults, err = hookExecutor.executeHooks(testCase.Hooks.PostClaimConversion, "post-claim-conversion", testCase.Inputs, nil, needsResults)
+	result.ProcessPostClaimConversionHooksOutput()
+
+	if err != nil {
+		return result.Fail(nil)
+	}
+
+	return nil
+}
+
+// runCrossplaneRender turns the test case into the XR to render (converting its Claim and running the post-claim-conversion
+// hooks on it, or taking its XR, and patching it), renders it, and writes the rendered resources to the outputs
+// directory of its environment. It returns the result that ends the run of the test case when any of that fails (the
+// failed one, or the one of the assertions on errors when the test case expects the render to fail), and nil to go on.
 //
 //nolint:gocognit // The steps of the conversion, the patching and the render, one after the other
 func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, needsResults map[string]*engine.TestCaseResult, result *engine.TestCaseResult) *engine.TestCaseResult {
@@ -344,6 +366,12 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, ne
 		inputXR, err = r.convertClaimToXRFunc(r, testCase.Inputs.Claim, testCase.Patches.XRD, goldenPath, env.inputsDir)
 		if err != nil {
 			return result.Fail(fmt.Errorf("failed to convert Claim: %w", err))
+		}
+
+		env.convertedXR = inputXR
+
+		if failed := r.runPostClaimConversionHooks(env, testCase, needsResults, result); failed != nil {
+			return failed
 		}
 	}
 

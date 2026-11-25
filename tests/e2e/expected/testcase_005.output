@@ -71,6 +71,13 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
             stderr 2
             stdout 3
             stderr 4
+--- FAIL: Post-claim-conversion hook failure (X.XXXs)
+    Post-claim-conversion Hooks:
+        [x] Fail post-claim-conversion hook [exit code: 1]
+--- FAIL: Pre-test hook that uses the converted XR, template rendering error (X.XXXs)
+    Pre-test Hooks:
+        [!] Invalid pre-test hook (template rendering error: the claim is not converted yet)
+            error: failed to render hook template: failed to execute template: template: hook:1:18: executing "hook" at <.Converted.XR>: error calling XR: .Converted.XR is not available before the claim is converted: use it in the post-claim-conversion and the post-test hooks
 --- FAIL: Post-test hook failure (X.XXXs)
     Post-test Hooks:
         [x] Fail post-test hook [exit code: 1]

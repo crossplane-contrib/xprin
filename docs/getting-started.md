@@ -17,6 +17,7 @@
   - [Patching](#patching)
   - [Hooks](#hooks)
     - [Pre-test hooks](#pre-test-hooks)
+    - [Post-claim-conversion hooks](#post-claim-conversion-hooks)
     - [Post-test hooks](#post-test-hooks)
   - [Assertions](#assertions)
   - [Test Chaining](#test-chaining)
@@ -289,6 +290,21 @@ Notes:
 - See [Available Variables](how-it-works.md#available-variables) for the full list.
 - Scripts can be stored in your repository and referenced by path, making hooks cleaner and reusable.
 
+#### Post-claim-conversion hooks
+With a Claim input, the XR that the Claim is converted into does not have its `status`, and a pre-test hook cannot set it: it runs before the conversion. A post-claim-conversion hook runs right after it, on `{{ .Converted.XR }}`, before the patches and the render:
+
+```yaml
+hooks:
+  post-claim-conversion:
+  - name: "the XR is ready"
+    run: yq -i '.status.ready = true' {{ .Converted.XR }}
+```
+
+Notes:
+- They run only for a test case with a Claim input: with an XR input, use a pre-test hook (`{{ .Inputs.XR }}`). They are ignored for it, so they can be in `common` for a file that has both.
+- `{{ .Converted.XR }}` is also available in the post-test hooks, and a template error anywhere else.
+- See [Post-claim-conversion Hooks](how-it-works.md#post-claim-conversion-hooks).
+
 #### Post-test hooks
 Use post-test hooks for:
 - cleaning up the test environment
@@ -459,7 +475,7 @@ ok      tests/basic_xprin.yaml     4.546s
 
 ### Failed Test Run
 
-Failures are shown with section headers (**Render:**, **Validate:**, **Assertions:**, **Pre-test Hooks:**, **Post-test Hooks:**) and symbols **[✓]** pass, **[x]** fail, **[!]** error. Example:
+Failures are shown with section headers (**Render:**, **Validate:**, **Assertions:**, **Pre-test Hooks:**, **Post-claim-conversion Hooks:**, **Post-test Hooks:**) and symbols **[✓]** pass, **[x]** fail, **[!]** error. Example:
 
 ```bash
 ➜ xprin test tests/broken_xprin.yaml
@@ -514,7 +530,7 @@ ok      tests/hello_xprin.yaml     5.193s
 ➜ xprin test -v --show-all tests/hello_xprin.yaml
 ```
 
-The output contains the Pre-test Hooks, Render, Validate, Assertions and Post-test Hooks sections of each test case (see the [README](../README.md) for a complete example).
+The output contains the Pre-test Hooks, Post-claim-conversion Hooks, Render, Validate, Assertions and Post-test Hooks sections of each test case (see the [README](../README.md) for a complete example).
 
 ## Integration Examples
 

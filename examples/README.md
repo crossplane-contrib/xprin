@@ -654,7 +654,7 @@ Note: Patches can also be specified in the `common.patches` section. If patches 
 
 ## Hooks
 
-Examples demonstrating how to use pre-test and post-test hooks to run shell commands before and after test execution.
+Examples demonstrating how to use pre-test, post-claim-conversion and post-test hooks to run shell commands before and after test execution.
 
 ### Example 1: Pre-test and Post-test Hooks
 
@@ -835,6 +835,45 @@ FAIL
 </details>
 
 ---
+
+### Example 4: Post-claim-conversion Hooks
+
+**File**: [`mytests/4_hooks/example4_post-claim-conversion-hooks_xprin.yaml`](mytests/4_hooks/example4_post-claim-conversion-hooks_xprin.yaml)
+
+This example demonstrates the `post-claim-conversion` hooks, which run right after a Claim is converted to an XR, before the patches and the render. The conversion does not copy the `status` of the Claim, and a pre-test hook runs before the conversion, so this is the way to set the status of the XR of a test case that has a Claim input: the hook modifies `{{ .Converted.XR }}`, the converted XR, and the render uses it.
+
+The composition renders more resources when `status.rds` is set. The first test case does not set it, and the second one sets it in a post-claim-conversion hook. The hooks do not run for a test case with an XR input (there is no conversion), so they can be in `common`.
+
+```bash
+xprin test examples/mytests/4_hooks/example4_post-claim-conversion-hooks_xprin.yaml -v --show-render --show-hooks
+```
+
+<details>
+<summary><strong>Output</strong></summary>
+
+```
+➜ xprin test examples/mytests/4_hooks/example4_post-claim-conversion-hooks_xprin.yaml -v --show-render --show-hooks
+=== RUN   Claim, without modifying the status of the XR
+--- PASS: Claim, without modifying the status of the XR (1.50s)
+    Render:
+        ├── XAWSInfrastructure/platform-aws-ck27r
+        └── SecurityGroup/platform-aws-ck27r-sg
+=== RUN   Claim, with the status of the XR set in a post-claim-conversion hook
+--- PASS: Claim, with the status of the XR set in a post-claim-conversion hook (0.59s)
+    Post-claim-conversion Hooks:
+        [✓] Show the converted XR path
+            /tmp/xprin-testcase-681632987/inputs/xr.yaml
+        [✓] Set RDS status in the converted XR
+    Render:
+        ├── XAWSInfrastructure/platform-aws-9rdbd
+        ├── Instance/platform-aws-9rdbd-primary-ec2
+        ├── Instance/platform-aws-9rdbd-secondary-ec2
+        └── SecurityGroup/platform-aws-9rdbd-sg
+PASS
+ok	examples/mytests/4_hooks/example4_post-claim-conversion-hooks_xprin.yaml	2.093s
+```
+
+</details>
 
 ## Chained Tests
 

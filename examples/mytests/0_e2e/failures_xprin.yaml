@@ -182,6 +182,34 @@ tests:
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
 
+# Post-claim-conversion hook failures
+- name: "Post-claim-conversion hook failure"
+  inputs:
+    claim: ../../aws/claim.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+  assertions:
+    xprin:
+    - name: "Successful assertion, it should never be shown"
+      type: "Count"
+      value: 2
+  hooks:
+    post-claim-conversion:
+    - name: "Fail post-claim-conversion hook"
+      run: exit 1
+    - name: "Another failed post-claim-conversion hook, it should never be shown"
+      run: exit 2
+
+- name: "Pre-test hook that uses the converted XR, template rendering error"
+  inputs:
+    claim: ../../aws/claim.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+  hooks:
+    pre-test:
+    - name: "Invalid pre-test hook (template rendering error: the claim is not converted yet)"
+      run: echo "{{ .Converted.XR }}"
+
 # Post-test hook failures
 - name: "Post-test hook failure"
   inputs:

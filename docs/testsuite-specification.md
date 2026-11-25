@@ -40,6 +40,9 @@ Every property of the file, by its full path:
 - [`common.hooks.pre-test[*]`](#hookspre-test-and-hookspost-test)
 - [`common.hooks.pre-test[*].name`](#hookspre-test-and-hookspost-test.name)
 - [`common.hooks.pre-test[*].run`](#hookspre-test-and-hookspost-test.run)
+- [`common.hooks.post-claim-conversion[*]`](#hookspre-test-and-hookspost-test)
+- [`common.hooks.post-claim-conversion[*].name`](#hookspre-test-and-hookspost-test.name)
+- [`common.hooks.post-claim-conversion[*].run`](#hookspre-test-and-hookspost-test.run)
 - [`common.hooks.post-test[*]`](#hookspre-test-and-hookspost-test)
 - [`common.hooks.post-test[*].name`](#hookspre-test-and-hookspost-test.name)
 - [`common.hooks.post-test[*].run`](#hookspre-test-and-hookspost-test.run)
@@ -90,6 +93,9 @@ Every property of the file, by its full path:
 - [`tests[*].hooks.pre-test[*]`](#hookspre-test-and-hookspost-test)
 - [`tests[*].hooks.pre-test[*].name`](#hookspre-test-and-hookspost-test.name)
 - [`tests[*].hooks.pre-test[*].run`](#hookspre-test-and-hookspost-test.run)
+- [`tests[*].hooks.post-claim-conversion[*]`](#hookspre-test-and-hookspost-test)
+- [`tests[*].hooks.post-claim-conversion[*].name`](#hookspre-test-and-hookspost-test.name)
+- [`tests[*].hooks.post-claim-conversion[*].run`](#hookspre-test-and-hookspost-test.run)
 - [`tests[*].hooks.post-test[*]`](#hookspre-test-and-hookspost-test)
 - [`tests[*].hooks.post-test[*].name`](#hookspre-test-and-hookspost-test.name)
 - [`tests[*].hooks.post-test[*].run`](#hookspre-test-and-hookspost-test.run)
@@ -220,13 +226,14 @@ Used in `common.patches` and `tests[*].patches`.
 
 ### `hooks`
 
-Used in `common.hooks` and `tests[*].hooks`. Hooks run before (`pre-test`) or after (`post-test`) the test case, each one a list of hooks.
+Used in `common.hooks` and `tests[*].hooks`. Hooks run before (`pre-test`) or after (`post-test`) the test case, and, for a test case with a claim, right after the claim is converted to an XR (`post-claim-conversion`, see [Post-claim-conversion Hooks](how-it-works.md#post-claim-conversion-hooks)), each one a list of hooks.
 
 <!-- DOCS_START_HOOKS -->
 
 | Property | Type | Requirement | Description |
 | :------- | :--- | :---------: | :---------- |
 | <a id="hooks.pre-test"></a>`pre-test` | list of [`hook`](#hookspre-test-and-hookspost-test) | 🔹 | Hooks that are executed before the testcase |
+| <a id="hooks.post-claim-conversion"></a>`post-claim-conversion` | list of [`hook`](#hookspre-test-and-hookspost-test) | 🔹 | Hooks that are executed after the claim is converted to an XR, for test cases with a claim |
 | <a id="hooks.post-test"></a>`post-test` | list of [`hook`](#hookspre-test-and-hookspost-test) | 🔹 | Hooks that are executed after the testcase |
 
 <!-- DOCS_END_HOOKS -->

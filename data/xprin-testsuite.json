@@ -199,6 +199,13 @@
           "type": "array",
           "description": "Hooks that are executed before the testcase (Optional)"
         },
+        "post-claim-conversion": {
+          "items": {
+            "$ref": "#/$defs/Hook"
+          },
+          "type": "array",
+          "description": "Hooks that are executed after the claim is converted to an XR, for test cases with a claim (Optional)"
+        },
         "post-test": {
           "items": {
             "$ref": "#/$defs/Hook"

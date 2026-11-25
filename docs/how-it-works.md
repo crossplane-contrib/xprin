@@ -22,7 +22,7 @@ Each test case goes through a series of sequential phases:
 
 ```mermaid
 flowchart TD
-    A["Setup<br/>Pre-test Hooks"] --> B[Convert Claim to XR]
+    A["Setup<br/>Pre-test Hooks"] --> B["Convert Claim to XR<br/>Post-claim-conversion Hooks"]
     A --> C[Patch XR]
     B --> D[Render]
     C --> D
@@ -47,7 +47,7 @@ flowchart TD
   - Execute Pre-test hooks for further environment setup
 2. **Patch**
   - Custom patching via Pre-test Hooks
-  - Convert Claim to XR (if needed)
+  - Convert Claim to XR (if needed), then the Post-claim-conversion Hooks
   - Apply XRD defaults and connection secrets to XRs
 3. **Render** - Execute `crossplane render` to generate manifests
 4. **Validate** - Execute `crossplane resource validate` (if CRDs provided)
@@ -86,11 +86,14 @@ The [template variables](#available-variables) you can use, and where, are liste
 
 The patched XR replaces the original in the temp directory (see [`xprin-helpers patch-xr`](xprin-helpers/patch-xr.md)).
 
+**Post-claim-conversion hooks:** with a Claim input, the `hooks.post-claim-conversion` hooks run right after the conversion, before the XRD defaults and the connection secret. They run on the XR that the claim was converted into, which is `{{ .Converted.XR }}`, so they can modify it before it is patched and rendered. A test case with an XR input has no conversion, so they do not run (the pre-test hooks already run on its XR). See [Post-claim-conversion Hooks](#post-claim-conversion-hooks).
+
 **Alternative Patching via Pre-test Hooks:**
 - Pre-test hooks (executed in Phase 1) can also be used for patching XR, Composition, or other input files
 - Pre-test hooks operate on the copied files in the temp directory, allowing you to modify them before the formal patching phase
 - This is useful for advanced patching scenarios that go beyond XRD defaults and connection secrets
 - If both pre-test hook patching and `patches` configuration are used, pre-test hooks run first (in Phase 1), followed by the formal patching phase (Phase 2)
+- A pre-test hook runs before the conversion of a Claim, so it cannot change the XR that comes out of it: use a [post-claim-conversion hook](#post-claim-conversion-hooks) for that
 
 **When it runs:**
 - The Claim conversion only runs with a Claim input
@@ -199,6 +202,7 @@ These failures cause the test to fail immediately, skipping all subsequent phase
    - Path expansion/verification failures
    - Pre-test hook failures
    - Claim to XR conversion failures
+   - Post-claim-conversion hook failures
 
 2. **Render Phase Failures:**
    - `crossplane render` command failures, unless the test case has [`assertions.errors`](assertions.md#error-assertions-errors) for the render: it expects the render to fail, and only these assertions run, then the post-test hooks
@@ -270,7 +274,7 @@ xprin supports defining configuration at two levels: `common` (shared across all
 1. **Common Configuration**: Applied to all test cases in the suite
 2. **Test Case Configuration**: Overrides common configuration for that specific test
 3. **Field-Level Replacement**: For all fields (including maps like `inputs.context-files`, `inputs.context-values`), if a test case specifies a field, it completely replaces the common value for that field. There is no deep merging of map keys - the entire field value is replaced.
-4. **List replacement (per type)**: For **hooks** and **assertions**, merge is per type. For hooks: `hooks.pre-test` and `hooks.post-test` are independent—if the test case has no pre-test hooks, common’s pre-test hooks are used; if it has any, the test case’s list is used (and similarly for post-test). For assertions: same per group (`assertions.xprin`, `assertions.diff`, `assertions.dyff`, `assertions.errors`)—if the test case has no assertions for a given group, common’s list for that group is used; if it has any, the test case’s list is used. There is no appending; each list is replaced as a whole when the test case specifies it.
+4. **List replacement (per type)**: For **hooks** and **assertions**, merge is per type. For hooks: `hooks.pre-test`, `hooks.post-claim-conversion` and `hooks.post-test` are independent—if the test case has no pre-test hooks, common’s pre-test hooks are used; if it has any, the test case’s list is used (and similarly for the others). For assertions: same per group (`assertions.xprin`, `assertions.diff`, `assertions.dyff`, `assertions.errors`)—if the test case has no assertions for a given group, common’s list for that group is used; if it has any, the test case’s list is used. There is no appending; each list is replaced as a whole when the test case specifies it.
 
 ### Precedence Rules
 
@@ -324,15 +328,16 @@ Template variables use Go's `text/template` package for dynamic content.
 ### Expansion Timing
 
 - **Input Expansion**: Happens during setup phase, before file copying
-- **Hook Expansion**: Happens when hooks are executed (pre-test or post-test)
+- **Hook Expansion**: Happens when hooks are executed (pre-test, post-claim-conversion or post-test)
 
 ### Available Variables
 
 | Variable | Description | Where it can be used |
 |---|---|---|
 | `{{ .Repositories.name }}` | Path of a repository from the configuration | Input fields and hooks |
-| `{{ .Inputs.XR }}` | XR file path (not in pre-test hooks with a Claim input: the conversion comes after) | Hooks |
+| `{{ .Inputs.XR }}` | XR file path (with an XR input: it is empty with a Claim input, use `.Converted.XR`) | Hooks |
 | `{{ .Inputs.Claim }}` | Claim file path (with a Claim input) | Hooks |
+| `{{ .Converted.XR }}` | Path of the XR that the claim was converted into (with a Claim input). A template error before the conversion, and without a Claim | Post-claim-conversion and post-test hooks |
 | `{{ .Inputs.Composition }}` | Composition file path | Hooks |
 | `{{ .Inputs.Functions }}` | Functions file or directory path | Hooks |
 | `{{ .Inputs.CRDs }}` | List of CRD file paths | Hooks |
@@ -547,6 +552,27 @@ Hooks provide a way to execute arbitrary shell commands at specific points in th
 - If any pre-test hook fails (non-zero exit), test fails immediately
 - Subsequent hooks are not executed
 
+### Post-claim-conversion Hooks
+
+**When:** Right after the Claim is converted to an XR, before the XR is patched (`patches`) and rendered. Only for test cases with a Claim input: with an XR input there is no conversion, and the hooks do not run (and are not an error, so `common` can have them for a testsuite file that has both).
+
+**Use Cases:**
+- Setting the `status` of the XR, which the conversion does not copy from the Claim, for a composition that reads it
+- Any other change to the converted XR that `patches` cannot do
+
+**Important:** they operate on `{{ .Converted.XR }}`, the converted XR in the temporary directory, and what they write there is what the patches and the render use. It is not `{{ .Inputs.XR }}` (the XR input of a test case, which a Claim input does not have) nor `{{ .Outputs.XR }}` (the XR after the render).
+
+```yaml
+hooks:
+  post-claim-conversion:
+  - name: "The XR is ready"
+    run: yq -i '.status.ready = true' {{ .Converted.XR }}
+```
+
+**Available Variables:** see [Available Variables](#available-variables).
+
+**Error Handling:** the same as the pre-test hooks: a hook that fails (non-zero exit, or a template error) fails the test case immediately, and the next ones do not run.
+
 ### Post-test Hooks
 
 **When:** After assertions, before the internal artifacts are saved
@@ -578,7 +604,7 @@ flowchart TD
     L["Load<br/>Dependency graph<br/>What has to run"] --> A{"assertions.diff or<br/>assertions.dyff, or needed<br/>by a test case that has them?"}
     A -->|No| B["SKIP"]
     A -->|Yes| C["Setup<br/>Pre-test Hooks"]
-    C --> D[Convert Claim to XR]
+    C --> D["Convert Claim to XR<br/>Post-claim-conversion Hooks"]
     C --> E[Patch XR]
     D --> F[Render]
     E --> F
@@ -598,7 +624,7 @@ flowchart TD
 
 **Test cases without `assertions.diff`/`assertions.dyff`** are reported as **SKIP** immediately. This avoids unnecessary work for test cases that have nothing to write. The exception is a test case that a test case with golden assertions [needs](#dependencies-between-test-cases-needs), directly or through others: it runs as the others do, and writes nothing, so that the test cases that use its outputs (`.Tests`) have them, and can write their golden files. A test case that is needed only by test cases that are skipped is skipped too: no golden file depends on it. The [dependency graph](#dependency-graph) knows which ones those are.
 
-**Phases that run** for test cases with golden assertions, and for the ones they need (identical to `xprin test`): Setup, Pre-test Hooks, Convert Claim to XR, Patch XR, Render.
+**Phases that run** for test cases with golden assertions, and for the ones they need (identical to `xprin test`): Setup, Pre-test Hooks, Convert Claim to XR, Post-claim-conversion Hooks, Patch XR, Render.
 
 **Phases that are skipped**: Validate, Assert, Post-test Hooks. The outputs of a test case with an `id` are still saved as internal artifacts, as in `xprin test`, for the test cases that need it.
 

@@ -49,7 +49,7 @@ func findImplicitNeeds(testCase api.TestCase) (ids []string, needsAll bool) {
 	}
 
 	sources := []string{string(body)}
-	for _, hook := range slices.Concat(testCase.Hooks.PreTest, testCase.Hooks.PostTest) {
+	for _, hook := range slices.Concat(testCase.Hooks.PreTest, testCase.Hooks.PostClaimConversion, testCase.Hooks.PostTest) {
 		sources = append(sources, hook.Run)
 	}
 

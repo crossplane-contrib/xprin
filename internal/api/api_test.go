@@ -1208,6 +1208,31 @@ func TestTestCase_mergeCommon(t *testing.T) {
 	}
 }
 
+// The post-claim-conversion hooks are merged as a group, like the other hooks: a test case that has its own does not get
+// the ones of common. A test case with an XR gets them too (they are not run, there is no conversion).
+func TestMergeCommon_PostClaimConversionHooks(t *testing.T) {
+	common := Common{Hooks: Hooks{PostClaimConversion: []Hook{{Name: "common", Run: "echo common"}}}}
+
+	t.Run("a test case without its own gets the ones of common", func(t *testing.T) {
+		testCase := TestCase{Name: "claim", Inputs: Inputs{Claim: "claim.yaml"}}
+		testCase.MergeCommon(common)
+
+		assert.Equal(t, common.Hooks.PostClaimConversion, testCase.Hooks.PostClaimConversion)
+	})
+
+	t.Run("a test case with its own keeps them", func(t *testing.T) {
+		own := []Hook{{Name: "own", Run: "echo own"}}
+		testCase := TestCase{Name: "claim", Hooks: Hooks{PostClaimConversion: own}}
+		testCase.MergeCommon(common)
+
+		assert.Equal(t, own, testCase.Hooks.PostClaimConversion)
+	})
+
+	t.Run("they count as common configuration", func(t *testing.T) {
+		assert.True(t, (&TestSuiteSpec{Common: common}).HasCommon())
+	})
+}
+
 // An option that the test case sets wins over the one of common, to turn it off too.
 func TestOptions_Skip(t *testing.T) {
 	yes, no := true, false
@@ -1595,6 +1620,13 @@ func TestHooks_hasHooks(t *testing.T) {
 			name: "only pre-test hooks",
 			hooks: Hooks{
 				PreTest: []Hook{{Name: "setup", Run: "echo setup"}},
+			},
+			expected: true,
+		},
+		{
+			name: "only post-claim-conversion hooks",
+			hooks: Hooks{
+				PostClaimConversion: []Hook{{Name: "status", Run: "echo status"}},
 			},
 			expected: true,
 		},
