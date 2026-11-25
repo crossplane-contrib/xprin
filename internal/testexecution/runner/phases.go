@@ -490,7 +490,8 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, ne
 		return result.Fail(fmt.Errorf("failed to process render output: %w", err))
 	}
 
-	result.Outputs.RenderCount = len(result.RenderedResources)
+	renderCount := len(result.RenderedResources)
+	result.Outputs.RenderCount = &renderCount
 
 	if len(result.RenderedResources) > 0 {
 		// Create separate XR file with just the first resource

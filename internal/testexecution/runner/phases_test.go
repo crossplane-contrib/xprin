@@ -666,7 +666,7 @@ metadata:
 	require.Nil(t, failed)
 	assert.Equal(t, "/outputs/rendered.yaml", *result.Outputs.Render)
 	assert.Equal(t, "/outputs/xr.yaml", *result.Outputs.XR)
-	assert.Equal(t, 2, result.Outputs.RenderCount)
+	assert.Equal(t, 2, *result.Outputs.RenderCount)
 	assert.Equal(t, map[string]string{
 		"Pod/test-pod":             "/outputs/rendered-pod-test-pod.yaml",
 		"ConfigMap/test-configmap": "/outputs/rendered-configmap-test-configmap.yaml",

@@ -47,7 +47,7 @@ func TestNewTestCaseResult(t *testing.T) {
 		assert.Nil(t, result.Outputs.Render)
 		assert.Empty(t, result.Outputs.XR)
 		assert.Nil(t, result.Outputs.Validate)
-		assert.Equal(t, 0, result.Outputs.RenderCount)
+		assert.Nil(t, result.Outputs.RenderCount)
 	})
 }
 

@@ -157,7 +157,7 @@ type Outputs struct {
 	XR          *string           // Path to xr.yaml (nil if there is no render output, or it has no resource)
 	Validate    *string           // Path to validate.txt (nil if no CRDs)
 	Assertions  *string           // Path to assertions.txt (nil if no assertions)
-	RenderCount int               // Number of resources in render output
+	RenderCount *int              // Number of resources in render output (nil if there is no render output)
 	Rendered    map[string]string // Kind/Name -> file path for individual rendered resources
 }
 

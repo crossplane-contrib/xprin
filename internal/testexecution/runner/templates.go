@@ -164,6 +164,7 @@ func noValueMessage(content string) string {
 	outputs := []struct{ name, reason string }{
 		{".Outputs.Render", "there is no render output"},
 		{".Outputs.XR", "there is no rendered XR"},
+		{".Outputs.RenderCount", "there is no render output"},
 		{".Outputs.Validate", "validate did not run"},
 		{".Outputs.Assertions", "no assertions ran"},
 	}
@@ -171,7 +172,8 @@ func noValueMessage(content string) string {
 	var messages []string
 
 	for _, output := range outputs {
-		if strings.Contains(content, output.name) {
+		// as a whole name: .Outputs.Render is not .Outputs.RenderCount
+		if regexp.MustCompile(regexp.QuoteMeta(output.name) + `\b`).MatchString(content) {
 			messages = append(messages, fmt.Sprintf("%s has no value: %s", output.name, output.reason))
 		}
 	}

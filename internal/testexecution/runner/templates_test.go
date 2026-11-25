@@ -57,6 +57,8 @@ func TestRenderTemplate_OutputWithoutValue(t *testing.T) {
 		"an output that is there is not one": {"{{ .Outputs.XR }}", without, "/outputs/xr.yaml"},
 		"no rendered XR":                     {"cat {{ .Outputs.XR }}", noRender, "error: .Outputs.XR has no value: there is no rendered XR"},
 		"no render output":                   {"cat {{ .Outputs.Render }}", noRender, "error: .Outputs.Render has no value: there is no render output"},
+		"no render count":                    {"{{ .Outputs.RenderCount }}", noRender, "error: .Outputs.RenderCount has no value: there is no render output"},
+		"guarded, no render count":           {"{{ if .Outputs.RenderCount }}{{ .Outputs.RenderCount }}{{ else }}none{{ end }}", noRender, "none"},
 		"guarded, no rendered XR":            {"{{ if .Outputs.XR }}cat {{ .Outputs.XR }}{{ else }}none{{ end }}", noRender, "none"},
 		"through a pipe, it is still <nil>":  {`{{ .Outputs.Validate | printf "%s" }}`, without, "error: .Outputs.Validate has no value"},
 	} {
@@ -358,7 +360,7 @@ hooks:
 			XR:          new("rendered-xr.yaml"),
 			Render:      new("rendered-resources.yaml"),
 			Validate:    &validatePath,
-			RenderCount: 5,
+			RenderCount: new(5),
 		}
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
@@ -381,7 +383,7 @@ hooks:
 			XR:          new("rendered-xr.yaml"),
 			Render:      new("rendered-resources.yaml"),
 			Validate:    nil, // No validation output
-			RenderCount: 3,
+			RenderCount: new(3),
 		}
 
 		templateContext := newTemplateContext(map[string]string{}, api.Inputs{}, outputs, map[string]*engine.TestCaseResult{})
