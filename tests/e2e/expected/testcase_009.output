@@ -263,12 +263,18 @@ PASS
 ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	X.XXXs
 === RUN   Runs as always
 --- PASS: Runs as always (X.XXXs)
+    Pre-test Hooks:
+        [✓] Pre-test hook
+            runs
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
     Assertions:
         [✓] The resources were rendered: found 2 resources (as expected)
         Total: 1 assertions, 1 successful, 0 failed, 0 errors
+    Post-test Hooks:
+        [✓] Post-test hook
+            runs
 === RUN   Skipped for now
 --- SKIP: Skipped for now (X.XXXs)
 === RUN   Needs the skipped one

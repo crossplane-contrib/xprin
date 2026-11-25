@@ -1,5 +1,3 @@
-# A test case with `options.skip: true` is reported as SKIP and nothing of it runs. The test cases that need it are
-# skipped too. A comment is where to say why it is skipped.
 tests:
 - name: "Runs as always"
   id: base
@@ -7,13 +5,19 @@ tests:
     xr: ../../aws/xr.yaml
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
+  hooks:
+    pre-test:
+    - name: "Pre-test hook"
+      run: echo "runs"
+    post-test:
+    - name: "Post-test hook"
+      run: echo "runs"
   assertions:
     xprin:
     - name: "The resources were rendered"
       type: "Count"
       value: 2
 
-# Broken until the composition handles the new region: skipped for now
 - name: "Skipped for now"
   id: new_region
   options:
@@ -22,6 +26,21 @@ tests:
     xr: ../../aws/xr.yaml
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
+  hooks:
+    pre-test:
+    - name: "Pre-test hook, it never runs"
+      run: exit 1
+    post-test:
+    - name: "Post-test hook, it never runs"
+      run: exit 1
+  assertions:
+    xprin:
+    - name: "Assertion, it never runs"
+      type: "Count"
+      value: 0
+    errors:
+    - name: "The render fails, it never runs"
+      phase: render
 
 - name: "Needs the skipped one"
   needs:
@@ -30,3 +49,7 @@ tests:
     xr: ../../aws/xr.yaml
     composition: ../../aws/composition.yaml
     functions: ../../aws/functions.yaml
+  hooks:
+    pre-test:
+    - name: "this will never run"
+      run: ls {{ .Tests.new_region.Outputs.XR }}
