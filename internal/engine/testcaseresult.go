@@ -69,14 +69,16 @@ type TestCaseResult struct {
 	RenderedResources []*unstructured.Unstructured
 
 	// Formatted outputs (formatted once, displayed many times)
-	FormattedRenderOutput        string
-	FormattedValidateOutput      string
-	FormattedPreTestHooksOutput  string
-	FormattedPostTestHooksOutput string
-	FormattedAssertionsOutput    string
+	FormattedRenderOutput                   string
+	FormattedValidateOutput                 string
+	FormattedPreTestHooksOutput             string
+	FormattedPostClaimConversionHooksOutput string
+	FormattedPostTestHooksOutput            string
+	FormattedAssertionsOutput               string
 
-	PreTestHooksResults  []HookResult
-	PostTestHooksResults []HookResult
+	PreTestHooksResults             []HookResult
+	PostClaimConversionHooksResults []HookResult
+	PostTestHooksResults            []HookResult
 
 	AssertionsResults []AssertionResult
 
@@ -86,11 +88,12 @@ type TestCaseResult struct {
 	// The phases that the test case expects to fail, so that is not a failure of it
 	ExpectedFailures ExpectedFailures
 
-	HasFailedRender        bool
-	HasFailedValidate      bool
-	HasFailedAssertions    bool
-	HasFailedPreTestHooks  bool
-	HasFailedPostTestHooks bool
+	HasFailedRender                   bool
+	HasFailedValidate                 bool
+	HasFailedAssertions               bool
+	HasFailedPreTestHooks             bool
+	HasFailedPostClaimConversionHooks bool
+	HasFailedPostTestHooks            bool
 
 	// Formatting flags (passed from runner)
 	Verbose        bool
@@ -236,11 +239,12 @@ func (tcr *TestCaseResult) Print(w io.Writer) {
 	// Print status line
 	fmt.Fprintf(w, "--- %s: %s (%.2fs)\n", tcr.Status, tcr.Name, tcr.Duration.Seconds()) //nolint:errcheck // output function, error handling not practical
 
-	fmt.Fprint(w, tcr.FormattedPreTestHooksOutput)  //nolint:errcheck // output function, error handling not practical
-	fmt.Fprint(w, tcr.FormattedRenderOutput)        //nolint:errcheck // output function, error handling not practical
-	fmt.Fprint(w, tcr.FormattedValidateOutput)      //nolint:errcheck // output function, error handling not practical
-	fmt.Fprint(w, tcr.FormattedAssertionsOutput)    //nolint:errcheck // output function, error handling not practical
-	fmt.Fprint(w, tcr.FormattedPostTestHooksOutput) //nolint:errcheck // output function, error handling not practical
+	fmt.Fprint(w, tcr.FormattedPreTestHooksOutput)             //nolint:errcheck // output function, error handling not practical
+	fmt.Fprint(w, tcr.FormattedPostClaimConversionHooksOutput) //nolint:errcheck // output function, error handling not practical
+	fmt.Fprint(w, tcr.FormattedRenderOutput)                   //nolint:errcheck // output function, error handling not practical
+	fmt.Fprint(w, tcr.FormattedValidateOutput)                 //nolint:errcheck // output function, error handling not practical
+	fmt.Fprint(w, tcr.FormattedAssertionsOutput)               //nolint:errcheck // output function, error handling not practical
+	fmt.Fprint(w, tcr.FormattedPostTestHooksOutput)            //nolint:errcheck // output function, error handling not practical
 
 	for _, section := range tcr.Sections {
 		fmt.Fprintf(w, "%s%s:\n", spaces, section.Header) //nolint:errcheck // output function, error handling not practical
@@ -368,8 +372,8 @@ func (tcr *TestCaseResult) formatValidateOutput() string {
 	return spaces + header + "\n" + spaces + spaces + body + "\n"
 }
 
-// formatHooksOutput formats the hooks output for display for the pre-test or post-test section.
-// label is "pre-test" or "post-test". Returns "" when the section would not be shown.
+// formatHooksOutput formats the hooks output for display for the pre-test, post-claim-conversion or post-test section.
+// label is "pre-test", "post-claim-conversion" or "post-test". Returns "" when the section would not be shown.
 // Otherwise returns either all hooks or only failed, based on hasFailed*, Verbose, and ShowHooks.
 func (tcr *TestCaseResult) formatHooksOutput(label string) string {
 	var (
@@ -381,6 +385,9 @@ func (tcr *TestCaseResult) formatHooksOutput(label string) string {
 	case "pre-test":
 		results = tcr.PreTestHooksResults
 		hasFailed = tcr.HasFailedPreTestHooks
+	case "post-claim-conversion":
+		results = tcr.PostClaimConversionHooksResults
+		hasFailed = tcr.HasFailedPostClaimConversionHooks
 	case "post-test":
 		results = tcr.PostTestHooksResults
 		hasFailed = tcr.HasFailedPostTestHooks
@@ -404,8 +411,9 @@ func (tcr *TestCaseResult) formatHooksOutput(label string) string {
 // formatHooksOutputWithShow builds the hooks output string. showAll: when true, all hooks; when false, only failed.
 func (tcr *TestCaseResult) formatHooksOutputWithShow(hooksResults []HookResult, label string, showAll bool) string {
 	const (
-		headerPreTest  = "Pre-test Hooks:"
-		headerPostTest = "Post-test Hooks:"
+		headerPreTest             = "Pre-test Hooks:"
+		headerPostClaimConversion = "Post-claim-conversion Hooks:"
+		headerPostTest            = "Post-test Hooks:"
 	)
 
 	if len(hooksResults) == 0 {
@@ -430,9 +438,15 @@ func (tcr *TestCaseResult) formatHooksOutputWithShow(hooksResults []HookResult, 
 
 	var out []string
 
-	header := headerPostTest
-	if label == "pre-test" {
+	var header string
+
+	switch label {
+	case "pre-test":
 		header = headerPreTest
+	case "post-claim-conversion":
+		header = headerPostClaimConversion
+	case "post-test":
+		header = headerPostTest
 	}
 
 	out = append(out, fmt.Sprintf("%s%s", spaces, header))
@@ -601,6 +615,23 @@ func (tcr *TestCaseResult) ProcessPreTestHooksOutput() {
 	}
 
 	tcr.FormattedPreTestHooksOutput = tcr.formatHooksOutput("pre-test")
+}
+
+// ProcessPostClaimConversionHooksOutput formats the post-claim-conversion hooks results and sets HasFailedPostClaimConversionHooks.
+// It sets FormattedPostClaimConversionHooksOutput to the single string that will be printed (or "" when section not shown).
+func (tcr *TestCaseResult) ProcessPostClaimConversionHooksOutput() {
+	if len(tcr.PostClaimConversionHooksResults) == 0 {
+		return
+	}
+
+	for i := range tcr.PostClaimConversionHooksResults {
+		if tcr.PostClaimConversionHooksResults[i].Error != nil {
+			tcr.HasFailedPostClaimConversionHooks = true
+			break
+		}
+	}
+
+	tcr.FormattedPostClaimConversionHooksOutput = tcr.formatHooksOutput("post-claim-conversion")
 }
 
 // ProcessPostTestHooksOutput formats the post-test hooks results and sets hasFailedPostTestHooks.

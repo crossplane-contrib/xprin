@@ -31,6 +31,52 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+func TestRenderTemplate_Converted(t *testing.T) {
+	r := New(&testexecutionOptions.Options{})
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}}}
+	newEnv := func(convertedXR string) *testCaseEnv {
+		env := testEnv(testsuite.New("/tests/a_xprin.yaml", spec))
+		env.convertedXR = convertedXR
+
+		return env
+	}
+
+	t.Run("it is the path of the XR that the claim was converted into", func(t *testing.T) {
+		ctx := newTemplateContext(nil, api.Inputs{Claim: "claim.yaml"}, nil, nil)
+
+		got, err := r.renderTemplate(newEnv("/inputs/xr.yaml"), "yq . {{ .Converted.XR }}", ctx, "test")
+
+		require.NoError(t, err)
+		assert.Equal(t, "yq . /inputs/xr.yaml", got)
+	})
+
+	t.Run("a template error before the conversion", func(t *testing.T) {
+		ctx := newTemplateContext(nil, api.Inputs{Claim: "claim.yaml"}, nil, nil)
+
+		_, err := r.renderTemplate(newEnv(""), "{{ .Converted.XR }}", ctx, "test")
+
+		require.ErrorContains(t, err, "failed to execute template")
+		assert.ErrorContains(t, err, ".Converted.XR is not available before the claim is converted")
+	})
+
+	t.Run("a template error without a claim", func(t *testing.T) {
+		ctx := newTemplateContext(nil, api.Inputs{XR: "xr.yaml"}, nil, nil)
+
+		_, err := r.renderTemplate(newEnv(""), "{{ .Converted.XR }}", ctx, "test")
+
+		assert.ErrorContains(t, err, ".Converted.XR is not available: the test case has no claim to convert")
+	})
+
+	t.Run("a template that does not use it is not affected", func(t *testing.T) {
+		ctx := newTemplateContext(nil, api.Inputs{XR: "xr.yaml"}, nil, nil)
+
+		got, err := r.renderTemplate(newEnv(""), "{{ .Inputs.XR }}", ctx, "test")
+
+		require.NoError(t, err)
+		assert.Equal(t, "xr.yaml", got)
+	})
+}
+
 func TestRenderTemplate_MissingNeed(t *testing.T) {
 	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}, {ID: "b"}, {ID: "c", Needs: []string{"b"}}}}
 	r := New(&testexecutionOptions.Options{})

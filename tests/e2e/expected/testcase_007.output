@@ -37,6 +37,10 @@ FAIL	examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml	[invalid
 --- SKIP: Pre-test hook failure (multiline stdout and stderr) (X.XXXs)
 === RUN   Successful test case
 --- SKIP: Successful test case (X.XXXs)
+=== RUN   Post-claim-conversion hook failure
+--- SKIP: Post-claim-conversion hook failure (X.XXXs)
+=== RUN   Pre-test hook that uses the converted XR, template rendering error
+--- SKIP: Pre-test hook that uses the converted XR, template rendering error (X.XXXs)
 === RUN   Post-test hook failure
 --- SKIP: Post-test hook failure (X.XXXs)
 === RUN   Invalid Post-test hook, template rendering error
@@ -222,6 +226,15 @@ FAIL	examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml	[invalid
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
+=== RUN   Post-claim-conversion hook failure
+--- FAIL: Post-claim-conversion hook failure (X.XXXs)
+    Post-claim-conversion Hooks:
+        [x] Fail post-claim-conversion hook [exit code: 1]
+=== RUN   Pre-test hook that uses the converted XR, template rendering error
+--- FAIL: Pre-test hook that uses the converted XR, template rendering error (X.XXXs)
+    Pre-test Hooks:
+        [!] Invalid pre-test hook (template rendering error: the claim is not converted yet)
+            error: failed to render hook template: failed to execute template: template: hook:1:18: executing "hook" at <.Converted.XR>: error calling XR: .Converted.XR is not available before the claim is converted: use it in the post-claim-conversion and the post-test hooks
 === RUN   Post-test hook failure
 --- FAIL: Post-test hook failure (X.XXXs)
     Pre-test Hooks:

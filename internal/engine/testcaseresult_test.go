@@ -937,6 +937,15 @@ func TestTestCaseResult_formatHooksOutput(t *testing.T) {
 		assert.Equal(t, expected, formatted)
 	})
 
+	t.Run("post-claim-conversion hooks have their own header", func(t *testing.T) {
+		result := NewTestCaseResult("test", "test-id", true, false, false, true, false)
+		result.PostClaimConversionHooksResults = []HookResult{NewHookResult("status", "yq", nil, errors.New("boom"))}
+		result.ProcessPostClaimConversionHooksOutput()
+
+		assert.True(t, result.HasFailedPostClaimConversionHooks)
+		assert.Contains(t, result.FormattedPostClaimConversionHooksOutput, "    Post-claim-conversion Hooks:\n")
+	})
+
 	t.Run("handles empty output", func(t *testing.T) {
 		result := NewTestCaseResult("test", "test-id", true, false, false, false, false)
 

@@ -116,6 +116,10 @@ func TestFindImplicitNeeds_LooksAtTheTemplatesTheWayTheRunnerRenders(t *testing.
 			api.TestCase{Name: "b", Hooks: api.Hooks{PreTest: []api.Hook{{Run: template}}}},
 			[]string{"a"},
 		},
+		"a post-claim-conversion hook": {
+			api.TestCase{Name: "b", Hooks: api.Hooks{PostClaimConversion: []api.Hook{{Run: template}}}},
+			[]string{"a"},
+		},
 		"a post-test hook": {
 			api.TestCase{Name: "b", Hooks: api.Hooks{PostTest: []api.Hook{{Run: template}}}},
 			[]string{"a"},

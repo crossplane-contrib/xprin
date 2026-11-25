@@ -123,6 +123,19 @@ func printHooks(logger *log.Logger, hooks api.Hooks) {
 			}
 		}
 
+		if hooks.HasPostClaimConversionHooks() {
+			logger.Printf("    Post-Claim-Conversion:\n")
+
+			for _, hook := range hooks.PostClaimConversion {
+				if hook.Name != "" {
+					logger.Printf("    - name: %s\n", hook.Name)
+				}
+				// Show processed hook command instead of raw with placeholders
+				processedCommand := placeholder.Restore(hook.Run)
+				logger.Printf("      run: %s\n", processedCommand)
+			}
+		}
+
 		if hooks.HasPostTestHooks() {
 			logger.Printf("    Post-Test:\n")
 

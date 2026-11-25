@@ -6,6 +6,8 @@
 --- SKIP: validation with incomplete XR, no patches, XRD v2 (X.XXXs)
 === RUN   validation with incomplete XR, with patches, XRD v2
 --- SKIP: validation with incomplete XR, with patches, XRD v2 (X.XXXs)
+=== RUN   Claim input with a post-claim-conversion hook that sets the status of the converted XR before the render
+--- SKIP: Claim input with a post-claim-conversion hook that sets the status of the converted XR before the render (X.XXXs)
 === RUN   Needed by another test case, and has no golden files
 --- PASS: Needed by another test case, and has no golden files (X.XXXs)
 === RUN   Needs it and uses its outputs, with a golden file
@@ -111,6 +113,19 @@ ok	examples/mytests/8_options/example1_skip_xprin.yaml	X.XXXs
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
+=== RUN   Claim input with a post-claim-conversion hook that sets the status of the converted XR before the render
+--- PASS: Claim input with a post-claim-conversion hook that sets the status of the converted XR before the render (X.XXXs)
+    Post-claim-conversion Hooks:
+        [✓] Set RDS status in the converted XR
+    Render:
+        ├── XAWSInfrastructure/platform-aws-XXXXX
+        ├── Instance/platform-aws-XXXXX-primary-ec2
+        ├── Instance/platform-aws-XXXXX-secondary-ec2
+        └── SecurityGroup/platform-aws-XXXXX-sg
+    Assertions:
+        [✓] The composition renders the resources that it renders with the status set (2 without it): found 4 resources (as expected)
+        [✓] The Instances that the composition renders with the status set (none without it): found 2 resources (as expected): Instance/platform-aws-XXXXX-primary-ec2, Instance/platform-aws-XXXXX-secondary-ec2
+        Total: 2 assertions, 2 successful, 0 failed, 0 errors
 === RUN   Needed by another test case, and has no golden files
 --- PASS: Needed by another test case, and has no golden files (X.XXXs)
     Render:

@@ -37,8 +37,29 @@ type templateContext struct {
 	Inputs api.Inputs
 	// Output variables (available in post-test hooks)
 	Outputs *engine.Outputs
+	// What the claim was converted into (available in the post-claim-conversion and the post-test hooks)
+	Converted converted
 	// Cross-test references (available in hooks)
 	Tests map[string]*engine.TestCaseResult // Test ID to test case result mapping
+}
+
+// converted is what the claim of a test case was converted into, for `.Converted`. Its fields are methods so that
+// using one of them when there is nothing to use is a template error that says why.
+type converted struct {
+	xr       string // the path of the converted XR: empty when there was no conversion (yet)
+	hasClaim bool   // whether the test case has a claim, to say why it is empty
+}
+
+// XR is the path of the XR that the claim was converted into: `{{ .Converted.XR }}`.
+func (c converted) XR() (string, error) {
+	switch {
+	case c.xr != "":
+		return c.xr, nil
+	case c.hasClaim:
+		return "", errors.New(".Converted.XR is not available before the claim is converted: use it in the post-claim-conversion and the post-test hooks")
+	default:
+		return "", errors.New(".Converted.XR is not available: the test case has no claim to convert")
+	}
 }
 
 // newTemplateContext creates a new template context with the given parameters.
@@ -117,6 +138,8 @@ func (r *Runner) renderTemplate(env *testCaseEnv, content string, templateContex
 	if err != nil {
 		return "", err
 	}
+
+	templateContext.Converted = converted{xr: env.convertedXR, hasClaim: templateContext.Inputs.Claim != ""}
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, templateContext); err != nil {

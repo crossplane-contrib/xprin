@@ -111,14 +111,14 @@ For each test case, the runner does the following, in this order:
 3. The mode may skip it (see [Modes](#modes)). Then the results of the test cases it needs are collected, and it is skipped if one failed or was skipped.
 4. A temp directory `xprin-testcase-*` is made, with `inputs/` and `outputs/`. It is removed when the test case ends, after the external artifacts are exported (the defers run last in, first out).
 5. The template variables are processed (see [Templates](#templates)), and the mandatory fields are checked.
-6. The phases run: the input paths are made absolute and checked, the inputs are copied, the pre-test hooks run, and the render step converts the Claim or takes the XR, patches it, applies the [container reuse](#container-reuse) to the copy of the functions, runs `crossplane render` and writes the rendered resources to `outputs/`.
+6. The phases run: the input paths are made absolute and checked, the inputs are copied, the pre-test hooks run, and the render step converts the Claim (and runs the post-claim-conversion hooks on the result) or takes the XR, patches it, applies the [container reuse](#container-reuse) to the copy of the functions, runs `crossplane render` and writes the rendered resources to `outputs/`.
 7. The mode runs what follows the render.
 
 Each phase returns the failed result to end the test case, or nil to go on. The exceptions are validation, assertions and post-test hooks: a failure in them is in the result, and the test case goes on to the next phase, so that the post-test hooks run even when assertions failed; the test case then fails at the end.
 
 ```mermaid
 flowchart LR
-    A["Setup<br/>Pre-test Hooks"] --> B["Patch<br/>Convert Claim"]
+    A["Setup<br/>Pre-test Hooks"] --> B["Patch<br/>Convert Claim<br/>Post-claim-conversion Hooks"]
     B --> C["Render"]
     C --> D["Validate"]
     D --> E["Assert"]
@@ -143,7 +143,8 @@ flowchart TD
     B --> C{"Claim input?"}
     C -->|Yes| D["Convert Claim to XR<br/>claimtoxr package"]
     C -->|No| E["Use XR directly"]
-    D --> F{"Patch XR?"}
+    D --> D2["Post-claim-conversion Hooks<br/>• Modify the converted XR"]
+    D2 --> F{"Patch XR?"}
     E --> F
     F -->|Yes| G["Patch XR (patchxr package)<br/>• Apply XRD defaults<br/>• Add connection secret"]
     F -->|No| I["crossplane render"]

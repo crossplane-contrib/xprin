@@ -37,6 +37,7 @@ sed_args=(
     -e "${golden_sed}"
     -e 's/\r$//'
     -e 's/[[:space:]]+$//'
+    -e 's/(platform-aws-)[a-z0-9]{5}([^a-z0-9]|$)/\1XXXXX\2/g'
 )
 
 if [ "$#" -eq 0 ]; then

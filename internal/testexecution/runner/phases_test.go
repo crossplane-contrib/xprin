@@ -502,6 +502,101 @@ func TestRunCrossplaneRender_ConvertsTheClaim(t *testing.T) {
 	assert.Equal(t, "/inputs/converted-xr.yaml", args[2], "render gets the converted XR")
 }
 
+func TestRunCrossplaneRender_PostClaimConversionHooks(t *testing.T) {
+	hook := func(name, command string) api.Hook {
+		return api.Hook{Name: name, Run: command}
+	}
+	converted := hook("set the status", "yq -i '.status.ready = true' "+placeholder.Open+".Converted.XR"+placeholder.Close)
+
+	// newRunner records, in order, what runs: the hooks, the patch and the render
+	newRunner := func(t *testing.T, calls *[]string, hookErr error) (*Runner, *testCaseEnv) {
+		t.Helper()
+
+		r, env, _ := newRenderRunner(t, func(r *Runner) {
+			r.XPCLI = xpcli.InitXPCLI(xpcli.TierV1)
+			r.convertClaimToXRFunc = func(_ *Runner, _, _, _, outputPath string) (string, error) {
+				*calls = append(*calls, "convert")
+
+				return filepath.Join(outputPath, "converted-xr.yaml"), nil
+			}
+			r.patchXRFunc = func(_ *Runner, xrPath, outputPath string, _ api.Patches) (string, error) {
+				*calls = append(*calls, "patch "+xrPath)
+
+				return filepath.Join(outputPath, "patched-xr.yaml"), nil
+			}
+			r.runCommand = func(_, name string, args ...string) ([]byte, error) {
+				if name == "sh" {
+					*calls = append(*calls, "hook "+args[1])
+
+					return []byte("hook output"), hookErr
+				}
+
+				*calls = append(*calls, "render")
+
+				return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n"), nil
+			}
+		})
+
+		return r, env
+	}
+
+	claim := api.TestCase{
+		Name:    "test",
+		Inputs:  api.Inputs{Claim: "claim.yaml", Composition: "comp.yaml", Functions: "functions.yaml"},
+		Patches: api.Patches{ConnectionSecret: new(true)},
+		Hooks:   api.Hooks{PostClaimConversion: []api.Hook{converted}},
+	}
+
+	t.Run("they run on the converted XR, after the conversion and before the patches and the render", func(t *testing.T) {
+		var calls []string
+
+		r, env := newRunner(t, &calls, nil)
+		result := engine.NewTestCaseResult("test", "", true, false, false, true, false)
+
+		failed := r.runCrossplaneRender(env, claim, nil, result)
+
+		require.Nil(t, failed)
+		assert.Equal(t, []string{
+			"convert",
+			"hook yq -i '.status.ready = true' /inputs/converted-xr.yaml",
+			"patch /inputs/converted-xr.yaml",
+			"render",
+		}, calls)
+		assert.Equal(t, "/inputs/converted-xr.yaml", env.convertedXR)
+		require.Len(t, result.PostClaimConversionHooksResults, 1)
+		assert.Equal(t, "set the status", result.PostClaimConversionHooksResults[0].Name)
+		assert.Contains(t, result.FormattedPostClaimConversionHooksOutput, "Post-claim-conversion Hooks:")
+	})
+
+	t.Run("a test case with an XR does not run them: there is no conversion", func(t *testing.T) {
+		var calls []string
+
+		r, env := newRunner(t, &calls, nil)
+		xr := claim
+		xr.Inputs = api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}
+
+		failed := r.runCrossplaneRender(env, xr, nil, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+
+		require.Nil(t, failed)
+		assert.Equal(t, []string{"patch xr.yaml", "render"}, calls)
+		assert.Empty(t, env.convertedXR)
+	})
+
+	t.Run("a hook that fails the test case, and nothing after it runs", func(t *testing.T) {
+		var calls []string
+
+		r, env := newRunner(t, &calls, errors.New("exit status 1"))
+		result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
+
+		failed := r.runCrossplaneRender(env, claim, nil, result)
+
+		require.NotNil(t, failed)
+		assert.Equal(t, engine.StatusFail(), failed.Status)
+		assert.True(t, result.HasFailedPostClaimConversionHooks)
+		assert.Equal(t, []string{"convert", "hook yq -i '.status.ready = true' /inputs/converted-xr.yaml"}, calls)
+	})
+}
+
 func TestRunCrossplaneRender_Fails(t *testing.T) {
 	xr := api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}
 	claim := api.TestCase{Name: "test", Inputs: api.Inputs{Claim: "claim.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}

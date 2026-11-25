@@ -39,8 +39,9 @@ type Patches struct {
 
 // Hooks represents the execution hooks configuration.
 type Hooks struct {
-	PreTest  []Hook `json:"pre-test,omitempty"`  // Hooks that are executed before the testcase
-	PostTest []Hook `json:"post-test,omitempty"` // Hooks that are executed after the testcase
+	PreTest             []Hook `json:"pre-test,omitempty"`              // Hooks that are executed before the testcase
+	PostClaimConversion []Hook `json:"post-claim-conversion,omitempty"` // Hooks that are executed after the claim is converted to an XR, for test cases with a claim
+	PostTest            []Hook `json:"post-test,omitempty"`             // Hooks that are executed after the testcase
 }
 
 // Hook represents a single executable step with optional metadata.
@@ -174,6 +175,11 @@ func (h *Hooks) HasPreTestHooks() bool {
 	return len(h.PreTest) > 0
 }
 
+// HasPostClaimConversionHooks returns true if any post-claim-conversion hooks are set.
+func (h *Hooks) HasPostClaimConversionHooks() bool {
+	return len(h.PostClaimConversion) > 0
+}
+
 // HasPostTestHooks returns true if any post-test hooks are set.
 func (h *Hooks) HasPostTestHooks() bool {
 	return len(h.PostTest) > 0
@@ -181,7 +187,7 @@ func (h *Hooks) HasPostTestHooks() bool {
 
 // HasHooks returns true if any hooks are set.
 func (h *Hooks) HasHooks() bool {
-	return h.HasPreTestHooks() || h.HasPostTestHooks()
+	return h.HasPreTestHooks() || h.HasPostClaimConversionHooks() || h.HasPostTestHooks()
 }
 
 // HasAssertionsXprin returns true if any xprin assertions are set.
@@ -315,6 +321,11 @@ func (tc *TestCase) HasClaim() bool {
 // HasPatches checks if any patches are set in the test case.
 func (tc *TestCase) HasPatches() bool {
 	return tc.Patches.HasPatches()
+}
+
+// HasPostClaimConversionHooks checks if any post-claim-conversion hooks are set in the test case.
+func (tc *TestCase) HasPostClaimConversionHooks() bool {
+	return tc.Hooks.HasPostClaimConversionHooks()
 }
 
 // HasPreTestHooks checks if any pre-test hooks are set in the test case.
@@ -452,6 +463,10 @@ func (tc *TestCase) MergeCommon(common Common) {
 	if common.Hooks.HasHooks() {
 		if !tc.HasPreTestHooks() {
 			tc.Hooks.PreTest = common.Hooks.PreTest
+		}
+
+		if !tc.HasPostClaimConversionHooks() {
+			tc.Hooks.PostClaimConversion = common.Hooks.PostClaimConversion
 		}
 
 		if !tc.HasPostTestHooks() {

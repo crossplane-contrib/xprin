@@ -1,0 +1,17 @@
+tests:
+- name: "Claim, without modifying the status of the XR"
+  inputs:
+    claim: ../../aws/claim.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+- name: "Claim, with the status of the XR set in a post-claim-conversion hook"
+  inputs:
+    claim: ../../aws/claim.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+  hooks:
+    post-claim-conversion:
+    - name: "Show the converted XR path"
+      run: echo {{ .Converted.XR }}
+    - name: "Set RDS status in the converted XR"
+      run: yq -i '.status.rds = "my-rds-instance"' {{ .Converted.XR }}

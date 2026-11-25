@@ -61,9 +61,10 @@ type Runner struct {
 type testCaseEnv struct {
 	TestSuiteContext
 
-	tmpDir     string
-	inputsDir  string
-	outputsDir string
+	tmpDir      string
+	inputsDir   string
+	outputsDir  string
+	convertedXR string
 
 	// the phases that the test case expects to fail, from its assertions on errors (set after it is merged with common)
 	expectedFailures api.ExpectedFailures

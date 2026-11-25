@@ -66,6 +66,23 @@ tests:
   inputs:
     xr: ../../aws/xr_without_team.yaml
 
+- name: "Claim input with a post-claim-conversion hook that sets the status of the converted XR before the render"
+  inputs:
+    claim: ../../aws/claim.yaml
+  hooks:
+    post-claim-conversion:
+    - name: "Set RDS status in the converted XR"
+      run: yq -i '.status.rds = "my-rds-instance"' {{ .Converted.XR }}
+  assertions:
+    xprin:
+    - name: "The composition renders the resources that it renders with the status set (2 without it)"
+      type: "Count"
+      value: 4
+    - name: "The Instances that the composition renders with the status set (none without it)"
+      type: "Count"
+      resource: "Instance/platform-aws-*"
+      value: 2
+
 - name: "Needed by another test case, and has no golden files"
   id: golden_base
   inputs:
