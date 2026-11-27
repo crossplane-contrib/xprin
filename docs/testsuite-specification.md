@@ -69,6 +69,7 @@ Every property of the file, by its full path:
 - [`common.assertions.errors[*].value`](#assertionserrors.value)
 - [`common.options`](#options)
 - [`common.options.skip`](#options.skip)
+- [`common.options.skip-validate`](#options.skip-validate)
 - [`tests[*]`](#tests)
 - [`tests[*].name`](#tests.name)
 - [`tests[*].id`](#tests.id)
@@ -122,6 +123,7 @@ Every property of the file, by its full path:
 - [`tests[*].assertions.errors[*].value`](#assertionserrors.value)
 - [`tests[*].options`](#options)
 - [`tests[*].options.skip`](#options.skip)
+- [`tests[*].options.skip-validate`](#options.skip-validate)
 
 <!-- DOCS_END_INDEX -->
 
@@ -321,6 +323,7 @@ See [Error assertions (errors)](assertions.md#error-assertions-errors).
 | Property | Type | Requirement | Description |
 | :------- | :--- | :---------: | :---------- |
 | <a id="options.skip"></a>`skip` | `boolean` | 🔹 | When true, the whole test case is skipped and reported as SKIP. |
+| <a id="options.skip-validate"></a>`skip-validate` | `boolean` | 🔹 | When true, validate does not run, with or without inputs.crds |
 
 <!-- DOCS_END_OPTIONS -->
 

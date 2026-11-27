@@ -42,6 +42,10 @@ YYYY/MM/DD HH:MM:SS processing completed with errors
     Assertions:
         [x] Validate fails: validate did not run, but it was expected to fail
         Total: 1 assertions, 0 successful, 1 failed, 0 errors
+--- FAIL: Errors: validate does not run, because of options.skip-validate (an error of the assertion) (X.XXXs)
+    Assertions:
+        [!] Validate fails: options.skip-validate: validate is skipped, there is nothing to assert on
+        Total: 2 assertions, 1 successful, 0 failed, 1 error
 --- FAIL: Validation failure (missing CRD) (X.XXXs)
     Validate:
         [!] could not find CRD/XRD for: aws.example.com/v1, Kind=XAWSInfrastructure

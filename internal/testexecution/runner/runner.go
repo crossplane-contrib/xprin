@@ -164,6 +164,9 @@ func (r *Runner) executeTestCase(testSuiteContext TestSuiteContext, testCase api
 		testCase.MergeCommon(env.TestSuite.Spec.Common)
 	}
 
+	// Known from the start, so that the assertions know it also when the test case ends before validate
+	result.Outputs.HasSkippedValidate = testCase.Options.IsSkipValidate()
+
 	// A test case with options.skip does not run, whatever it needs and whatever the mode is
 	if testCase.Options.IsSkip() {
 		return result.Skip()

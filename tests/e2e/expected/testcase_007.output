@@ -23,6 +23,8 @@ FAIL	examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml	[invalid
 --- SKIP: Errors: validate succeeds (X.XXXs)
 === RUN   Errors: validate does not run, because there are no CRDs
 --- SKIP: Errors: validate does not run, because there are no CRDs (X.XXXs)
+=== RUN   Errors: validate does not run, because of options.skip-validate (an error of the assertion)
+--- SKIP: Errors: validate does not run, because of options.skip-validate (an error of the assertion) (X.XXXs)
 === RUN   Validation failure (missing CRD)
 --- SKIP: Validation failure (missing CRD) (X.XXXs)
 === RUN   Pre-test hook failure
@@ -183,6 +185,15 @@ FAIL	examples/mytests/5_chained_tests/example7_needs-invalid_xprin.yaml	[invalid
     Assertions:
         [x] Validate fails: validate did not run, but it was expected to fail
         Total: 1 assertions, 0 successful, 1 failed, 0 errors
+=== RUN   Errors: validate does not run, because of options.skip-validate (an error of the assertion)
+--- FAIL: Errors: validate does not run, because of options.skip-validate (an error of the assertion) (X.XXXs)
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Assertions:
+        [✓] Successful assertion, it runs as always: found 2 resources (as expected)
+        [!] Validate fails: options.skip-validate: validate is skipped, there is nothing to assert on
+        Total: 2 assertions, 1 successful, 0 failed, 1 error
 === RUN   Validation failure (missing CRD)
 --- FAIL: Validation failure (missing CRD) (X.XXXs)
     Pre-test Hooks:

@@ -702,6 +702,7 @@ func TestRunCrossplaneValidate_PassesTheCrossplaneVersionAsTheImage(t *testing.T
 	for name, tt := range map[string]struct {
 		version string
 		crds    []string
+		skip    bool
 		want    []string // nil when validate does not run
 	}{
 		"with a crossplane version": {
@@ -715,6 +716,10 @@ func TestRunCrossplaneValidate_PassesTheCrossplaneVersionAsTheImage(t *testing.T
 		},
 		"without CRDs there is nothing to validate against": {
 			version: "v1.2.3",
+		},
+		"options.skip-validate skips it, even with CRDs": {
+			crds: []string{"crd.yaml"},
+			skip: true,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -740,10 +745,12 @@ func TestRunCrossplaneValidate_PassesTheCrossplaneVersionAsTheImage(t *testing.T
 			result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
 			result.Outputs.Render = new("/outputs/rendered.yaml")
 
-			failed := r.runCrossplaneValidate(env, api.TestCase{Name: "test", Inputs: api.Inputs{CRDs: tt.crds}}, result)
+			failed := r.runCrossplaneValidate(env, api.TestCase{Name: "test", Inputs: api.Inputs{CRDs: tt.crds}, Options: api.Options{SkipValidate: &tt.skip}}, result)
 
 			assert.Nil(t, failed)
 			assert.Equal(t, tt.want, gotArgs)
+
+			assert.Equal(t, tt.skip, result.Outputs.HasSkippedValidate, "the outputs know that it was skipped, not that there are no CRDs")
 
 			if tt.want == nil {
 				assert.Nil(t, result.Outputs.Validate, "there is no validation output")

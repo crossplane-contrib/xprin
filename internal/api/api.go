@@ -89,19 +89,25 @@ type Assertions struct {
 	Errors []AssertionError      `json:"errors,omitempty"` // assertions on the error of a phase that is expected to fail
 }
 
-// Options represents what changes how a test case runs: it can skip the whole test case.
+// Options represents what changes how a test case runs: it can skip the whole test case, or validate.
 type Options struct {
-	Skip *bool `json:"skip,omitempty"` // When true, the whole test case is skipped and reported as SKIP.
+	Skip         *bool `json:"skip,omitempty"`          // When true, the whole test case is skipped and reported as SKIP.
+	SkipValidate *bool `json:"skip-validate,omitempty"` // When true, validate does not run, with or without inputs.crds
 }
 
 // HasOptions returns true if any option is set.
 func (o *Options) HasOptions() bool {
-	return o.Skip != nil
+	return o.Skip != nil || o.SkipValidate != nil
 }
 
 // IsSkip returns true if Skip is explicitly set to true.
 func (o *Options) IsSkip() bool {
 	return o.Skip != nil && *o.Skip
+}
+
+// IsSkipValidate returns true if SkipValidate is explicitly set to true.
+func (o *Options) IsSkipValidate() bool {
+	return o.SkipValidate != nil && *o.SkipValidate
 }
 
 // Common represents the common configuration for a testsuite file.
@@ -395,6 +401,10 @@ func (tc *TestCase) MergeCommon(common Common) {
 	// An option that the test case sets wins, even when it turns off what common turned on
 	if tc.Options.Skip == nil {
 		tc.Options.Skip = common.Options.Skip
+	}
+
+	if tc.Options.SkipValidate == nil {
+		tc.Options.SkipValidate = common.Options.SkipValidate
 	}
 
 	if tc.Inputs.XR == "" {

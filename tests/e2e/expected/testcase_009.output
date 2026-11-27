@@ -53,6 +53,10 @@ ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	X.XXXs
 --- SKIP: Needs the skipped one (X.XXXs)
 PASS
 ok	examples/mytests/8_options/example1_skip_xprin.yaml	X.XXXs
+=== RUN   Validate does not run
+--- SKIP: Validate does not run (X.XXXs)
+PASS
+ok	examples/mytests/8_options/example2_skip_validate_xprin.yaml	X.XXXs
 === RUN   Successful test with hooks, validation, and assertions
 --- PASS: Successful test with hooks, validation, and assertions (X.XXXs)
     Pre-test Hooks:
@@ -263,12 +267,18 @@ PASS
 ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	X.XXXs
 === RUN   Runs as always
 --- PASS: Runs as always (X.XXXs)
+    Pre-test Hooks:
+        [✓] Pre-test hook
+            runs
     Render:
         ├── XAWSInfrastructure/platform-aws
         └── SecurityGroup/platform-aws-sg
     Assertions:
         [✓] The resources were rendered: found 2 resources (as expected)
         Total: 1 assertions, 1 successful, 0 failed, 0 errors
+    Post-test Hooks:
+        [✓] Post-test hook
+            runs
 === RUN   Skipped for now
 --- SKIP: Skipped for now (X.XXXs)
 === RUN   Needs the skipped one
@@ -276,3 +286,19 @@ ok	examples/mytests/7_show_all/example1_used_in_readme_xprin.yaml	X.XXXs
     [!] needs skipped test case "new_region"
 PASS
 ok	examples/mytests/8_options/example1_skip_xprin.yaml	X.XXXs
+=== RUN   Validate does not run
+--- PASS: Validate does not run (X.XXXs)
+    Pre-test Hooks:
+        [✓] Pre-test hook
+            runs
+    Render:
+        ├── XAWSInfrastructure/platform-aws
+        └── SecurityGroup/platform-aws-sg
+    Assertions:
+        [✓] The resources were rendered: found 2 resources (as expected)
+        Total: 1 assertions, 1 successful, 0 failed, 0 errors
+    Post-test Hooks:
+        [✓] Post-test hook
+            runs
+PASS
+ok	examples/mytests/8_options/example2_skip_validate_xprin.yaml	X.XXXs

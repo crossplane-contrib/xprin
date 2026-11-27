@@ -156,6 +156,8 @@ type Outputs struct {
 	Assertions  *string            // Path to assertions.txt (nil if no assertions)
 	RenderCount *int               // Number of resources in render output (nil if there is no render output)
 	Rendered    *map[string]string // Kind/Name -> file path for individual rendered resources (nil if there is no render output)
+
+	HasSkippedValidate bool // options.skip-validate skips validate: there is nothing to assert on
 }
 
 // RenderPath returns the path of the render output, or "" when there is none.

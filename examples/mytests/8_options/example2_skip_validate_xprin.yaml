@@ -1,0 +1,23 @@
+tests:
+- name: "Validate does not run"
+  options:
+    skip-validate: true
+  inputs:
+    xr: ../../aws/xr_invalid.yaml
+    composition: ../../aws/composition.yaml
+    functions: ../../aws/functions.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+  hooks:
+    pre-test:
+    - name: "Pre-test hook"
+      run: echo "runs"
+    post-test:
+    - name: "Post-test hook"
+      run: echo "runs"
+  assertions:
+    xprin:
+    - name: "The resources were rendered"
+      type: "Count"
+      value: 2

@@ -701,3 +701,37 @@ func TestRestoreHooks(t *testing.T) {
 	assert.Equal(t, "echo 'pre-test'", originalTestCase.Hooks.PreTest[0].Run)
 	assert.Equal(t, "echo 'post-test'", originalTestCase.Hooks.PostTest[0].Run)
 }
+
+// What options.skip-validate skips is an output that is not there: the template error says that, for the outputs of the
+// test case and for the ones of a test case that it needs.
+func TestRenderTemplate_OutputsOfASkippedValidate(t *testing.T) {
+	spec := &api.TestSuiteSpec{Tests: []api.TestCase{{ID: "a"}, {ID: "b", Needs: []string{"a"}}}}
+	r := New(&testexecutionOptions.Options{})
+	env := testEnv(testsuite.New("/tests/a_xprin.yaml", spec))
+	skipped := &engine.TestCaseResult{Outputs: engine.Outputs{XR: new("/outputs/xr.yaml"), HasSkippedValidate: true}}
+
+	t.Run("its own output", func(t *testing.T) {
+		ctx := newTemplateContext(nil, api.Inputs{}, &skipped.Outputs, nil)
+
+		_, err := r.renderTemplate(env, "cat {{ .Outputs.Validate }}", ctx, "hook")
+
+		require.ErrorContains(t, err, ".Outputs.Validate has no value: validate did not run")
+	})
+
+	t.Run("the output of a test case that it needs", func(t *testing.T) {
+		ctx := newTemplateContext(nil, api.Inputs{}, nil, map[string]*engine.TestCaseResult{"a": skipped})
+
+		_, err := r.renderTemplate(env, "{{ .Tests.a.Outputs.Validate }}", ctx, "test")
+
+		require.ErrorContains(t, err, ".Outputs.Validate has no value")
+	})
+
+	t.Run("a guard on it, and an output that is there", func(t *testing.T) {
+		ctx := newTemplateContext(nil, api.Inputs{}, &skipped.Outputs, nil)
+
+		got, err := r.renderTemplate(env, "{{ if .Outputs.Validate }}cat {{ .Outputs.Validate }}{{ else }}{{ .Outputs.XR }}{{ end }}", ctx, "hook")
+
+		require.NoError(t, err)
+		assert.Equal(t, "/outputs/xr.yaml", got)
+	})
+}

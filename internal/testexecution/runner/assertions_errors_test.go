@@ -195,3 +195,36 @@ func TestExecuteErrorsAssertions_Validate(t *testing.T) {
 		})
 	}
 }
+
+// An assertion on the error of a phase that options skip is an error of the assertion, which is reported with [!]: there is
+// nothing to assert on, and neither "it did not run" nor "it succeeded" would be true of what the test case asked for.
+func TestExecuteErrorsAssertions_SkippedPhase(t *testing.T) {
+	assertion := api.AssertionError{Name: "fails", Phase: api.PhaseCrossplaneValidate}
+
+	t.Run("validate is skipped by options.skip-validate", func(t *testing.T) {
+		result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
+		result.Outputs.HasSkippedValidate = true
+
+		got := executeAssertionError(assertion, result)
+
+		assert.Equal(t, engine.StatusError(), got.Status)
+		assert.Equal(t, "options.skip-validate: validate is skipped, there is nothing to assert on", got.Message)
+	})
+
+	t.Run("the assertion on the render is not affected", func(t *testing.T) {
+		result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
+		result.Outputs.HasSkippedValidate = true
+		result.HasFailedRender = true
+
+		got := executeAssertionError(api.AssertionError{Name: "fails", Phase: api.PhaseCrossplaneRender}, result)
+
+		assert.Equal(t, engine.StatusPass(), got.Status)
+	})
+
+	t.Run("validate that does not run for another reason is a failure of the assertion, as before", func(t *testing.T) {
+		got := executeAssertionError(assertion, engine.NewTestCaseResult("test", "", false, false, false, false, false))
+
+		assert.Equal(t, engine.StatusFail(), got.Status)
+		assert.Equal(t, "validate did not run, but it was expected to fail", got.Message)
+	})
+}

@@ -86,6 +86,23 @@ tests:
     - name: "Validate fails"
       phase: validate
 
+- name: "Errors: validate does not run, because of options.skip-validate (an error of the assertion)"
+  options:
+    skip-validate: true
+  inputs:
+    xr: ../../aws/xr_invalid.yaml
+    crds:
+    - ../../aws/xrd.yaml
+    - ../../aws/crossplane.yaml
+  assertions:
+    xprin:
+    - name: "Successful assertion, it runs as always"
+      type: "Count"
+      value: 2
+    errors:
+    - name: "Validate fails"
+      phase: validate
+
 # Validation failures
 - name: "Validation failure (missing CRD)"
   inputs:
