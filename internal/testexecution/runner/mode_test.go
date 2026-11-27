@@ -124,14 +124,14 @@ func TestUpdateGoldensModeRunPhasesAfterRender(t *testing.T) {
 
 		testCase := goldenCase("a")
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
-		result.Outputs.Render = "/tmp/outputs/rendered.yaml"
+		result.Outputs.Render = new("/tmp/outputs/rendered.yaml")
 
 		got := updateGoldensMode{r}.runPhasesAfterRender(testCase, &testCaseEnv{TestSuiteContext: TestSuiteContext{TestSuite: env.TestSuite, SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, nil, result)
 
 		assert.Equal(t, engine.StatusPass(), got.Status)
 		assert.Equal(t, []string{"g: a.yaml"}, writtenGoldenFiles(got))
 		assert.Equal(t, []string{"/tmp/outputs -> /saved-outputs/a"}, *copied)
-		assert.Equal(t, "/saved-outputs/a/rendered.yaml", got.Outputs.Render)
+		assert.Equal(t, "/saved-outputs/a/rendered.yaml", *got.Outputs.Render)
 
 		written, err := afero.ReadFile(r.fs, "a.yaml")
 		require.NoError(t, err)

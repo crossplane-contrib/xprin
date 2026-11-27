@@ -118,9 +118,6 @@ func NewTestCaseResult(name, id string, verbose, showRender, showValidate, showH
 		ShowValidate:   showValidate,
 		ShowHooks:      showHooks,
 		ShowAssertions: showAssertions,
-		Outputs: Outputs{
-			Rendered: make(map[string]string),
-		},
 	}
 }
 
@@ -153,12 +150,30 @@ func (tcr *TestCaseResult) AddToSection(header string, status Status, text strin
 
 // Outputs represents the output data available in post-test hooks.
 type Outputs struct {
-	Render      string            // Path to rendered.yaml
-	XR          string            // Path to xr.yaml
-	Validate    *string           // Path to validate.txt (nil if no CRDs)
-	Assertions  *string           // Path to assertions.txt (nil if no assertions)
-	RenderCount int               // Number of resources in render output
-	Rendered    map[string]string // Kind/Name -> file path for individual rendered resources
+	Render      *string            // Path to rendered.yaml (nil if there is no render output)
+	XR          *string            // Path to xr.yaml (nil if there is no render output, or it has no resource)
+	Validate    *string            // Path to validate.txt (nil if no CRDs)
+	Assertions  *string            // Path to assertions.txt (nil if no assertions)
+	RenderCount *int               // Number of resources in render output (nil if there is no render output)
+	Rendered    *map[string]string // Kind/Name -> file path for individual rendered resources (nil if there is no render output)
+}
+
+// RenderPath returns the path of the render output, or "" when there is none.
+func (o *Outputs) RenderPath() string {
+	if o.Render == nil {
+		return ""
+	}
+
+	return *o.Render
+}
+
+// RenderedFiles returns the files of the rendered resources by Kind/Name, or nil when there is no render output.
+func (o *Outputs) RenderedFiles() map[string]string {
+	if o.Rendered == nil {
+		return nil
+	}
+
+	return *o.Rendered
 }
 
 // Fail marks a test case as failed with the given error and completes it, returning the result for chaining.

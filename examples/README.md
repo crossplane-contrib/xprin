@@ -1360,8 +1360,8 @@ xprin test examples/mytests/6_assertions/example4_errors_xprin.yaml -v --show-al
         [✓] The output is the whole error of the render: the render failed, and its output is "crossplane: error: composition's compositeTypeRef.kind (XAWSInfrastructure) does not match XR's kind (AWSInfrastructure)"
         Total: 3 assertions, 3 successful, 0 failed, 0 errors
     Post-test Hooks:
-        [✓] Post-test hook, it runs after an expected render failure, without outputs
-            the render failed as expected, there is no output []
+        [✓] Post-test hook, it runs after an expected render failure, without the outputs of the render
+            the render failed as expected, the output of the render is [not there]
 === RUN   Validate is expected to fail
 --- PASS: Validate is expected to fail (2.03s)
     Render:

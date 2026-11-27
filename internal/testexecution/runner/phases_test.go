@@ -102,32 +102,32 @@ func TestSaveOutputs(t *testing.T) {
 		validate, assertions := "/tmp/outputs/validate.txt", "/tmp/outputs/assertions.txt"
 		result := engine.NewTestCaseResult("a", "a", false, false, false, false, false)
 		result.Outputs = engine.Outputs{
-			Render:     "/tmp/outputs/rendered.yaml",
-			XR:         "/tmp/outputs/xr.yaml",
+			Render:     new("/tmp/outputs/rendered.yaml"),
+			XR:         new("/tmp/outputs/xr.yaml"),
 			Validate:   &validate,
 			Assertions: &assertions,
-			Rendered:   map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"},
+			Rendered:   new(map[string]string{"Kind/name": "/tmp/outputs/rendered/Kind-name.yaml"}),
 		}
 
 		require.NoError(t, r.saveOutputs(api.TestCase{ID: "a"}, &testCaseEnv{TestSuiteContext: TestSuiteContext{SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, result))
 
 		assert.Equal(t, []string{"/tmp/outputs -> /saved-outputs/a"}, *copied)
-		assert.Equal(t, "/saved-outputs/a/rendered.yaml", result.Outputs.Render)
-		assert.Equal(t, "/saved-outputs/a/xr.yaml", result.Outputs.XR)
+		assert.Equal(t, "/saved-outputs/a/rendered.yaml", *result.Outputs.Render)
+		assert.Equal(t, "/saved-outputs/a/xr.yaml", *result.Outputs.XR)
 		assert.Equal(t, "/saved-outputs/a/validate.txt", *result.Outputs.Validate)
 		assert.Equal(t, "/saved-outputs/a/assertions.txt", *result.Outputs.Assertions)
-		assert.Equal(t, "/saved-outputs/a/Kind-name.yaml", result.Outputs.Rendered["Kind/name"])
+		assert.Equal(t, "/saved-outputs/a/Kind-name.yaml", result.Outputs.RenderedFiles()["Kind/name"])
 	})
 
 	t.Run("a test case without an ID: nothing is copied", func(t *testing.T) {
 		r, copied := newRunner()
 		result := engine.NewTestCaseResult("a", "", false, false, false, false, false)
-		result.Outputs.XR = "/tmp/outputs/xr.yaml"
+		result.Outputs.XR = new("/tmp/outputs/xr.yaml")
 
 		require.NoError(t, r.saveOutputs(api.TestCase{}, &testCaseEnv{TestSuiteContext: TestSuiteContext{SavedOutputsDir: "/saved-outputs"}, outputsDir: "/tmp/outputs"}, result))
 
 		assert.Empty(t, *copied)
-		assert.Equal(t, "/tmp/outputs/xr.yaml", result.Outputs.XR)
+		assert.Equal(t, "/tmp/outputs/xr.yaml", *result.Outputs.XR)
 	})
 }
 
@@ -664,21 +664,21 @@ metadata:
 	failed := r.runCrossplaneRender(env, api.TestCase{Name: "test", Inputs: api.Inputs{XR: "xr.yaml", Composition: "comp.yaml", Functions: "functions.yaml"}}, nil, result)
 
 	require.Nil(t, failed)
-	assert.Equal(t, "/outputs/rendered.yaml", result.Outputs.Render)
-	assert.Equal(t, "/outputs/xr.yaml", result.Outputs.XR)
-	assert.Equal(t, 2, result.Outputs.RenderCount)
+	assert.Equal(t, "/outputs/rendered.yaml", *result.Outputs.Render)
+	assert.Equal(t, "/outputs/xr.yaml", *result.Outputs.XR)
+	assert.Equal(t, 2, *result.Outputs.RenderCount)
 	assert.Equal(t, map[string]string{
 		"Pod/test-pod":             "/outputs/rendered-pod-test-pod.yaml",
 		"ConfigMap/test-configmap": "/outputs/rendered-configmap-test-configmap.yaml",
-	}, result.Outputs.Rendered)
+	}, result.Outputs.RenderedFiles())
 
-	for _, path := range []string{result.Outputs.Render, result.Outputs.XR, result.Outputs.Rendered["Pod/test-pod"], result.Outputs.Rendered["ConfigMap/test-configmap"]} {
+	for _, path := range []string{*result.Outputs.Render, *result.Outputs.XR, result.Outputs.RenderedFiles()["Pod/test-pod"], result.Outputs.RenderedFiles()["ConfigMap/test-configmap"]} {
 		exists, err := afero.Exists(r.fs, path)
 		require.NoError(t, err)
 		assert.True(t, exists, "%s should have been written", path)
 	}
 
-	xr, err := afero.ReadFile(r.fs, result.Outputs.XR)
+	xr, err := afero.ReadFile(r.fs, *result.Outputs.XR)
 	require.NoError(t, err)
 	assert.Contains(t, string(xr), "test-pod", "the XR is the first rendered resource")
 }
@@ -738,7 +738,7 @@ func TestRunCrossplaneValidate_PassesTheCrossplaneVersionAsTheImage(t *testing.T
 			require.NoError(t, r.fs.MkdirAll(env.outputsDir, 0o755))
 
 			result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
-			result.Outputs.Render = "/outputs/rendered.yaml"
+			result.Outputs.Render = new("/outputs/rendered.yaml")
 
 			failed := r.runCrossplaneValidate(env, api.TestCase{Name: "test", Inputs: api.Inputs{CRDs: tt.crds}}, result)
 
@@ -781,7 +781,7 @@ func TestRunCrossplaneRender_ExpectsTheRenderToFail(t *testing.T) {
 		assert.True(t, ended.HasFailedRender, "the render failed, as expected")
 		assert.Empty(t, ended.FormattedRenderOutput, "and it is not shown as a failure")
 		assert.False(t, ended.HasFailedAssertions)
-		assert.Empty(t, ended.Outputs.Render, "there are no outputs")
+		assert.Nil(t, ended.Outputs.Render, "there are no outputs")
 	})
 
 	t.Run("the message is the one expected: the test case passes", func(t *testing.T) {
@@ -889,7 +889,7 @@ func TestRunCrossplaneValidate_ExpectsValidateToFail(t *testing.T) {
 
 		testCase := api.TestCase{Name: "test", Inputs: api.Inputs{CRDs: []string{"crd.yaml"}}, Assertions: api.Assertions{Errors: errorAssertions}}
 		result := engine.NewTestCaseResult("test", "", false, false, false, false, false)
-		result.Outputs.Render = "/outputs/rendered.yaml"
+		result.Outputs.Render = new("/outputs/rendered.yaml")
 		result.ExpectedFailures.CrossplaneValidate = testCase.ExpectedFailures().CrossplaneValidate // as the runner sets it
 
 		require.Nil(t, r.runCrossplaneValidate(env, testCase, result))
@@ -1002,12 +1002,24 @@ func TestRunCrossplaneRender_RunsThePostTestHooksAfterAnExpectedFailure(t *testi
 		assert.Equal(t, []string{"exit 1"}, hooksRun)
 	})
 
-	t.Run("the outputs are empty in a hook", func(t *testing.T) {
+	t.Run("there are no outputs: a hook that uses one fails", func(t *testing.T) {
 		ended, hooksRun := run(t, `echo "[{{ .Outputs.Render }}]"`, false, anyError)
 
 		require.NotNil(t, ended)
+		assert.Equal(t, engine.StatusFail(), ended.Status)
+		assert.True(t, ended.HasFailedPostTestHooks)
+		assert.Empty(t, hooksRun, "the hook does not run")
+		require.Len(t, ended.PostTestHooksResults, 1)
+		require.ErrorContains(t, ended.PostTestHooksResults[0].Error, ".Outputs.Render has no value: there is no render output")
+	})
+
+	t.Run("there are no outputs: a guard on one works", func(t *testing.T) {
+		hook := `echo "[{{ if .Outputs.Render }}{{ .Outputs.Render }}{{ else }}none{{ end }}]"`
+		ended, hooksRun := run(t, hook, false, anyError)
+
+		require.NotNil(t, ended)
 		assert.Equal(t, engine.StatusPass(), ended.Status)
-		assert.Equal(t, []string{`echo "[]"`}, hooksRun)
+		assert.Equal(t, []string{`echo "[none]"`}, hooksRun)
 	})
 
 	t.Run("a phase that does not exist does not expect the render to fail: no hooks", func(t *testing.T) {

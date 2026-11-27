@@ -143,10 +143,70 @@ func (r *Runner) renderTemplate(env *testCaseEnv, content string, templateContex
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, templateContext); err != nil {
+		// index, len and range of an output that is a nil pointer
+		if nilPointerUse.MatchString(err.Error()) && renderedUse.MatchString(content) {
+			return "", fmt.Errorf("failed to execute template: %s", noValueMessage(content, templateContext.Outputs))
+		}
+
 		return "", fmt.Errorf("failed to execute template: %w", r.explainMissingNeeds(env, err))
 	}
 
+	// A template does not fail on an output that is not there (a nil pointer): it prints <nil>, and a command that
+	// uses it would run with that. A guard (`{{ if .Outputs.Validate }}`) is false for it, so it is not affected.
+	if strings.Contains(buf.String(), nilValue) {
+		return "", fmt.Errorf("failed to execute template: %s", noValueMessage(content, templateContext.Outputs))
+	}
+
 	return buf.String(), nil
+}
+
+// nilValue is what a template prints for an output that is not there.
+const nilValue = "<nil>"
+
+// nilPointerUse is the error of index, len and range on an output that is a nil pointer, and renderedUse is a template
+// that uses .Outputs.Rendered, the one of the outputs that they are used on.
+var (
+	nilPointerUse = regexp.MustCompile(`(index|len) of nil pointer|range can't iterate over <nil>`)
+	renderedUse   = regexp.MustCompile(`\.Outputs\.Rendered\b`)
+)
+
+// noValueMessage says which outputs that the template uses have no value, and why. With the outputs of the test case it
+// says only the ones that are not there, unless the template uses `.Tests`, whose outputs it can't tell.
+func noValueMessage(content string, outputs *engine.Outputs) string {
+	// the outputs that are not there when what writes them did not run
+	candidates := []struct {
+		name, reason string
+		isNil        func(*engine.Outputs) bool
+	}{
+		{".Outputs.Render", "there is no render output", func(o *engine.Outputs) bool { return o.Render == nil }},
+		{".Outputs.XR", "there is no rendered XR", func(o *engine.Outputs) bool { return o.XR == nil }},
+		{".Outputs.RenderCount", "there is no render output", func(o *engine.Outputs) bool { return o.RenderCount == nil }},
+		{".Outputs.Rendered", "there is no render output", func(o *engine.Outputs) bool { return o.Rendered == nil }},
+		{".Outputs.Validate", "validate did not run", func(o *engine.Outputs) bool { return o.Validate == nil }},
+		{".Outputs.Assertions", "no assertions ran", func(o *engine.Outputs) bool { return o.Assertions == nil }},
+	}
+	known := outputs != nil && !strings.Contains(content, ".Tests")
+
+	var messages []string
+
+	for _, candidate := range candidates {
+		// as a whole name: .Outputs.Render is not .Outputs.RenderCount
+		if !regexp.MustCompile(regexp.QuoteMeta(candidate.name) + `\b`).MatchString(content) {
+			continue
+		}
+
+		if known && !candidate.isNil(outputs) {
+			continue
+		}
+
+		messages = append(messages, fmt.Sprintf("%s has no value: %s", candidate.name, candidate.reason))
+	}
+
+	if len(messages) == 0 {
+		return "a template variable has no value (" + nilValue + ")"
+	}
+
+	return strings.Join(messages, "; ")
 }
 
 // missingKey finds the key in the error of a template that uses `.Tests` for a test case that is not there:

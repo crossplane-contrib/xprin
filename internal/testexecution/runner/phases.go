@@ -474,13 +474,15 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, ne
 	}
 
 	// Write rendered output to the outputs directory
-	result.Outputs.Render = filepath.Join(env.outputsDir, "rendered.yaml")
-	if err := afero.WriteFile(r.fs, result.Outputs.Render, result.RawRenderOutput, 0o600); err != nil {
+	renderPath := filepath.Join(env.outputsDir, "rendered.yaml")
+	if err := afero.WriteFile(r.fs, renderPath, result.RawRenderOutput, 0o600); err != nil {
 		return result.Fail(fmt.Errorf("failed to write rendered output to temporary file: %w", err))
 	}
 
+	result.Outputs.Render = &renderPath
+
 	if r.Debug {
-		r.debug.Printf("Wrote rendered output to: %s\n", result.Outputs.Render)
+		r.debug.Printf("Wrote rendered output to: %s\n", renderPath)
 	}
 
 	// Process render output - this sets RenderedResources and FormattedRenderOutput
@@ -488,23 +490,29 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, ne
 		return result.Fail(fmt.Errorf("failed to process render output: %w", err))
 	}
 
-	result.Outputs.RenderCount = len(result.RenderedResources)
+	renderCount := len(result.RenderedResources)
+	result.Outputs.RenderCount = &renderCount
 
 	if len(result.RenderedResources) > 0 {
 		// Create separate XR file with just the first resource
-		result.Outputs.XR = filepath.Join(env.outputsDir, "xr.yaml")
+		xrPath := filepath.Join(env.outputsDir, "xr.yaml")
 
 		xrYAML, err := yaml.Marshal(result.RenderedResources[0])
 		if err != nil {
 			return result.Fail(fmt.Errorf("failed to marshal XR resource: %w", err))
 		}
 
-		if err := afero.WriteFile(r.fs, result.Outputs.XR, xrYAML, 0o600); err != nil {
+		if err := afero.WriteFile(r.fs, xrPath, xrYAML, 0o600); err != nil {
 			return result.Fail(fmt.Errorf("failed to write XR file: %w", err))
 		}
+
+		result.Outputs.XR = &xrPath
 	}
 
 	// Process all resources for Rendered map (including XR)
+	rendered := make(map[string]string, len(result.RenderedResources))
+	result.Outputs.Rendered = &rendered
+
 	for i, resource := range result.RenderedResources {
 		kind := resource.GetKind()
 		name := resource.GetName()
@@ -524,7 +532,7 @@ func (r *Runner) runCrossplaneRender(env *testCaseEnv, testCase api.TestCase, ne
 		}
 
 		// Add to Rendered map with string key containing slash
-		result.Outputs.Rendered[fmt.Sprintf("%s/%s", kind, name)] = filepath
+		rendered[fmt.Sprintf("%s/%s", kind, name)] = filepath
 	}
 
 	return nil
@@ -567,7 +575,7 @@ func (r *Runner) runCrossplaneValidate(env *testCaseEnv, testCase api.TestCase, 
 			validateArgs = append(validateArgs, "--crossplane-image=xpkg.crossplane.io/crossplane/crossplane:"+r.CrossplaneVersion)
 		}
 
-		validateArgs = append(validateArgs, filepath.Join(env.inputsDir, "crds"), result.Outputs.Render)
+		validateArgs = append(validateArgs, filepath.Join(env.inputsDir, "crds"), result.Outputs.RenderPath())
 		// Run crossplane beta validate command
 		if r.Debug {
 			r.debug.Printf("Running validate command: %s %s\n", r.Dependencies["crossplane"], strings.Join(validateArgs, " "))
@@ -707,9 +715,14 @@ func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *en
 	}
 
 	// Update Outputs paths to point to the internal artifacts for cross-test references
-	result.Outputs.Render = filepath.Join(testCaseDir, "rendered.yaml")
+	if result.Outputs.Render != nil {
+		*result.Outputs.Render = filepath.Join(testCaseDir, "rendered.yaml")
+	}
 
-	result.Outputs.XR = filepath.Join(testCaseDir, "xr.yaml")
+	if result.Outputs.XR != nil {
+		*result.Outputs.XR = filepath.Join(testCaseDir, "xr.yaml")
+	}
+
 	if result.Outputs.Validate != nil {
 		*result.Outputs.Validate = filepath.Join(testCaseDir, "validate.txt")
 	}
@@ -719,9 +732,9 @@ func (r *Runner) saveOutputs(testCase api.TestCase, env *testCaseEnv, result *en
 	}
 
 	// Update Rendered map paths to point to the internal artifacts
-	for key, path := range result.Outputs.Rendered {
+	for key, path := range result.Outputs.RenderedFiles() {
 		filename := filepath.Base(path)
-		result.Outputs.Rendered[key] = filepath.Join(testCaseDir, filename)
+		(*result.Outputs.Rendered)[key] = filepath.Join(testCaseDir, filename)
 	}
 
 	return nil

@@ -200,7 +200,7 @@ func TestExecuteHooks_PostTestHooks(t *testing.T) {
 
 	// Create mock outputs
 	outputs := &engine.Outputs{
-		XR: "test-xr.yaml",
+		XR: new("test-xr.yaml"),
 	}
 
 	// Create hooks with template variables (post-test hooks)
@@ -407,12 +407,12 @@ func TestExecuteHooks_PostTestHooks_InputsAndOutputsTemplateVariables(t *testing
 
 	// Create mock outputs
 	outputs := &engine.Outputs{
-		XR:          "rendered-xr.yaml",
-		Render:      "rendered-resources.yaml",
-		RenderCount: 5,
-		Rendered: map[string]string{
+		XR:          new("rendered-xr.yaml"),
+		Render:      new("rendered-resources.yaml"),
+		RenderCount: new(5),
+		Rendered: new(map[string]string{
 			"Pod/test-pod": "/path/to/pod.yaml",
-		},
+		}),
 	}
 
 	// Create hooks with BOTH Inputs and Outputs template variables (using placeholders as they would appear after YAML loading)

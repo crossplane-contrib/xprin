@@ -105,7 +105,7 @@ When `resource` is set, the runner uses the path of that resource’s rendered f
 
 `assertions.errors` asserts that a phase **fails**, and optionally why. It is for the negative test cases: an input that a composition has to refuse, or an XR that its XRD has to reject.
 
-- A test case that has an assertion on the error of the **render** expects the render to fail: that failure does not fail the test case, and only these assertions run (the other assertions and the validate step do not, since nothing was rendered). The post-test hooks run after them, as always, but without outputs: `.Outputs` is empty. It passes if its assertions pass and its hooks succeed.
+- A test case that has an assertion on the error of the **render** expects the render to fail: that failure does not fail the test case, and only these assertions run (the other assertions and the validate step do not, since nothing was rendered). The post-test hooks run after them, as always, but without render outputs: a hook that uses `.Outputs.Render` fails, unless it guards it with `{{ if .Outputs.Render }}`. It passes if its assertions pass and its hooks succeed.
 - A test case that has an assertion on the error of **validate** expects the validate step to fail: that failure does not fail the test case. The render ran, so everything else runs as always, the other assertions and the post-test hooks too, and the test case passes if they all pass.
 
 ### Fields
@@ -182,7 +182,7 @@ tests:
 - Validate does not run without CRDs (see [Phase 4: Validate](how-it-works.md#phase-4-validate-optional)), or after a render that failed: an assertion on its error fails with `validate did not run, but it was expected to fail`.
 - A test case whose render fails, and that has no assertion on the error of the render, fails as always. So does one whose validate fails, and that has no assertion on its error.
 - Without `operator` and `value`, the assertion also passes when the command could not run for another reason (the Docker daemon is not running, an image can't be pulled, a schema is missing). Use them to check that it failed for the reason you expect.
-- The post-test hooks run after the assertions on the error of the render, whatever they say, as they run after assertions that fail. A hook that uses `.Outputs` gets empty values, so it has to expect that, or the test case has none.
+- The post-test hooks run after the assertions on the error of the render, whatever they say, as they run after assertions that fail. A hook that uses an output of the render fails with a template error that says so, so it has to guard it (`{{ if .Outputs.Render }}`), or the test case has none.
 - With an expected render failure the test case has no outputs, so a test case that [needs](how-it-works.md#dependencies-between-test-cases-needs) it has nothing of it to use with `.Tests`.
 - Like the other groups, `assertions.errors` is merged per group: a test case that has its own list does not get the one of `common`.
 

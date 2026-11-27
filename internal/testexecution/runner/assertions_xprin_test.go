@@ -48,9 +48,9 @@ func TestAssertionExecutor_ExecuteAssertions(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		resource1Path := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resource1Path,
-			},
+			}),
 		}
 
 		// Create a test resource file
@@ -82,9 +82,9 @@ metadata:
 		fs := afero.NewMemMapFs()
 		resource1Path := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resource1Path,
-			},
+			}),
 		}
 
 		// Create a test resource file
@@ -115,7 +115,7 @@ metadata:
 
 	t.Run("handles execution errors gracefully", func(t *testing.T) {
 		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
+			Rendered: new(make(map[string]string)),
 		}
 
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
@@ -134,7 +134,7 @@ metadata:
 
 	t.Run("handles empty assertions list", func(t *testing.T) {
 		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
+			Rendered: new(make(map[string]string)),
 		}
 
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
@@ -151,10 +151,10 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 		resource1Path := testResource1File
 		resource2Path := testResource2File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod":  resource1Path,
 				"Pod/test-pod2": resource2Path,
-			},
+			}),
 		}
 
 		// Create test resource files
@@ -178,10 +178,10 @@ func TestAssertionExecutor_executeCountAssertion(t *testing.T) {
 		resource1Path := testResource1File
 		resource2Path := testResource2File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod":  resource1Path,
 				"Pod/test-pod2": resource2Path,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resource1Path, []byte(`
@@ -214,9 +214,9 @@ metadata:
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -242,9 +242,9 @@ metadata:
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte("apiVersion: v1\nkind: Pod\n"), 0o644)
@@ -264,9 +264,9 @@ metadata:
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte("apiVersion: v1\nkind: Pod\n"), 0o644)
@@ -283,7 +283,7 @@ metadata:
 
 	t.Run("fails with invalid value type", func(t *testing.T) {
 		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
+			Rendered: new(make(map[string]string)),
 		}
 
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
@@ -302,9 +302,9 @@ func TestAssertionExecutor_executeExistsAssertion(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -330,10 +330,10 @@ metadata:
 		resource1Path := testResource1File
 		resource2Path := testResource2File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/a": resource1Path,
 				"Pod/b": resource2Path,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resource1Path, []byte(`
@@ -366,9 +366,9 @@ metadata:
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -391,7 +391,7 @@ metadata:
 
 	t.Run("fails when resource field is missing", func(t *testing.T) {
 		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
+			Rendered: new(make(map[string]string)),
 		}
 
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
@@ -406,7 +406,7 @@ metadata:
 
 	t.Run("fails with invalid resource format", func(t *testing.T) {
 		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
+			Rendered: new(make(map[string]string)),
 		}
 
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
@@ -425,9 +425,9 @@ func TestAssertionExecutor_executeNotExistsAssertion(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -452,9 +452,9 @@ metadata:
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -478,7 +478,7 @@ metadata:
 
 	t.Run("fails when resource field is missing", func(t *testing.T) {
 		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
+			Rendered: new(make(map[string]string)),
 		}
 
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
@@ -497,9 +497,9 @@ func TestAssertionExecutor_executeFieldTypeAssertion(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -532,9 +532,9 @@ spec:
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -565,7 +565,7 @@ spec:
 
 	t.Run("fails when required fields are missing", func(t *testing.T) {
 		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
+			Rendered: new(make(map[string]string)),
 		}
 
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
@@ -591,9 +591,9 @@ func TestAssertionExecutor_executeFieldExistsAssertion(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -625,9 +625,9 @@ spec:
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -660,9 +660,9 @@ func TestAssertionExecutor_executeFieldNotExistsAssertion(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -693,9 +693,9 @@ spec: {}
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -729,9 +729,9 @@ func TestAssertionExecutor_executeFieldValueAssertion(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -764,9 +764,9 @@ spec:
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -798,7 +798,7 @@ spec:
 
 	t.Run("fails when required fields are missing", func(t *testing.T) {
 		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
+			Rendered: new(make(map[string]string)),
 		}
 
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
@@ -836,9 +836,9 @@ spec:
 		fs := afero.NewMemMapFs()
 		resourcePath := testResource1File
 		outputs := &engine.Outputs{
-			Rendered: map[string]string{
+			Rendered: new(map[string]string{
 				"Pod/test-pod": resourcePath,
-			},
+			}),
 		}
 
 		err := afero.WriteFile(fs, resourcePath, []byte(`
@@ -872,7 +872,7 @@ spec:
 func TestAssertionExecutor_executeAssertionXprin(t *testing.T) {
 	t.Run("routes to correct assertion type", func(t *testing.T) {
 		outputs := &engine.Outputs{
-			Rendered: make(map[string]string),
+			Rendered: new(make(map[string]string)),
 		}
 
 		executor := newAssertionExecutor(afero.NewMemMapFs(), outputs, false, "", nil, false)
